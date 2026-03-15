@@ -1,0 +1,9 @@
+exports_files([
+    "nuget_repo.bzl",
+    "rules_dotnet_framework_bazel9.patch",
+    "seven_days_to_die_mod_dev_tools.patch",
+    "seven_days_to_die_mod_dev_tools_unity.patch",
+    "seven_days_to_die_mod_dev_tools_validate_refresh_paths.patch",
+    "simple_nuget_repo.bzl",
+    "xunit_runner_console_repo.bzl",
+])

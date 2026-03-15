@@ -1,0 +1,6 @@
+C:\Users\mates\repos\7dtd-limit-by-crafting-skill-mod\src\obj\Debug\net472\LimitByCraftingSkillMod.csproj.AssemblyReference.cache
+C:\Users\mates\repos\7dtd-limit-by-crafting-skill-mod\src\obj\Debug\net472\LimitByCraftingSkillMod.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\mates\repos\7dtd-limit-by-crafting-skill-mod\src\obj\Debug\net472\LimitByCraftingSkillMod.AssemblyInfoInputs.cache
+C:\Users\mates\repos\7dtd-limit-by-crafting-skill-mod\src\obj\Debug\net472\LimitByCraftingSkillMod.AssemblyInfo.cs
+C:\Users\mates\repos\7dtd-limit-by-crafting-skill-mod\src\obj\Debug\net472\LimitByCraftingSkillMod.csproj.CoreCompileInputs.cache
+C:\Users\mates\repos\7dtd-limit-by-crafting-skill-mod\src\obj\Debug\net472\LimitByCraftingSkillMod.sourcelink.json

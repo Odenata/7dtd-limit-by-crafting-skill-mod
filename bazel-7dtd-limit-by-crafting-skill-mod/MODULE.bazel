@@ -1,0 +1,58 @@
+module(
+    name = "seven_days_to_die_limit_by_crafting_skill_mod",
+    version = "0.1.0",
+)
+
+bazel_dep(name = "rules_dotnet_framework")
+git_override(
+    module_name = "rules_dotnet_framework",
+    commit = "51dcdf3d307434247f833ab81ba24b3ec60e0de0",
+    patch_strip = 1,
+    patches = ["//third_party/bazel:rules_dotnet_framework_bazel9.patch"],
+    remote = "https://github.com/balzso/rules_dotnet_framework.git",
+)
+
+dotnet = use_extension("@rules_dotnet_framework//dotnet:extensions.bzl", "dotnet")
+dotnet.repositories()
+use_repo(dotnet, "rules_dotnet_skylib")
+
+new_git_repository = use_repo_rule("@bazel_tools//tools/build_defs/repo:git.bzl", "new_git_repository")
+
+new_git_repository(
+    name = "seven_days_to_die_mod_dev_tools",
+    commit = "d9b56dd2ba499dccb718780272f050f51bef51d2",
+    patch_strip = 1,
+    patches = [
+        "//third_party/bazel:seven_days_to_die_mod_dev_tools.patch",
+        "//third_party/bazel:seven_days_to_die_mod_dev_tools_unity.patch",
+        "//third_party/bazel:seven_days_to_die_mod_dev_tools_validate_refresh_paths.patch",
+    ],
+    remote = "https://github.com/Odenata/7dtd-mod-dev-tools.git",
+)
+
+simple_nuget_repo = use_repo_rule("//third_party/bazel:simple_nuget_repo.bzl", "simple_nuget_repo")
+
+simple_nuget_repo(
+    name = "xunit_assert",
+    package = "xunit.assert",
+    sha256 = "140b4040879a990321e2f19e77453fd976d81652e72a1b698a054088514dafdb",
+    version = "2.6.2",
+)
+
+simple_nuget_repo(
+    name = "xunit_extensibility_core",
+    package = "xunit.extensibility.core",
+    sha256 = "4c60208cf38c77fcbba52c8d11da52d92c9132789538f7dec892c72bc0b347a8",
+    version = "2.6.2",
+)
+
+simple_nuget_repo(
+    name = "xunit_extensibility_execution",
+    package = "xunit.extensibility.execution",
+    sha256 = "36dc5e5ac2fcfd280ad308de276fb4741412beecb0a1d383e1a47d6a70a610d2",
+    version = "2.6.2",
+)
+
+xunit_runner_console_repo = use_repo_rule("//third_party/bazel:xunit_runner_console_repo.bzl", "xunit_runner_console_repo")
+
+xunit_runner_console_repo(name = "xunit_runner_console")

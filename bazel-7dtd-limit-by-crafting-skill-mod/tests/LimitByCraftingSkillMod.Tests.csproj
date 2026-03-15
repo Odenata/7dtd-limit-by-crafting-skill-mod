@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <AssemblyName>LimitByCraftingSkillMod.Tests</AssemblyName>
+    <RootNamespace>LimitByCraftingSkillMod.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <LangVersion>9.0</LangVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(SevenDtdDevToolsDir)' == ''">
+    <SevenDtdDevToolsDir>$(MSBuildThisFileDirectory)..\7dtd-mod-dev-tools</SevenDtdDevToolsDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.6.0" />
+    <PackageReference Include="xunit" Version="2.6.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\src\LimitByCraftingSkillMod.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="GameReflectionTests.cs" />
+    <Compile Include="LimitByCraftingSkillLogicTests.cs" />
+    <Compile Include="ModConfigTests.cs" />
+  </ItemGroup>
+
+</Project>

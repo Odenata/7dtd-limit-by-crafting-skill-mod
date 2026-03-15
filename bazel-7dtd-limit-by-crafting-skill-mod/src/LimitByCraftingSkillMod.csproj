@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>LimitByCraftingSkillMod</AssemblyName>
+    <RootNamespace>LimitByCraftingSkillMod</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <LangVersion>9.0</LangVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(SevenDtdDevToolsDir)' == ''">
+    <SevenDtdDevToolsDir>$(MSBuildThisFileDirectory)..\7dtd-mod-dev-tools</SevenDtdDevToolsDir>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(SevenDtdInstallDir)' != ''">
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(SevenDtdInstallDir)\7DaysToDie_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(SevenDtdInstallDir)\7DaysToDie_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(SevenDtdDevToolsDir)\third_party\harmony\lib\net472\0Harmony.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(SevenDtdInstallDir)' == ''">
+    <ProjectReference Include="$(SevenDtdDevToolsDir)\mocks\UnityEngine-CoreModule-Mock.csproj" />
+    <ProjectReference Include="$(SevenDtdDevToolsDir)\mocks\Assembly-CSharp-Mock.csproj" />
+    <Reference Include="0Harmony">
+      <HintPath>$(SevenDtdDevToolsDir)\third_party\harmony\lib\net472\0Harmony.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="ArmorRestrictionPatch.cs" />
+    <Compile Include="AssemblyInfo.cs" />
+    <Compile Include="GameReflection.cs" />
+    <Compile Include="HotbarRestrictionPatch.cs" />
+    <Compile Include="LimitByCraftingSkillLogic.cs" />
+    <Compile Include="ModApi.cs" />
+    <Compile Include="ModConfig.cs" />
+    <Compile Include="RestrictionFeedback.cs" />
+    <None Include="ModInfo.xml" />
+    <None Include="Config.xml" />
+  </ItemGroup>
+
+</Project>

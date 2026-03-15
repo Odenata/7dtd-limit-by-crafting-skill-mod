@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LimitByCraftingSkillModConfig>
+  <!-- One toggle per crafting skill. When true, items requiring that skill are restricted by player level. -->
+  <!-- Server config overrides client in multiplayer. -->
+  <CraftingSkills>
+    <Armor>true</Armor>
+    <HarvestingTools>true</HarvestingTools>
+    <Weapons>true</Weapons>
+    <Workstations>true</Workstations>
+    <Vehicles>true</Vehicles>
+    <Traps>true</Traps>
+    <Robotics>true</Robotics>
+  </CraftingSkills>
+  <!-- If true, writes extra info to the game log (for troubleshooting). Values: true, false -->
+  <DebugMode>false</DebugMode>
+</LimitByCraftingSkillModConfig>

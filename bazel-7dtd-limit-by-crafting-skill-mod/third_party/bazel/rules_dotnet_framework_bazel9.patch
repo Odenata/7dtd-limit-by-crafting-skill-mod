@@ -1,0 +1,113 @@
+diff --git a/dotnet/tools/copy/BUILD b/dotnet/tools/copy/BUILD
+--- a/dotnet/tools/copy/BUILD
++++ b/dotnet/tools/copy/BUILD
+@@ -1,3 +1,5 @@
++load("@rules_cc//cc:defs.bzl", "cc_binary")
++
+ package(default_visibility = ["//visibility:public"])
+ 
+ cc_binary(
+diff --git a/dotnet/tools/empty/BUILD b/dotnet/tools/empty/BUILD
+--- a/dotnet/tools/empty/BUILD
++++ b/dotnet/tools/empty/BUILD
+@@ -1,3 +1,5 @@
++load("@rules_cc//cc:defs.bzl", "cc_binary")
++
+ package(default_visibility = ["//visibility:public"])
+ 
+ cc_binary(
+diff --git a/dotnet/tools/launcher_net/BUILD b/dotnet/tools/launcher_net/BUILD
+--- a/dotnet/tools/launcher_net/BUILD
++++ b/dotnet/tools/launcher_net/BUILD
+@@ -1,3 +1,5 @@
++load("@rules_cc//cc:defs.bzl", "cc_binary")
++
+ package(default_visibility = ["//visibility:public"])
+ 
+ cc_binary(
+diff --git a/dotnet/tools/launcher_net_nunit/BUILD b/dotnet/tools/launcher_net_nunit/BUILD
+--- a/dotnet/tools/launcher_net_nunit/BUILD
++++ b/dotnet/tools/launcher_net_nunit/BUILD
+@@ -1,3 +1,5 @@
++load("@rules_cc//cc:defs.bzl", "cc_binary")
++
+ package(default_visibility = ["//visibility:public"])
+ 
+ cc_binary(
+diff --git a/dotnet/tools/launcher_net_nunit3/BUILD b/dotnet/tools/launcher_net_nunit3/BUILD
+--- a/dotnet/tools/launcher_net_nunit3/BUILD
++++ b/dotnet/tools/launcher_net_nunit3/BUILD
+@@ -1,3 +1,5 @@
++load("@rules_cc//cc:defs.bzl", "cc_binary")
++
+ package(default_visibility = ["//visibility:public"])
+ 
+ cc_binary(
+diff --git a/dotnet/tools/launcher_net_xunit/BUILD b/dotnet/tools/launcher_net_xunit/BUILD
+--- a/dotnet/tools/launcher_net_xunit/BUILD
++++ b/dotnet/tools/launcher_net_xunit/BUILD
+@@ -1,3 +1,5 @@
++load("@rules_cc//cc:defs.bzl", "cc_binary")
++
+ package(default_visibility = ["//visibility:public"])
+ 
+ cc_binary(
+diff --git a/dotnet/tools/manifest_prep/BUILD b/dotnet/tools/manifest_prep/BUILD
+--- a/dotnet/tools/manifest_prep/BUILD
++++ b/dotnet/tools/manifest_prep/BUILD
+@@ -1,3 +1,5 @@
++load("@rules_cc//cc:defs.bzl", "cc_binary")
++
+ package(default_visibility = ["//visibility:public"])
+ 
+ cc_binary(
+diff --git a/dotnet/tools/md5/BUILD b/dotnet/tools/md5/BUILD
+--- a/dotnet/tools/md5/BUILD
++++ b/dotnet/tools/md5/BUILD
+@@ -1,3 +1,5 @@
++load("@rules_cc//cc:defs.bzl", "cc_library")
++
+ package(default_visibility = ["//visibility:public"])
+ 
+ cc_library(
+diff --git a/dotnet/tools/md5sum/BUILD b/dotnet/tools/md5sum/BUILD
+--- a/dotnet/tools/md5sum/BUILD
++++ b/dotnet/tools/md5sum/BUILD
+@@ -1,3 +1,5 @@
++load("@rules_cc//cc:defs.bzl", "cc_binary")
++
+ package(default_visibility = ["//visibility:public"])
+ 
+ cc_binary(
+diff --git a/dotnet/tools/symlink/BUILD b/dotnet/tools/symlink/BUILD
+--- a/dotnet/tools/symlink/BUILD
++++ b/dotnet/tools/symlink/BUILD
+@@ -1,3 +1,5 @@
++load("@rules_cc//cc:defs.bzl", "cc_binary")
++
+ package(default_visibility = ["//visibility:public"])
+ 
+ cc_binary(
+diff --git a/dotnet/private/rules/nuget.bzl b/dotnet/private/rules/nuget.bzl
+--- a/dotnet/private/rules/nuget.bzl
++++ b/dotnet/private/rules/nuget.bzl
+@@ -53,6 +53,6 @@
+ _dotnet_nuget_attrs = {
+-    "_nuget_exe": attr.label(default = Label("@nuget//file:nuget.exe")),
++    "_nuget_exe": attr.label(default = None),
+     # Sources to download the nuget packages from
+     "source": attr.string(default = "https://www.nuget.org/api/v2/package"),
+     # The name of the nuget package
+     "package": attr.string(mandatory = True),
+diff --git a/dotnet/toolchain/toolchains.bzl b/dotnet/toolchain/toolchains.bzl
+--- a/dotnet/toolchain/toolchains.bzl
++++ b/dotnet/toolchain/toolchains.bzl
+@@ -52,7 +52,7 @@ DEFAULT_VERSION = "4.2.3"
+ CORE_DEFAULT_VERSION = "v3.1.100"
+ NET_ROSLYN_DEFAULT_VERSION = "2.10.0"
+ NET_DEFAULT_VERSION = "net48"
+-NET_DEFAULT_TOOLS_VERSION = "net48"
++NET_DEFAULT_TOOLS_VERSION = "net472"
+ 
+ SDK_REPOSITORIES = {
+     "4.2.3": {

@@ -1,0 +1,283 @@
+diff --git a/mocks/GameClasses.cs b/mocks/GameClasses.cs
+--- a/mocks/GameClasses.cs
++++ b/mocks/GameClasses.cs
+@@ -1,90 +1,189 @@
+-// Mock game classes - API signatures only, no implementation
+-// Based on documented API from docs/GAME_API.md
+-
+-namespace Platform
+-{
+-    public class ItemStack
+-    {
+-        public ItemValue itemValue { get; set; }
+-        public int count { get; set; }
+-        
+-        public ItemStack() { }
+-        public ItemStack(ItemValue itemValue, int count) { }
+-    }
+-
+-    public class ItemValue
+-    {
+-        public ItemClass ItemClass { get; set; }
+-        public int type { get; set; }
+-        
+-        public ItemValue() { }
+-        public ItemValue(int type) { }
+-    }
+-
+-    public class ItemClass
+-    {
+-        public string Name { get; set; }
+-        public string Group { get; set; }
+-        
+-        public ItemClass() { }
+-    }
+-
+-    public class TileEntityLootContainer
+-    {
+-        public ItemStack[] items { get; set; }
+-        
+-        public TileEntityLootContainer() { }
+-        
+-        public void RemoveItem(int index) { }
+-        public void UpdateSlot(int index, ItemStack stack) { }
+-    }
+-
+-    public class EntityAlive
+-    {
+-        public EntityAlive() { }
+-    }
+-
+-    public class EntityPlayer : EntityAlive
+-    {
+-        public EntityPlayer() { }
+-    }
+-}
+-
+-namespace XUi
+-{
+-    public class XUiC_LootWindowGroup
+-    {
+-        public Platform.TileEntityLootContainer lootContainer { get; set; }
+-        
+-        public XUiC_LootWindowGroup() { }
+-        
+-        public void SetTileEntityChest(Platform.TileEntityLootContainer container) { }
+-    }
+-
+-    public class XUiC_ItemStack
+-    {
+-        public XUiC_ItemStack() { }
+-    }
+-}
+-
+-namespace ItemActions
+-{
+-    public class ItemActionEat
+-    {
+-        public ItemActionEat() { }
+-        
+-        public void ExecuteInstantAction(Platform.EntityAlive ent, Platform.ItemStack stack, bool isHeldItem, XUi.XUiC_ItemStack stackController) { }
+-    }
+-}
+-
+-// Mod API - required for GameApiExporter and other mods.
+-// Game has IModApi and Mod in global (root) namespace; mocks match for compatibility.
+-public interface IModApi
+-{
+-    void InitMod(Mod modInstance);
+-}
+-
+-public class Mod
+-{
+-    public Mod() { }
+-}
++// Mock game classes - API signatures only, minimal stubs for compile-only hermetic builds.
++// Based on documented API from docs/GAME_API.md
++// Types are in global namespace to match 7DTD Assembly-CSharp.
++
++// --- Platform types (game core) ---
++
++public class ItemStack
++{
++    public ItemValue itemValue { get; set; }
++    public int count { get; set; }
++
++    public static ItemStack Empty { get; } = new ItemStack();
++
++    public ItemStack() { }
++    public ItemStack(ItemValue itemValue, int count) { this.itemValue = itemValue; this.count = count; }
++
++    public bool IsEmpty() => count <= 0;
++}
++
++public class ItemValue
++{
++    public ItemClass ItemClass { get; set; }
++    public int type { get; set; }
++
++    public ItemValue() { }
++    public ItemValue(int type) { this.type = type; }
++}
++
++public class ItemClass
++{
++    public string Name { get; set; }
++    public string Group { get; set; }
++    public object ItemTags { get; set; }
++    public ItemActionBase[] Actions { get; set; }
++
++    public ItemClass() { }
++
++    public string GetLocalizedItemName() => Name ?? "";
++
++    public void FireEvent(MinEventTypes eventType, MinEventParams evtParams) { }
++}
++
++public abstract class ItemActionBase { }
++
++public abstract class ItemAction : ItemActionBase { }
++
++public class ItemActionEat : ItemActionBase
++{
++    public ItemActionEat() { }
++
++    public void ExecuteInstantAction(EntityAlive ent, ItemStack stack, bool isHeldItem, XUiC_ItemStack stackController) { }
++}
++
++public class ItemActionOpenBundle : ItemAction
++{
++    public bool ExecuteInstantAction(EntityAlive ent, ItemStack stack, bool isHeldItem, XUiC_ItemStack stackController) => true;
++}
++
++public class ItemActionOpenLootBundle : ItemAction
++{
++    public bool ExecuteInstantAction(EntityAlive ent, ItemStack stack, bool isHeldItem, XUiC_ItemStack stackController) => true;
++}
++
++public class ItemInventoryData
++{
++    public ItemInventoryData(ItemClass itemClass, ItemStack itemStack, GameManager gameManager, EntityAlive entity, int slotIdx) { }
++}
++
++public class ItemActionData
++{
++    public ItemActionData(ItemInventoryData invData, int index) { }
++}
++
++public enum MinEventTypes
++{
++    onSelfPrimaryActionEnd
++}
++
++public class MinEventParams
++{
++    public EntityAlive Self { get; set; }
++    public ItemValue ItemValue { get; set; }
++    public ItemInventoryData ItemInventoryData { get; set; }
++}
++
++public class GameManager
++{
++    public static GameManager Instance { get; set; }
++}
++
++public class Inventory
++{
++    private ItemStack[] _slots = System.Array.Empty<ItemStack>();
++    public ItemStack[] GetSlots() => _slots ?? System.Array.Empty<ItemStack>();
++    public ItemStack GetItemStack(int idx)
++    {
++        if (_slots == null || idx < 0 || idx >= _slots.Length) return ItemStack.Empty;
++        return _slots[idx] ?? ItemStack.Empty;
++    }
++    public void SetItem(int idx, ItemStack itemStack)
++    {
++        if (_slots == null || idx < 0) return;
++        if (idx >= _slots.Length) System.Array.Resize(ref _slots, idx + 1);
++        _slots[idx] = itemStack;
++    }
++    public void SetSlots(ItemStack[] slots, bool allowSettingDummySlot) { _slots = slots ?? System.Array.Empty<ItemStack>(); }
++    public void Changed() { }
++}
++
++public class Bag
++{
++    public ItemStack[] GetSlots() => null;
++    public void SetSlot(int idx, ItemStack itemStack, bool _callChangedEvent) { }
++}
++
++public interface ITileEntityLootable { }
++
++public class TileEntityLootContainer : ITileEntityLootable
++{
++    public ItemStack[] items { get; set; }
++
++    public TileEntityLootContainer() { }
++    public TileEntityLootContainer(object _) { }
++
++    public void RemoveItem(int index) { }
++    public void UpdateSlot(int index, ItemStack stack) { }
++    public void SetModified() { }
++}
++
++public class EntityAlive
++{
++    public Inventory inventory { get; set; }
++    public Bag bag { get; set; }
++
++    public EntityAlive() { }
++}
++
++public class EntityPlayer : EntityAlive
++{
++    public string EntityName { get; set; }
++
++    public EntityPlayer() { }
++}
++
++// --- XUi types ---
++
++public class XUi
++{
++}
++
++public class XUiC_LootWindowGroup
++{
++    public XUiC_LootWindow xui { get; set; }
++    public TileEntityLootContainer lootContainer { get; set; }
++
++    public XUiC_LootWindowGroup() { }
++
++    public void SetTileEntityChest(string _lootContainerName, ITileEntityLootable _te) { }
++    public void SetTileEntityChest(TileEntityLootContainer container) { }
++}
++
++public class XUiC_LootWindow
++{
++    public PlayerUI playerUI { get; set; }
++}
++
++public class PlayerUI
++{
++    public EntityPlayer entityPlayer { get; set; }
++}
++
++public class XUiC_ItemStack
++{
++    public XUiC_ItemStack() { }
++}
++
++// --- Mod API ---
++
++public interface IModApi
++{
++    void InitMod(Mod modInstance);
++}
++
++public class Mod
++{
++    public Mod() { }
++}
++
++

@@ -1,0 +1,16 @@
+diff --git a/tools/document-game-api/test/validate-refresh-paths.ps1 b/tools/document-game-api/test/validate-refresh-paths.ps1
+--- a/tools/document-game-api/test/validate-refresh-paths.ps1
++++ b/tools/document-game-api/test/validate-refresh-paths.ps1
+@@ -26,6 +26,12 @@ if (-not (Test-Path $scriptPath)) {
+     if ($execrootIdx -ge 0) {
+         $execroot = $parts[0..$execrootIdx] -join [IO.Path]::DirectorySeparatorChar
+         $env:BUILD_WORKSPACE_DIRECTORY = $execroot
+         $scriptPath = Join-Path $execroot "tools\document-game-api\refresh-game-api.ps1"
++        # When this repo is used as an external dependency, script is under execroot/external/.../tools/...
++        if (-not (Test-Path $scriptPath)) {
++            $externalRoot = Join-Path $execroot "external\+new_git_repository+seven_days_to_die_mod_dev_tools"
++            $scriptPath = Join-Path $externalRoot "tools\document-game-api\refresh-game-api.ps1"
++            if (Test-Path $scriptPath) { $env:BUILD_WORKSPACE_DIRECTORY = $externalRoot }
++        }
+     }
+ }

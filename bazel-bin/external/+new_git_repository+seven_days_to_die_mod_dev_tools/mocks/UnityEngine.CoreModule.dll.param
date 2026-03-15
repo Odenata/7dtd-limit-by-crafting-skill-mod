@@ -1,0 +1,16 @@
+/out:bazel-out/x64_windows-fastbuild/bin/external/+new_git_repository+seven_days_to_die_mod_dev_tools/mocks/UnityEngine.CoreModule.dll
+/target:library
+/checked-
+/nostdlib+
+/utf8output
+/deterministic+
+/filealign:512
+/nologo
+/highentropyva+
+/langversion:latest
+/debug-
+/optimize+
+/define:TRACE;RELEASE
+external/+new_git_repository+seven_days_to_die_mod_dev_tools/mocks/UnityClasses.cs
+bazel-out/x64_windows-fastbuild/bin/external/+new_git_repository+seven_days_to_die_mod_dev_tools/mocks/UnityEngine.CoreModule.dll._tf_.cs
+/r:external/rules_dotnet_framework++toolchain+Microsoft.NETFramework.ReferenceAssemblies.net472.1.0.0/build/.NETFramework/v4.7.2/mscorlib.dll
