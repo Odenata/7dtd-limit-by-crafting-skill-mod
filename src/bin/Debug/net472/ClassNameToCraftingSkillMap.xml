@@ -1,0 +1,36 @@
+<?xml version="1.0" ?>
+<ClassNameToCraftingSkillMap>
+  <Item className="armorLumberjackHelmet" craftingSkillGroup="Clothing"/>
+  <Item className="bladeTrap" craftingSkillGroup="Traps"/>
+  <Item className="generatorBank" craftingSkillGroup="Electrician"/>
+  <Item className="gunBotT3JunkDrone" craftingSkillGroup="Robotics"/>
+  <Item className="gunBowT0PrimitiveBow" craftingSkillGroup="Bows"/>
+  <Item className="gunBowT3CompoundBow" craftingSkillGroup="Bows"/>
+  <Item className="gunHandgunT1Pistol" craftingSkillGroup="Handguns"/>
+  <Item className="gunHandgunT3SMG5" craftingSkillGroup="Handguns"/>
+  <Item className="gunMGT0PipeMachineGun" craftingSkillGroup="MachineGuns"/>
+  <Item className="gunMGT3M60" craftingSkillGroup="MachineGuns"/>
+  <Item className="gunRifleT0PipeRifle" craftingSkillGroup="Rifles"/>
+  <Item className="gunRifleT3SniperRifle" craftingSkillGroup="Rifles"/>
+  <Item className="gunShotgunT0PipeShotgun" craftingSkillGroup="Shotguns"/>
+  <Item className="gunShotgunT3AutoShotgun" craftingSkillGroup="Shotguns"/>
+  <Item className="medicalFirstAidBandage" craftingSkillGroup="Medical"/>
+  <Item className="medicalFirstAidKit" craftingSkillGroup="Medical"/>
+  <Item className="meleeToolRepairT0StoneAxe" craftingSkillGroup="RepairTools"/>
+  <Item className="meleeToolRepairT3Nailgun" craftingSkillGroup="RepairTools"/>
+  <Item className="meleeToolSalvageT1Wrench" craftingSkillGroup="SalvageTools"/>
+  <Item className="meleeToolShovelT0StoneShovel" craftingSkillGroup="HarvestingTools"/>
+  <Item className="meleeToolShovelT2SteelShovel" craftingSkillGroup="HarvestingTools"/>
+  <Item className="meleeWpnBladeT0BoneKnife" craftingSkillGroup="Blades"/>
+  <Item className="meleeWpnBladeT3Machete" craftingSkillGroup="Blades"/>
+  <Item className="meleeWpnClubT0WoodenClub" craftingSkillGroup="Clubs"/>
+  <Item className="meleeWpnClubT3SteelClub" craftingSkillGroup="Clubs"/>
+  <Item className="meleeWpnKnucklesT0LeatherKnuckles" craftingSkillGroup="Knuckles"/>
+  <Item className="meleeWpnKnucklesT3SteelKnuckles" craftingSkillGroup="Knuckles"/>
+  <Item className="meleeWpnSledgeT0StoneSledgehammer" craftingSkillGroup="Sledgehammers"/>
+  <Item className="meleeWpnSledgeT3SteelSledgehammer" craftingSkillGroup="Sledgehammers"/>
+  <Item className="meleeWpnSpearT0StoneSpear" craftingSkillGroup="Spears"/>
+  <Item className="meleeWpnSpearT3SteelSpear" craftingSkillGroup="Spears"/>
+  <Item className="plantedCorn1" craftingSkillGroup="Seeds"/>
+  <Item className="thrownGrenadeContact" craftingSkillGroup="Explosives"/>
+</ClassNameToCraftingSkillMap>

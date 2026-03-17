@@ -13,6 +13,7 @@
 /define:TRACE;RELEASE
 src/AddItemToToolbeltRestrictionPatch.cs
 src/AssemblyInfo.cs
+src/ClassNameToCraftingSkillMapLoader.cs
 src/EquipItemRestrictionPatch.cs
 src/EquipmentRestrictionPatch.cs
 src/EquipmentStackHandleStackSwapPatch.cs

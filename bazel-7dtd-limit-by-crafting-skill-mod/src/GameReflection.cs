@@ -322,86 +322,18 @@ namespace LimitByCraftingSkillMod
         }
 
         /// <summary>
-        /// Gets the crafting skill group name for the item class. Collects candidates from PropCraftingSkillGroup,
-        /// CraftingSkillGroup (each type in hierarchy), Group, and Groups[]; prefers the first that maps to a
-        /// single progression (e.g. "Bows") over a composite (e.g. "Ammo/Weapons").
+        /// Gets the crafting skill group name for the item class. Uses only ClassNameToCraftingSkillMap.xml:
+        /// looks up itemClass.GetType().Name in the map; if found and the value maps to a single progression, returns it.
+        /// If the file is missing or the class name has no mapping, returns null (do not restrict the item).
         /// </summary>
-        private static readonly System.Collections.Generic.HashSet<string> _loggedCraftingSkillTypes = new System.Collections.Generic.HashSet<string>();
-        private static readonly object _loggedCraftingSkillTypesLock = new object();
-
         internal static string GetCraftingSkillGroup(ItemClass itemClass)
         {
             if (itemClass == null) return null;
-            var candidates = new System.Collections.Generic.List<string>();
-            var csgFromHierarchy = new System.Collections.Generic.List<string>();
-            var type = itemClass.GetType();
-            const BindingFlags declared = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
-            const BindingFlags any = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-
-            var propVal = GetPropertyOrFieldValue(itemClass, type, "PropCraftingSkillGroup", any);
-            AddIfNonEmpty(candidates, propVal);
-            for (var t = type; t != null && t != typeof(object); t = t.BaseType)
-            {
-                string csgVal = null;
-                var f = t.GetField("CraftingSkillGroup", declared);
-                if (f != null) csgVal = f.GetValue(itemClass) as string;
-                if (string.IsNullOrWhiteSpace(csgVal))
-                {
-                    var p = t.GetProperty("CraftingSkillGroup", declared);
-                    if (p != null) csgVal = p.GetValue(itemClass, null) as string;
-                }
-                AddIfNonEmpty(candidates, csgVal);
-                if (!string.IsNullOrWhiteSpace(csgVal)) csgFromHierarchy.Add(csgVal.Trim());
-            }
-            var groupVal = GetPropertyOrFieldValue(itemClass, type, "Group", any);
-            AddIfNonEmpty(candidates, groupVal);
-            var groupsArr = type.GetField("Groups", any)?.GetValue(itemClass) as string[]
-                ?? type.GetProperty("Groups", any)?.GetValue(itemClass, null) as string[];
-            if (groupsArr != null)
-            {
-                foreach (var g in groupsArr)
-                    AddIfNonEmpty(candidates, g);
-            }
-
-            if (ModConfig.Instance != null && ModConfig.Instance.DebugMode)
-            {
-                var typeName = type.Name;
-                lock (_loggedCraftingSkillTypesLock)
-                {
-                    if (_loggedCraftingSkillTypes.Add(typeName))
-                    {
-                        var groupsStr = groupsArr != null ? string.Join(",", groupsArr) : "";
-                        ModApi.DebugLog($"CraftingSkillGroup sources: Type={typeName} PropCraftingSkillGroup={propVal ?? "(null)"} CraftingSkillGroup=[{string.Join(", ", csgFromHierarchy)}] Group={groupVal ?? "(null)"} Groups=[{groupsStr}]");
-                    }
-                }
-            }
-
-            foreach (var c in candidates)
-                if (MapsToSingleProgression(c)) return c;
-            return candidates.Count > 0 ? candidates[0] : null;
-        }
-
-        private static void AddIfNonEmpty(System.Collections.Generic.List<string> list, string value)
-        {
-            if (!string.IsNullOrWhiteSpace(value)) list.Add(value.Trim());
-        }
-
-        private static string GetPropertyOrFieldValue(object obj, Type type, string name, BindingFlags flags)
-        {
-            if (obj == null || type == null || string.IsNullOrEmpty(name)) return null;
-            var p = type.GetProperty(name, flags);
-            if (p != null)
-            {
-                var v = p.GetValue(obj, null);
-                return v as string;
-            }
-            var f = type.GetField(name, flags);
-            if (f != null)
-            {
-                var v = f.GetValue(obj);
-                return v as string;
-            }
-            return null;
+            var typeName = itemClass.GetType().Name;
+            var map = ClassNameToCraftingSkillMapLoader.GetMap();
+            if (!map.TryGetValue(typeName, out var mapped) || string.IsNullOrWhiteSpace(mapped)) return null;
+            var trimmed = mapped.Trim();
+            return MapsToSingleProgression(trimmed) ? trimmed : null;
         }
 
         /// <summary>

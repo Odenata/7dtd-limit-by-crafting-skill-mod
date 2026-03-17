@@ -20,7 +20,7 @@ APIs were confirmed from `7dtd-mod-dev-tools/docs/game-api/assembly-csharp/by-ty
 ## Item required level
 
 - **Goal:** Given `ItemClass` + `ItemValue` (with Quality), compute the minimum crafting level required to use that item.
-- **Confirmed:** `ItemClass.CraftingSkillGroup` (string). For restriction logic we also use **Groups** (string[]), **Group** (string), and **PropCraftingSkillGroup** (string; per-item override from XML). We collect candidates from these sources and **prefer the most specific** name that maps to a single progression (e.g. "Bows") over a composite (e.g. "Ammo/Weapons"). `ItemValue.Quality` (UInt16). `ItemValue.HasQuality` (property).
+- **Confirmed:** `ItemClass.CraftingSkillGroup` (string). For **restriction** the mod does not use game API for skill group; it uses **ClassNameToCraftingSkillMap.xml** (class name to game-reported name). If the file or mapping is missing, the item is not restricted. `ItemValue.Quality` (UInt16). `ItemValue.HasQuality` (property).
 - **Mapping (from docs):** `Progression` has **`ProgressionClasses`** (Dictionary<string, ProgressionClass>). `ProgressionClass` has **`DisplayDataList`** (List<ProgressionClass+DisplayData>). `DisplayData` has **`QualityStarts`** (int[]), **`Item`** / **`ItemName`**; **`GetQualityLevel(System.Int32 level)`** returns quality at a given level. For a given item quality Q, required level = minimum level at which GetQualityLevel(level) >= Q, or QualityStarts[Q-1] if QualityStarts is the level at which each quality tier unlocks (to be validated in-game).
 - **Mod:** Currently uses quality as required level fallback. Optional: add logic using entity.Progression.ProgressionClasses[skillGroup].DisplayDataList + QualityStarts when entity is available (e.g. in patches).
 

@@ -39,6 +39,7 @@
   <ItemGroup>
     <Compile Include="AddItemToToolbeltRestrictionPatch.cs" />
     <Compile Include="AssemblyInfo.cs" />
+    <Compile Include="ClassNameToCraftingSkillMapLoader.cs" />
     <Compile Include="EquipItemRestrictionPatch.cs" />
     <Compile Include="EquipmentRestrictionPatch.cs" />
     <Compile Include="EquipmentStackHandleStackSwapPatch.cs" />
@@ -56,7 +57,8 @@
     <Compile Include="ToolbeltHandleStackSwapPatch.cs" />
     <Compile Include="ToolbeltHandleMoveToPreferredLocationPatch.cs" />
     <None Include="ModInfo.xml" />
-    <None Include="Config.xml" />
+    <None Include="Config.xml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="ClassNameToCraftingSkillMap.xml" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

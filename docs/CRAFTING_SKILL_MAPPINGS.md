@@ -2,16 +2,11 @@
 
 This document shows how **game-reported item group names** (from `ItemClass.CraftingSkillGroup` or similar) map to **config keys** and **progression lookup names** used by the mod. Use it to spot mismatches when the game uses a name we don’t yet map.
 
-### How we get the game-reported name
+### How we get the crafting skill for an item (restriction)
 
-The mod collects **candidates** from several sources (in order), then chooses one as the "game-reported name" used for config and level lookup:
+The mod uses **only** **ClassNameToCraftingSkillMap.xml** to decide which crafting skill an item uses for restriction. It looks up `itemClass.GetType().Name` (the item’s class name) in that file. If the file is missing or the class name has no mapping, **the item is not restricted**. There is no game API or heuristic at runtime.
 
-1. **PropCraftingSkillGroup** (on the item class type; per-item override from XML)
-2. **CraftingSkillGroup** from **each type** in the inheritance hierarchy (from the runtime type up to `Object`)
-3. **Group** (single string on the runtime type)
-4. **Groups[]** (each element of the array)
-
-Among all candidates, we **prefer a value that maps to a single progression** (e.g. `"Bows"`, `"Spears"`, `"Clubs"`) over a composite (e.g. `"Ammo/Weapons"`, `"Tools/Traps"`). If none map to a single progression, we use the first candidate in the list. That way we use the most specific name the game exposes (e.g. so a bow can use `craftingbows` instead of a composite rule) while still supporting composites when the game only provides them.
+To update or extend the map (e.g. after a game update or for mod-added items), see **[CLASS_NAME_MAP_HOWTO.md](CLASS_NAME_MAP_HOWTO.md)**.
 
 ---
 

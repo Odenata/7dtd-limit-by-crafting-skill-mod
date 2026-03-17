@@ -13,3 +13,5 @@ C:\Users\mates\repos\7dtd-limit-by-crafting-skill-mod\src\bin\Debug\net472\Assem
 C:\Users\mates\repos\7dtd-limit-by-crafting-skill-mod\src\obj\Debug\net472\LimitByC.42907578.Up2Date
 C:\Users\mates\repos\7dtd-limit-by-crafting-skill-mod\src\obj\Debug\net472\LimitByCraftingSkillMod.dll
 C:\Users\mates\repos\7dtd-limit-by-crafting-skill-mod\src\obj\Debug\net472\LimitByCraftingSkillMod.pdb
+c:\Users\mates\repos\7dtd-limit-by-crafting-skill-mod\src\bin\Debug\net472\Config.xml
+c:\Users\mates\repos\7dtd-limit-by-crafting-skill-mod\src\bin\Debug\net472\ClassNameToCraftingSkillMap.xml

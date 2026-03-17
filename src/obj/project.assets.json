@@ -70,8 +70,8 @@
         "net472": {
           "targetAlias": "net472",
           "projectReferences": {
-            "C:\\Users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\Assembly-CSharp-Mock.csproj": {
-              "projectPath": "C:\\Users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\Assembly-CSharp-Mock.csproj"
+            "C:\\users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\Assembly-CSharp-Mock.csproj": {
+              "projectPath": "C:\\users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\Assembly-CSharp-Mock.csproj"
             },
             "C:\\users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\UnityEngine-CoreModule-Mock.csproj": {
               "projectPath": "C:\\users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\UnityEngine-CoreModule-Mock.csproj"

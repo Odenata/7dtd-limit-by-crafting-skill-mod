@@ -6,6 +6,7 @@ net_library(
     srcs = [
         "AddItemToToolbeltRestrictionPatch.cs",
         "AssemblyInfo.cs",
+        "ClassNameToCraftingSkillMapLoader.cs",
         "EquipItemRestrictionPatch.cs",
         "EquipmentRestrictionPatch.cs",
         "EquipmentStackHandleStackSwapPatch.cs",
@@ -36,5 +37,6 @@ net_library(
     data = [
         "ModInfo.xml",
         "Config.xml",
+        "ClassNameToCraftingSkillMap.xml",
     ],
 )
