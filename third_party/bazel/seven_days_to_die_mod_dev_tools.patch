@@ -1,7 +1,7 @@
 diff --git a/mocks/GameClasses.cs b/mocks/GameClasses.cs
 --- a/mocks/GameClasses.cs
 +++ b/mocks/GameClasses.cs
-@@ -1,90 +1,189 @@
+@@ -1,90 +1,187 @@
 -// Mock game classes - API signatures only, no implementation
 -// Based on documented API from docs/GAME_API.md
 -
@@ -118,6 +118,7 @@ diff --git a/mocks/GameClasses.cs b/mocks/GameClasses.cs
 +
 +    public ItemValue() { }
 +    public ItemValue(int type) { this.type = type; }
++    public bool IsEmpty() => ItemClass == null || type == 0;
 +}
 +
 +public class ItemClass
@@ -221,10 +222,16 @@ diff --git a/mocks/GameClasses.cs b/mocks/GameClasses.cs
 +    public void SetModified() { }
 +}
 +
++public class Equipment
++{
++    public void SetSlotItem(int index, ItemValue value, bool isLocal) { }
++}
++
 +public class EntityAlive
 +{
 +    public Inventory inventory { get; set; }
 +    public Bag bag { get; set; }
++    public Equipment equipment { get; set; }
 +
 +    public EntityAlive() { }
 +}
@@ -236,10 +243,14 @@ diff --git a/mocks/GameClasses.cs b/mocks/GameClasses.cs
 +    public EntityPlayer() { }
 +}
 +
-+// --- XUi types ---
-+
-+public class XUi
++public class PlayerUI
 +{
++    public EntityPlayer entityPlayer { get; set; }
++}
++
++public class XUiC_LootWindow
++{
++    public PlayerUI playerUI { get; set; }
 +}
 +
 +public class XUiC_LootWindowGroup
@@ -253,31 +264,18 @@ diff --git a/mocks/GameClasses.cs b/mocks/GameClasses.cs
 +    public void SetTileEntityChest(TileEntityLootContainer container) { }
 +}
 +
-+public class XUiC_LootWindow
-+{
-+    public PlayerUI playerUI { get; set; }
-+}
-+
-+public class PlayerUI
-+{
-+    public EntityPlayer entityPlayer { get; set; }
-+}
-+
 +public class XUiC_ItemStack
 +{
 +    public XUiC_ItemStack() { }
 +}
 +
 +// --- Mod API ---
-+
-+public interface IModApi
-+{
-+    void InitMod(Mod modInstance);
-+}
-+
 +public class Mod
 +{
 +    public Mod() { }
 +}
-+
++public interface IModApi
++{
++    void InitMod(Mod modInstance);
++}
 +

@@ -4,57 +4,75 @@ using HarmonyLib;
 
 namespace LimitByCraftingSkillMod
 {
+    /// <summary>
+    /// Would restrict hotbar by level. We never return false: skipping SetItem after the game has
+    /// moved the item can cause item loss. Restriction must be implemented at an earlier hook.
+    /// </summary>
     [HarmonyPatch(typeof(Inventory), "SetItem", new Type[] { typeof(int), typeof(ItemStack) })]
     internal static class HotbarRestrictionPatch
     {
-        private const int HotbarSlotCount = 10;
+        private const int HotbarSlotCountFallback = 10;
 
-        static bool Prefix(Inventory __instance, int idx, ItemStack itemStack)
+        static bool Prefix(Inventory __instance, int _idx, ItemStack _itemStack)
         {
-            if (itemStack == null || itemStack.IsEmpty()) return true;
-            var player = GetLocalPlayer();
-            if (player == null) return true;
+            if (_itemStack == null || _itemStack.IsEmpty()) return true;
+            if (ModConfig.Instance.DebugMode)
+                ModApi.DebugLog($"Hotbar SetItem invoked idx={_idx}");
+            var player = GameReflection.GetLocalPlayer();
+            if (player == null)
+            {
+                if (ModConfig.Instance.DebugMode) ModApi.DebugLog("Hotbar SetItem: no local player");
+                return true;
+            }
             var playerInv = GetInventory(player);
-            if (playerInv != __instance) return true;
-            if (idx < 0 || idx >= HotbarSlotCount) return true;
+            if (playerInv != __instance)
+            {
+                if (ModConfig.Instance.DebugMode) ModApi.DebugLog($"Hotbar SetItem: not player inv (idx={_idx})");
+                return true;
+            }
+            int hotbarCount = GetPublicSlotsPlayMode(__instance);
+            if (_idx < 0 || _idx >= hotbarCount) return true;
 
-            var itemValue = GetItemValue(itemStack);
-            if (itemValue == null) return true;
+            var itemValue = GetItemValue(_itemStack);
+            if (itemValue == null)
+            {
+                if (ModConfig.Instance.DebugMode) ModApi.DebugLog($"Hotbar SetItem: no itemValue (idx={_idx})");
+                return true;
+            }
             var itemClass = itemValue.ItemClass;
             if (itemClass == null) return true;
 
             var skillGroup = GameReflection.GetCraftingSkillGroup(itemClass);
             if (string.IsNullOrWhiteSpace(skillGroup)) return true;
-            if (!ModConfig.Instance.IsRestrictionEnabledForSkill(skillGroup)) return true;
+            var configName = GameReflection.ToProgressionOrConfigName(skillGroup);
+            if (!ModConfig.Instance.IsRestrictionEnabledForSkill(configName)) return true;
 
             var requiredLevel = GameReflection.GetRequiredLevelForItem(itemClass, itemValue);
             var playerLevel = GameReflection.GetPlayerCraftingLevel(player, skillGroup);
             if (LimitByCraftingSkillLogic.IsRestricted(playerLevel, requiredLevel, true))
             {
-                return false;
+                if (ModConfig.Instance.DebugMode)
+                    ModApi.DebugLog($"Hotbar would block idx={_idx}: {configName} player={playerLevel} required={requiredLevel} (allowing to prevent item loss)");
+                // Do NOT return false: can cause item loss; restrict at an earlier hook instead.
             }
             return true;
         }
 
-        private static EntityAlive GetLocalPlayer()
+        private static int GetPublicSlotsPlayMode(Inventory inv)
         {
+            if (inv == null) return HotbarSlotCountFallback;
             try
             {
-                var gmType = typeof(GameManager);
-                var instProp = gmType.GetProperty("Instance", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-                if (instProp == null) return null;
-                var gm = instProp.GetValue(null, null);
-                if (gm == null) return null;
-                var gmT = gm.GetType();
-                var playerField = gmT.GetField("myEntityPlayerLocal", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-                    ?? gmT.GetField("MyEntityPlayerLocal", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (playerField == null) return null;
-                return playerField.GetValue(gm) as EntityAlive;
+                var t = inv.GetType();
+                var prop = t.GetProperty("PUBLIC_SLOTS_PLAYMODE", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (prop != null)
+                {
+                    var v = prop.GetValue(inv, null);
+                    if (v is int i && i > 0) return i;
+                }
             }
-            catch
-            {
-                return null;
-            }
+            catch { }
+            return HotbarSlotCountFallback;
         }
 
         private static Inventory GetInventory(EntityAlive entity)
@@ -62,7 +80,14 @@ namespace LimitByCraftingSkillMod
             if (entity == null) return null;
             try
             {
-                var prop = entity.GetType().GetProperty("inventory", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                var t = entity.GetType();
+                var field = t.GetField("inventory", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (field != null)
+                {
+                    var v = field.GetValue(entity);
+                    if (v is Inventory inv) return inv;
+                }
+                var prop = t.GetProperty("inventory", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                 return prop?.GetValue(entity, null) as Inventory;
             }
             catch

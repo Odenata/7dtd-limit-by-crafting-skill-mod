@@ -13,7 +13,10 @@ Write-Host "  - Output may be locked if another process holds the DLL" -Foregrou
 Write-Host "For a hermetic DLL use: bazel build //src:LimitByCraftingSkillMod" -ForegroundColor Cyan
 Write-Host ""
 
-$repoRoot = if ($env:BUILD_WORKSPACE_DIRECTORY) { $env:BUILD_WORKSPACE_DIRECTORY } else { Split-Path $PSScriptRoot -Parent }
+# Prefer Bazel/IDE workspace; else current dir if it looks like this repo; else script location.
+$repoRoot = if ($env:BUILD_WORKSPACE_DIRECTORY) { $env:BUILD_WORKSPACE_DIRECTORY }
+  elseif ((Get-Location).Path -and (Test-Path (Join-Path (Get-Location).Path "src\LimitByCraftingSkillMod.csproj"))) { (Get-Location).Path }
+  else { Split-Path $PSScriptRoot -Parent }
 $buildScript = Join-Path $repoRoot "tools\build.ps1"
 if (-not (Test-Path $buildScript)) {
   Write-Host "ERROR: Script not found: $buildScript" -ForegroundColor Red

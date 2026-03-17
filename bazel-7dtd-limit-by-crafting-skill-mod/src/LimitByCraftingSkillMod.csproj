@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(SevenDtdDevToolsDir)' == ''">
-    <SevenDtdDevToolsDir>$(MSBuildThisFileDirectory)..\7dtd-mod-dev-tools</SevenDtdDevToolsDir>
+    <SevenDtdDevToolsDir>$(MSBuildThisFileDirectory)..\..\7dtd-mod-dev-tools</SevenDtdDevToolsDir>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(SevenDtdInstallDir)' != ''">
@@ -37,14 +37,24 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="ArmorRestrictionPatch.cs" />
+    <Compile Include="AddItemToToolbeltRestrictionPatch.cs" />
     <Compile Include="AssemblyInfo.cs" />
+    <Compile Include="EquipItemRestrictionPatch.cs" />
+    <Compile Include="EquipmentRestrictionPatch.cs" />
+    <Compile Include="EquipmentStackHandleStackSwapPatch.cs" />
     <Compile Include="GameReflection.cs" />
     <Compile Include="HotbarRestrictionPatch.cs" />
+    <Compile Include="InventoryGridRestrictionColorPatches.cs" />
+    <Compile Include="ItemActionEntryEquipPatch.cs" />
     <Compile Include="LimitByCraftingSkillLogic.cs" />
     <Compile Include="ModApi.cs" />
     <Compile Include="ModConfig.cs" />
+    <Compile Include="ProgressionLevelUpPatch.cs" />
     <Compile Include="RestrictionFeedback.cs" />
+    <Compile Include="RestrictionHelper.cs" />
+    <Compile Include="RestrictionLabelColor.cs" />
+    <Compile Include="ToolbeltHandleStackSwapPatch.cs" />
+    <Compile Include="ToolbeltHandleMoveToPreferredLocationPatch.cs" />
     <None Include="ModInfo.xml" />
     <None Include="Config.xml" />
   </ItemGroup>

@@ -2,23 +2,33 @@
 
 Use the [Runtime API Workflow](https://github.com/Odenata/7dtd-mod-dev-tools/blob/main/docs/RUNTIME_API_WORKFLOW.md) in 7dtd-mod-dev-tools: start from checked-in docs in `docs/game-api/`, then query or refresh the runtime export as needed. When the mod compiles but fails in-game, follow [RUNTIME_API_MISMATCH_DEBUGGING.md](https://github.com/Odenata/7dtd-mod-dev-tools/blob/main/docs/RUNTIME_API_MISMATCH_DEBUGGING.md).
 
+**Item loss protection:** The mod must never delete or lose items. Do not return false from a Prefix when the game has already removed the item from its source (e.g. blocking at `Equipment.SetSlotItem` or `Inventory.SetItem` after a drag). Restrict at an earlier point in the flow (e.g. before the move is committed).
+
+## Investigation summary (from checked-in docs)
+
+APIs were confirmed from `7dtd-mod-dev-tools/docs/game-api/assembly-csharp/by-type/`: **EntityAlive.Progression** (field) → **Progression.GetProgressionValue(string)** → **ProgressionValue.Level** for player skill level; **ItemClass.CraftingSkillGroup**; **Inventory.SetItem(int, ItemStack)** with **PUBLIC_SLOTS_PLAYMODE** for hotbar size; **Progression.ProgressionClasses**, **ProgressionClass.DisplayDataList**, **DisplayData.QualityStarts** for required-level mapping. Mod uses reflection (GameReflection) and HotbarRestrictionPatch/ArmorRestrictionPatch. Workstation open, vehicle drive, and popup API remain TBD until confirmed in-game or via runtime export query.
+
 ## Player crafting level
 
 - **Goal:** Given an entity (EntityPlayerLocal / EntityAlive) and a crafting skill name (string, e.g. from `ItemClass.CraftingSkillGroup`), obtain the player's current level.
-- **Types:** `ProgressionValue` has `Level` (int). `ProgressionClass` has `Name`, `GetRequirementsForLevel`, `DisplayDataList` (quality tiers).
-- **To confirm:** How to get the player's ProgressionValue for a skill name. Likely: a manager (e.g. ProgressionManager) or a method on the entity that returns ProgressionValue by name. Query runtime for `ProgressionValue`, `ProgressionClass`, and entity/manager methods that take a skill name and return level or ProgressionValue.
+- **Confirmed (from docs/game-api):**
+  - `EntityAlive` has field **`Progression Progression`** (not property; try GetField first in reflection).
+  - `Progression` has **`GetProgressionValue(System.String _progressionName)`** returning `ProgressionValue`.
+  - `ProgressionValue` has **`Level`** (int, property or field).
+- **Mod:** `GameReflection.GetPlayerCraftingLevel` uses entity → Progression (field then property) → GetProgressionValue(skillName) → Level.
 
 ## Item required level
 
 - **Goal:** Given `ItemClass` + `ItemValue` (with Quality), compute the minimum crafting level required to use that item.
-- **Known:** `ItemClass.CraftingSkillGroup` (string). `ItemValue.Quality` (UInt16). `ItemValue.HasQuality` (property).
-- **To confirm:** Mapping from (CraftingSkillGroup, Quality) to required level. Likely via progression/recipe data: `ProgressionClass.DisplayDataList` with quality tiers, or `LevelRequirement` / `GetRequirementsForLevel(level)`. Query runtime for how the game decides "player can craft quality X at level Y".
+- **Confirmed:** `ItemClass.CraftingSkillGroup` (string). For restriction logic we also use **Groups** (string[]), **Group** (string), and **PropCraftingSkillGroup** (string; per-item override from XML). We collect candidates from these sources and **prefer the most specific** name that maps to a single progression (e.g. "Bows") over a composite (e.g. "Ammo/Weapons"). `ItemValue.Quality` (UInt16). `ItemValue.HasQuality` (property).
+- **Mapping (from docs):** `Progression` has **`ProgressionClasses`** (Dictionary<string, ProgressionClass>). `ProgressionClass` has **`DisplayDataList`** (List<ProgressionClass+DisplayData>). `DisplayData` has **`QualityStarts`** (int[]), **`Item`** / **`ItemName`**; **`GetQualityLevel(System.Int32 level)`** returns quality at a given level. For a given item quality Q, required level = minimum level at which GetQualityLevel(level) >= Q, or QualityStarts[Q-1] if QualityStarts is the level at which each quality tier unlocks (to be validated in-game).
+- **Mod:** Currently uses quality as required level fallback. Optional: add logic using entity.Progression.ProgressionClasses[skillGroup].DisplayDataList + QualityStarts when entity is available (e.g. in patches).
 
 ## Inventory and slots
 
 - **Goal:** Identify hotbar slot indices and armor/equipment slot indices so we can block only those.
-- **Known (mocks):** `Inventory.GetSlots()`, `SetItem(idx, stack)`, `SetSlots(...)`. `Bag.GetSlots()`, `SetSlot(idx, stack, callChanged)`.
-- **To confirm:** Which indices are hotbar vs bag vs armor. Whether armor is on the same inventory or a separate structure (e.g. equipment slots on EntityPlayer). Single best choke point to intercept: e.g. one method that runs whenever an item is set into a hotbar or armor slot. Query: `Inventory`, `Bag`, slot layout constants or documentation.
+- **Confirmed (from docs):** `Inventory`: **`SetItem(System.Int32 _idx, ItemStack _itemStack)`**, **`GetSlots()`**, **`slots`** (ItemInventoryData[]). Properties: **`INVENTORY_SLOTS`**, **`PUBLIC_SLOTS`**, **`PUBLIC_SLOTS_PLAYMODE`** (hotbar/toolbelt size in play mode). **`entity`** (EntityAlive). **`itemArmor`** (ItemStack) — armor may be one slot or per-piece; equipment layout may vary. `Bag` is on EntityAlive as **`bag`**; used for storage. Hotbar = first N slots of player Inventory (N = PUBLIC_SLOTS_PLAYMODE, typically 10).
+- **Choke point:** Patch **`Inventory.SetItem(int, ItemStack)`** when `idx < PUBLIC_SLOTS_PLAYMODE` (or use constant 10). Armor: if separate from main inventory, patch the setter used when equipping armor (TBD per game version; may be same Inventory or equipment-specific).
 
 ## Workstation / block open
 
@@ -40,14 +50,16 @@ Use the [Runtime API Workflow](https://github.com/Odenata/7dtd-mod-dev-tools/blo
 - **Goal:** In multiplayer, read config from server so restrictions are server-authoritative.
 - **To confirm:** Where mod config is loaded (client vs server process). How to detect "we are the server" and read server's Config.xml. May require game API for mod config path or network sync.
 
-## Patch targets (to be filled after investigation)
+## Patch targets (from investigation)
 
-| Area       | Target type/method (candidate)     | Notes                    |
-|-----------|------------------------------------|--------------------------|
-| Armor     | TBD (e.g. SetSlot when slot is armor) | Single choke point       |
-| Hotbar    | TBD (e.g. Inventory.SetItem when idx in hotbar range) | All paths to hotbar      |
-| Workstation | TBD (open UI)                    | Block open only          |
-| Vehicle   | TBD (drive action)                | Allow inventory/refuel   |
-| Popup     | TBD (notification/popup API)     | Red text, two lines      |
+| Area         | Target type/method (candidate)                                      | Notes |
+|-------------|----------------------------------------------------------------------|-------|
+| Player level| `EntityAlive.Progression` → `GetProgressionValue(string)` → `ProgressionValue.Level`. | Progression is keyed by names like `craftingarmor` (not "Clothing" or "Armor"). GameReflection.ToProgressionLookupName maps item group to progression name; see 7dtd-mod-dev-tools docs/PROGRESSION_NAMES.md. |
+| Hotbar      | **`XUiC_ItemStack.HandleStackSwap()`** (drag); **`XUiC_ItemStack.HandleMoveToPreferredLocation()`** (right-click); **`XUiM_PlayerInventory.AddItemToToolbelt`** / **AddItemToPreferredToolbeltSlot**; **`ItemActionEntryEquip.OnActivated()`** (equip key W / context Equip); **`Inventory.SetItem`** (observe only) | **ToolbeltHandleStackSwapPatch**, **ToolbeltHandleMoveToPreferredLocationPatch**, **AddItemToToolbeltRestrictionPatch**, and **ItemActionEntryEquipPatch** (OnActivated) block all paths. HotbarRestrictionPatch on SetItem does NOT return false to avoid item loss. |
+| Armor       | **`XUiM_PlayerEquipment.EquipItem(ItemStack)`** (block here); **`XUiC_EquipmentStack.HandleStackSwap()`** (block drag-drop); **`Equipment.SetSlotItem`** (observe only) | **EquipItemRestrictionPatch** blocks at EquipItem. **EquipmentStackHandleStackSwapPatch** blocks at HandleStackSwap when the dragged stack (from XUi.dragAndDrop.CurrentStack) is restricted; item stays on cursor. We do not block at SetSlotItem to avoid item loss. |
+| Workstation | TBD (block/TileEntity open UI)                                      | To be identified; block open or UI open method. |
+| Vehicle     | TBD (drive-only path)                                               | Chassis heuristic: vehicle name + " Chassis" → component; patch drive action only. |
+| Popup       | **`XUiC_CollectedItemList.AddItemStack`** / **`AddCraftingSkillNotification`** or message API | For red text: may need different API (e.g. GameManager, tooltip, or message window); to be confirmed in-game. |
+| In-inventory red label | **`XUiC_ItemStackGrid.OnOpen`**, **`XUiC_EquipmentStackGrid.OnOpen`**, grid **`Update`**, **`Progression.addProgressionCurrency`** | Red label for restricted items in **all** UIs that display items: player backpack, toolbelt, equipment, container, vehicle, workstation, etc. Any controller assignable to `XUiC_ItemStackGrid` or `XUiC_EquipmentStackGrid` is treated the same (base-type detection via `IsAssignableFrom`). Known ItemStackGrid subclasses: Backpack, Toolbelt, PartList, VehicleContainer, WorkstationGrid, PowerSourceSlots, PowerRangedAmmoSlots. Apply on grid OnOpen (Postfix), set **RestrictionColorsDirty** when crafting skill levels up, refresh in grid Update when dirty (throttled). Get slot view via **ViewComponent** → **uiTransform** → **gameObject**; set **UILabel** `color`/`mColor` on that GameObject and children (or XUiV_Label for equipment slots). |
 
-After confirming names and overloads in the runtime export, update this table and the compat layer (GameReflection or equivalent) in the mod. Prefer a small compat helper and reflection for game-version resilience; see RUNTIME_API_MISMATCH_DEBUGGING.md.
+After confirming names and overloads in the runtime export (or in-game), update this table and the compat layer. Prefer a small compat helper and reflection for game-version resilience; see RUNTIME_API_MISMATCH_DEBUGGING.md.

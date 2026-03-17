@@ -1704,14 +1704,41 @@
           "build/net6.0/xunit.runner.visualstudio.props": {}
         }
       },
+      "Assembly-CSharp/1.0.0": {
+        "type": "project",
+        "framework": ".NETFramework,Version=v4.7.2",
+        "dependencies": {
+          "UnityEngine.CoreModule": "1.0.0"
+        },
+        "compile": {
+          "bin/placeholder/Assembly-CSharp.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/Assembly-CSharp.dll": {}
+        }
+      },
       "LimitByCraftingSkillMod/1.0.0": {
         "type": "project",
         "framework": ".NETFramework,Version=v4.7.2",
+        "dependencies": {
+          "Assembly-CSharp": "1.0.0",
+          "UnityEngine.CoreModule": "1.0.0"
+        },
         "compile": {
           "bin/placeholder/LimitByCraftingSkillMod.dll": {}
         },
         "runtime": {
           "bin/placeholder/LimitByCraftingSkillMod.dll": {}
+        }
+      },
+      "UnityEngine.CoreModule/1.0.0": {
+        "type": "project",
+        "framework": ".NETFramework,Version=v4.7.2",
+        "compile": {
+          "bin/placeholder/UnityEngine.CoreModule.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/UnityEngine.CoreModule.dll": {}
         }
       }
     }
@@ -5455,10 +5482,20 @@
         "xunit.runner.visualstudio.nuspec"
       ]
     },
+    "Assembly-CSharp/1.0.0": {
+      "type": "project",
+      "path": "../../7dtd-mod-dev-tools/mocks/Assembly-CSharp-Mock.csproj",
+      "msbuildProject": "../../7dtd-mod-dev-tools/mocks/Assembly-CSharp-Mock.csproj"
+    },
     "LimitByCraftingSkillMod/1.0.0": {
       "type": "project",
       "path": "../src/LimitByCraftingSkillMod.csproj",
       "msbuildProject": "../src/LimitByCraftingSkillMod.csproj"
+    },
+    "UnityEngine.CoreModule/1.0.0": {
+      "type": "project",
+      "path": "../../7dtd-mod-dev-tools/mocks/UnityEngine-CoreModule-Mock.csproj",
+      "msbuildProject": "../../7dtd-mod-dev-tools/mocks/UnityEngine-CoreModule-Mock.csproj"
     }
   },
   "projectFileDependencyGroups": {

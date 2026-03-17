@@ -12,5 +12,5 @@
     <Robotics>true</Robotics>
   </CraftingSkills>
   <!-- If true, writes extra info to the game log (for troubleshooting). Values: true, false -->
-  <DebugMode>false</DebugMode>
+  <DebugMode>true</DebugMode>
 </LimitByCraftingSkillModConfig>

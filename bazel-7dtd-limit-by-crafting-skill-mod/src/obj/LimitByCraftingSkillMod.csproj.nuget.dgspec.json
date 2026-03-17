@@ -1,17 +1,114 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\mates\\repos\\7dtd-limit-by-crafting-skill-mod\\src\\LimitByCraftingSkillMod.csproj": {}
+    "C:\\users\\mates\\repos\\7dtd-limit-by-crafting-skill-mod\\src\\LimitByCraftingSkillMod.csproj": {}
   },
   "projects": {
-    "C:\\Users\\mates\\repos\\7dtd-limit-by-crafting-skill-mod\\src\\LimitByCraftingSkillMod.csproj": {
+    "C:\\users\\mates\\repos\\7dtd-limit-by-crafting-skill-mod\\src\\LimitByCraftingSkillMod.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\mates\\repos\\7dtd-limit-by-crafting-skill-mod\\src\\LimitByCraftingSkillMod.csproj",
+        "projectUniqueName": "C:\\users\\mates\\repos\\7dtd-limit-by-crafting-skill-mod\\src\\LimitByCraftingSkillMod.csproj",
         "projectName": "LimitByCraftingSkillMod",
-        "projectPath": "C:\\Users\\mates\\repos\\7dtd-limit-by-crafting-skill-mod\\src\\LimitByCraftingSkillMod.csproj",
+        "projectPath": "C:\\users\\mates\\repos\\7dtd-limit-by-crafting-skill-mod\\src\\LimitByCraftingSkillMod.csproj",
         "packagesPath": "C:\\Users\\mates\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\mates\\repos\\7dtd-limit-by-crafting-skill-mod\\src\\obj\\",
+        "outputPath": "C:\\users\\mates\\repos\\7dtd-limit-by-crafting-skill-mod\\src\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\mates\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net472"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net472": {
+            "targetAlias": "net472",
+            "projectReferences": {
+              "C:\\Users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\Assembly-CSharp-Mock.csproj": {
+                "projectPath": "C:\\Users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\Assembly-CSharp-Mock.csproj"
+              },
+              "C:\\users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\UnityEngine-CoreModule-Mock.csproj": {
+                "projectPath": "C:\\users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\UnityEngine-CoreModule-Mock.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.100"
+      },
+      "frameworks": {
+        "net472": {
+          "targetAlias": "net472",
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.103\\RuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\Users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\Assembly-CSharp-Mock.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\Assembly-CSharp-Mock.csproj",
+        "projectName": "Assembly-CSharp",
+        "projectPath": "C:\\Users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\Assembly-CSharp-Mock.csproj",
+        "packagesPath": "C:\\Users\\mates\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\mates\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net472"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net472": {
+            "targetAlias": "net472",
+            "projectReferences": {
+              "C:\\users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\UnityEngine-CoreModule-Mock.csproj": {
+                "projectPath": "C:\\users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\UnityEngine-CoreModule-Mock.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.100"
+      },
+      "frameworks": {
+        "net472": {
+          "targetAlias": "net472",
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.103\\RuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\UnityEngine-CoreModule-Mock.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\UnityEngine-CoreModule-Mock.csproj",
+        "projectName": "UnityEngine.CoreModule",
+        "projectPath": "C:\\users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\UnityEngine-CoreModule-Mock.csproj",
+        "packagesPath": "C:\\Users\\mates\\.nuget\\packages\\",
+        "outputPath": "C:\\users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\mates\\AppData\\Roaming\\NuGet\\NuGet.Config"

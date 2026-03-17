@@ -6,7 +6,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$repoRoot = if ($env:BUILD_WORKSPACE_DIRECTORY) { $env:BUILD_WORKSPACE_DIRECTORY } else { Split-Path $PSScriptRoot -Parent }
+# Prefer Bazel/IDE workspace; else current dir if it looks like this repo; else script location.
+$repoRoot = if ($env:BUILD_WORKSPACE_DIRECTORY) { $env:BUILD_WORKSPACE_DIRECTORY }
+  elseif ((Get-Location).Path -and (Test-Path (Join-Path (Get-Location).Path "src\LimitByCraftingSkillMod.csproj"))) { (Get-Location).Path }
+  else { Split-Path $PSScriptRoot -Parent }
 $deployScript = Join-Path $repoRoot "tools\deploy.ps1"
 if (-not (Test-Path $deployScript)) {
   Write-Host "ERROR: Script not found: $deployScript" -ForegroundColor Red

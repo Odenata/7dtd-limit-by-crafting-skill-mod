@@ -5,9 +5,16 @@ Restricts equipping and using items to the player's crafting skill level for tha
 ## Build
 
 - **Bazel (hermetic):** `bazel build //src:LimitByCraftingSkillMod`
-- **Local (IDE/deploy):** `tools\build.ps1` or call dev-tools build from 7dtd-mod-dev-tools
+- **Bazel run (non-hermetic, uses host dotnet):** `bazel run //tools:build`
+- **Local (IDE/deploy):** `.\tools\build.ps1` — requires `7dtd-mod-dev-tools` as a sibling repo (e.g. `repos\7dtd-mod-dev-tools`).
 
 ## Test
 
-- **Bazel:** `bazel test //tests:all`
-- **Deploy:** `tools\deploy.ps1` (requires 7dtd-mod-dev-tools as sibling and game install)
+- **Bazel:** `bazel test //tests:all` (on Windows may require `BAZEL_SH` set to bash for test runner; see 7dtd-mod-dev-tools docs).
+- **dotnet:** From repo root with 7dtd-mod-dev-tools as sibling: `dotnet test tests\LimitByCraftingSkillMod.Tests.csproj`.
+- **In-game:** After deploy, use [docs/IN_GAME_TEST_CHECKLIST.md](docs/IN_GAME_TEST_CHECKLIST.md).
+
+## Deploy
+
+- **Bazel run:** `bazel run //tools:deploy` (builds if DLL missing, then copies to game `Mods` folder).
+- **Local:** `.\tools\deploy.ps1` — optional `$env:7_DAYS_TO_DIE_GAME_PATH` for game install dir.
