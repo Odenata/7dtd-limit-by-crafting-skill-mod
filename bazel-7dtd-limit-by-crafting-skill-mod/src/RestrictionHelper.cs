@@ -34,30 +34,19 @@ namespace LimitByCraftingSkillMod
             if (ModConfig.Instance != null && ModConfig.Instance.DebugMode && restricted)
             {
                 var lookupName = GameReflection.ToProgressionLookupName(skillGroup);
-                ModApi.DebugLog($"[LimitByCraftingSkill] IsItemRestricted: skillGroup=\"{skillGroup}\" lookup=\"{lookupName ?? "(composite)"}\" playerLevel={playerLevel} required={requiredLevel}");
+                ModApi.DebugLog($"[LimitByCraftingSkill] IsItemRestricted: skillGroup=\"{skillGroup}\" lookup=\"{lookupName}\" playerLevel={playerLevel} required={requiredLevel}");
             }
             return restricted;
         }
 
         /// <summary>
-        /// True if restriction is enabled in config for this skill group (or for any part of a composite e.g. "Tools/Traps").
+        /// True if restriction is enabled in config for this skill group.
         /// </summary>
         private static bool IsRestrictionEnabledForSkillGroup(string skillGroup)
         {
             if (string.IsNullOrWhiteSpace(skillGroup) || ModConfig.Instance == null) return false;
-            if (skillGroup.IndexOf('/') >= 0)
-            {
-                foreach (var part in skillGroup.Split('/'))
-                {
-                    var trimmed = part?.Trim();
-                    if (string.IsNullOrWhiteSpace(trimmed)) continue;
-                    var configName = GameReflection.ToProgressionOrConfigName(trimmed);
-                    if (ModConfig.Instance.IsRestrictionEnabledForSkill(configName)) return true;
-                }
-                return false;
-            }
-            var name = GameReflection.ToProgressionOrConfigName(skillGroup);
-            return ModConfig.Instance.IsRestrictionEnabledForSkill(name);
+            var configName = GameReflection.ToProgressionOrConfigName(skillGroup);
+            return ModConfig.Instance.IsRestrictionEnabledForSkill(configName);
         }
 
         /// <summary>

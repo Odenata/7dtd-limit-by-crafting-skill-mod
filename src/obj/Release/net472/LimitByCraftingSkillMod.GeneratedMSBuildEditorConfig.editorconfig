@@ -1,6 +1,6 @@
 is_global = true
 build_property.RootNamespace = LimitByCraftingSkillMod
-build_property.ProjectDir = C:\users\mates\repos\7dtd-limit-by-crafting-skill-mod\src\
+build_property.ProjectDir = c:\Users\mates\repos\7dtd-limit-by-crafting-skill-mod\src\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
 build_property.CsWinRTUseWindowsUIXamlProjections = false

@@ -33,4 +33,16 @@ if (-not [string]::IsNullOrWhiteSpace($GameInstallDir)) {
   $params["GameInstallDir"] = $GameInstallDir
 }
 & $devTools @params
-exit $LASTEXITCODE
+$exitAfterDevTools = $LASTEXITCODE
+# Only exit on explicit non-zero; $LASTEXITCODE can be $null after & script (treated as success)
+if ($null -ne $exitAfterDevTools -and $exitAfterDevTools -ne 0) { exit $exitAfterDevTools }
+
+$modPath = Join-Path $GameInstallDir "Mods\LimitByCraftingSkillMod"
+$mapSrc = Join-Path $modRepoRoot "src\ClassNameToCraftingSkillMap.xml"
+if (Test-Path $mapSrc) {
+  Copy-Item $mapSrc -Destination $modPath -Force -ErrorAction Stop
+  Write-Host "Copied ClassNameToCraftingSkillMap.xml to $modPath" -ForegroundColor Green
+} else {
+  Write-Host "WARNING: ClassNameToCraftingSkillMap.xml not found at $mapSrc" -ForegroundColor Yellow
+}
+exit 0

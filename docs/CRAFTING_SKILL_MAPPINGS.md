@@ -4,7 +4,7 @@ This document shows how **game-reported item group names** (from `ItemClass.Craf
 
 ### How we get the crafting skill for an item (restriction)
 
-The mod uses **only** **ClassNameToCraftingSkillMap.xml** to decide which crafting skill an item uses for restriction. It looks up `itemClass.GetType().Name` (the item’s class name) in that file. If the file is missing or the class name has no mapping, **the item is not restricted**. There is no game API or heuristic at runtime.
+The mod uses **only** **ClassNameToCraftingSkillMap.xml** to decide which crafting skill an item uses for restriction. It looks up the item's map key (ItemClass.Name / item name from XML, with GetType().Name fallback) in that file. If the file is missing or the key has no mapping, **the item is not restricted**. There is no game API or heuristic at runtime.
 
 To update or extend the map (e.g. after a game update or for mod-added items), see **[CLASS_NAME_MAP_HOWTO.md](CLASS_NAME_MAP_HOWTO.md)**.
 
@@ -58,14 +58,6 @@ If the mod can’t map a name, it falls back to `"crafting" + lowercase(group).R
 | Knuckles | craftingknuckles |
 | Electrician | craftingelectrician |
 
-### Composite / special (no single progression key; handled in code)
-
-| Game-reported name | How player level is computed |
-|---------------------|------------------------------|
-| **Tools/Traps** | **min**( level for Tools, level for Traps ). Tools → craftingharvestingtools, Traps → craftingtraps. |
-| **Weapons** | **max**( craftingbows, craftinghandguns, craftingshotguns, craftingrifles, craftingmachineguns ). |
-| **Ammo/Weapons** | **max**( level for Ammo, level for Weapons ). Ammo has no progression mapped (effectively 0); Weapons uses the max above. |
-
 ---
 
 ## 3. Summary by “item type” (what you might see in-game)
@@ -84,7 +76,7 @@ If the mod can’t map a name, it falls back to `"crafting" + lowercase(group).R
 
 - **Config name:** `GameReflection.ToProgressionOrConfigName()`
 - **Progression lookup:** `GameReflection.ToProgressionLookupName()`
-- **Level for composite/special:** `GameReflection.GetPlayerCraftingLevel()` (splits on `/`, Tools/Traps = min, others = max; “Weapons” → `GetPlayerCraftingLevelWeapons()`)
-- **Restriction enabled for composite:** `RestrictionHelper.IsRestrictionEnabledForSkillGroup()` (splits on `/`, any part enabled ⇒ restriction enabled for that group)
+- **Player level:** `GameReflection.GetPlayerCraftingLevel(entity, craftingSkillGroup)` (single group only)
+- **Restriction enabled:** `RestrictionHelper.IsRestrictionEnabledForSkillGroup()` (single config key)
 
 If you see a **game-reported name** in logs (e.g. from the `IsItemRestricted: skillGroup="..."` debug line) that isn’t in the tables above, add a mapping for it in `GameReflection.cs` and optionally in `7dtd-mod-dev-tools` `docs/PROGRESSION_NAMES.md`.

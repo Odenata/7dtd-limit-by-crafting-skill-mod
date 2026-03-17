@@ -114,12 +114,6 @@ namespace LimitByCraftingSkillMod
                 return "craftingtraps";
             if (string.Equals(gameCraftingSkillGroup, "Tools", System.StringComparison.OrdinalIgnoreCase))
                 return "craftingharvestingtools";
-            if (string.Equals(gameCraftingSkillGroup, "Tools/Traps", System.StringComparison.OrdinalIgnoreCase))
-                return null; // Handled in GetPlayerCraftingLevel: use min of Tools and Traps
-            if (string.Equals(gameCraftingSkillGroup, "Weapons", System.StringComparison.OrdinalIgnoreCase))
-                return null; // Handled in GetPlayerCraftingLevel: use max of weapon progressions
-            if (string.Equals(gameCraftingSkillGroup, "Ammo/Weapons", System.StringComparison.OrdinalIgnoreCase))
-                return null; // Handled in GetPlayerCraftingLevel: use max of Ammo and Weapons
             if (string.Equals(gameCraftingSkillGroup, "Workstations", System.StringComparison.OrdinalIgnoreCase))
                 return "craftingworkstations";
             if (string.Equals(gameCraftingSkillGroup, "Vehicles", System.StringComparison.OrdinalIgnoreCase))
@@ -146,33 +140,6 @@ namespace LimitByCraftingSkillMod
         internal static int GetPlayerCraftingLevel(EntityAlive entity, string craftingSkillGroup)
         {
             if (entity == null || string.IsNullOrWhiteSpace(craftingSkillGroup)) return 0;
-            if (craftingSkillGroup.IndexOf('/') >= 0)
-            {
-                var parts = craftingSkillGroup.Split('/');
-                var levels = new System.Collections.Generic.List<int>();
-                foreach (var part in parts)
-                {
-                    var trimmed = part?.Trim();
-                    if (string.IsNullOrWhiteSpace(trimmed)) continue;
-                    var level = GetPlayerCraftingLevel(entity, trimmed);
-                    levels.Add(level);
-                }
-                if (levels.Count == 0) return 0;
-                // Tools/Traps: require both skills (use min). Ammo/Weapons and others: use max.
-                if (string.Equals(craftingSkillGroup, "Tools/Traps", System.StringComparison.OrdinalIgnoreCase))
-                {
-                    int minLevel = levels[0];
-                    for (int i = 1; i < levels.Count; i++)
-                        if (levels[i] < minLevel) minLevel = levels[i];
-                    return minLevel;
-                }
-                int maxLevel = 0;
-                foreach (var level in levels)
-                    if (level > maxLevel) maxLevel = level;
-                return maxLevel;
-            }
-            if (string.Equals(craftingSkillGroup, "Weapons", System.StringComparison.OrdinalIgnoreCase))
-                return GetPlayerCraftingLevelWeapons(entity);
             try
             {
                 object progression = GetProgression(entity);
@@ -182,7 +149,7 @@ namespace LimitByCraftingSkillMod
                 if (getValueMethod == null) return GetLevelFromQuickList(progression, craftingSkillGroup);
 
                 var lookupName = ToProgressionLookupName(craftingSkillGroup);
-                if (string.IsNullOrEmpty(lookupName)) return 0;
+                if (string.IsNullOrWhiteSpace(lookupName)) return 0;
                 var namesToTry = new[] { lookupName, lookupName.ToLowerInvariant(), craftingSkillGroup, ToProgressionOrConfigName(craftingSkillGroup) };
                 foreach (var name in namesToTry)
                 {
@@ -193,33 +160,6 @@ namespace LimitByCraftingSkillMod
                     if (level >= 0) return level;
                 }
                 return GetLevelFromQuickList(progression, craftingSkillGroup);
-            }
-            catch
-            {
-                return 0;
-            }
-        }
-
-        /// <summary>Returns max level across weapon crafting progressions (bows, handguns, shotguns, rifles, machineguns). Used for "Weapons" and "Ammo/Weapons".</summary>
-        private static int GetPlayerCraftingLevelWeapons(EntityAlive entity)
-        {
-            if (entity == null) return 0;
-            try
-            {
-                object progression = GetProgression(entity);
-                if (progression == null) return 0;
-                var progType = progression.GetType();
-                var getValueMethod = progType.GetMethod("GetProgressionValue", new[] { typeof(string) });
-                if (getValueMethod == null) return 0;
-                int max = 0;
-                foreach (var name in new[] { "craftingbows", "craftinghandguns", "craftingshotguns", "craftingrifles", "craftingmachineguns" })
-                {
-                    var pv = getValueMethod.Invoke(progression, new object[] { name });
-                    if (pv == null) continue;
-                    var level = GetLevelFromProgressionValue(pv);
-                    if (level > max) max = level;
-                }
-                return max;
             }
             catch
             {
@@ -311,29 +251,50 @@ namespace LimitByCraftingSkillMod
         }
 
         /// <summary>
-        /// True if the name maps to a single progression key (not a composite like "Ammo/Weapons" or "Tools/Traps").
-        /// Used to prefer specific names (e.g. "Bows", "Spears") over parent composites.
+        /// Returns the key used for ClassNameToCraftingSkillMap lookup: item name (from XML) then fallback to C# type name.
+        /// Uses reflection for Name/pName to tolerate API drift. Aligns with what the dev-inspector shows for item identity.
         /// </summary>
-        private static bool MapsToSingleProgression(string name)
+        internal static string GetItemClassNameForMap(ItemClass itemClass)
         {
-            if (string.IsNullOrWhiteSpace(name)) return false;
-            var lookup = ToProgressionLookupName(name);
-            return !string.IsNullOrEmpty(lookup);
+            if (itemClass == null) return null;
+            var t = itemClass.GetType();
+            var nameProp = t.GetProperty("Name", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (nameProp != null)
+            {
+                try
+                {
+                    var v = nameProp.GetValue(itemClass, null);
+                    if (v is string s && !string.IsNullOrWhiteSpace(s)) return s.Trim();
+                }
+                catch { }
+            }
+            var nameField = t.GetField("pName", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (nameField != null)
+            {
+                try
+                {
+                    var v = nameField.GetValue(itemClass);
+                    if (v is string s && !string.IsNullOrWhiteSpace(s)) return s.Trim();
+                }
+                catch { }
+            }
+            return itemClass.GetType().Name;
         }
 
         /// <summary>
         /// Gets the crafting skill group name for the item class. Uses only ClassNameToCraftingSkillMap.xml:
-        /// looks up itemClass.GetType().Name in the map; if found and the value maps to a single progression, returns it.
-        /// If the file is missing or the class name has no mapping, returns null (do not restrict the item).
+        /// looks up the item's map key (item name or type name) in the map; if found, returns the mapped craftingSkillGroup.
+        /// If the file is missing or the key has no mapping, returns null (do not restrict the item).
         /// </summary>
         internal static string GetCraftingSkillGroup(ItemClass itemClass)
         {
             if (itemClass == null) return null;
-            var typeName = itemClass.GetType().Name;
+            var mapKey = GetItemClassNameForMap(itemClass);
+            if (string.IsNullOrWhiteSpace(mapKey)) return null;
             var map = ClassNameToCraftingSkillMapLoader.GetMap();
-            if (!map.TryGetValue(typeName, out var mapped) || string.IsNullOrWhiteSpace(mapped)) return null;
+            if (!map.TryGetValue(mapKey, out var mapped) || string.IsNullOrWhiteSpace(mapped)) return null;
             var trimmed = mapped.Trim();
-            return MapsToSingleProgression(trimmed) ? trimmed : null;
+            return trimmed;
         }
 
         /// <summary>
@@ -377,9 +338,9 @@ namespace LimitByCraftingSkillMod
         }
 
         /// <summary>
-        /// Gets the minimum crafting level required to use this item.
-        /// Uses progression data when available; otherwise uses quality as a stand-in (required level = quality).
-        /// Returns 0 if the item has no level requirement (e.g. no quality, or skill group empty).
+        /// Gets the minimum crafting level required to use this item at its current quality.
+        /// Uses Progression.ProgressionClasses[lookupName].DisplayDataList to find the item's DisplayData,
+        /// then QualityStarts or GetQualityLevel(level) to compute required level. Returns 0 if no progression data or no quality.
         /// </summary>
         internal static int GetRequiredLevelForItem(ItemClass itemClass, ItemValue itemValue)
         {
@@ -389,7 +350,115 @@ namespace LimitByCraftingSkillMod
             if (!HasQuality(itemValue)) return 0;
             var quality = GetQuality(itemValue);
             if (quality <= 0) return 0;
-            return quality;
+
+            var entity = GetLocalPlayer();
+            if (entity == null) return 0;
+            var lookupName = ToProgressionLookupName(skillGroup);
+            if (string.IsNullOrWhiteSpace(lookupName)) return 0;
+
+            try
+            {
+                object progression = GetProgression(entity);
+                if (progression == null) return 0;
+
+                var progType = progression.GetType();
+                var pcField = progType.GetField("ProgressionClasses", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (pcField == null) return 0;
+                var progClasses = pcField.GetValue(progression);
+                if (progClasses == null) return 0;
+
+                var dictType = progClasses.GetType();
+                var indexer = dictType.GetMethod("get_Item", new[] { typeof(string) })
+                    ?? dictType.GetMethod("get_Item", new[] { typeof(object) });
+                if (indexer == null) return 0;
+
+                object progressionClass = null;
+                try
+                {
+                    progressionClass = indexer.Invoke(progClasses, new object[] { lookupName });
+                }
+                catch { }
+                if (progressionClass == null) return 0;
+
+                var displayDataListField = progressionClass.GetType().GetField("DisplayDataList", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (displayDataListField == null) return 0;
+                var displayDataList = displayDataListField.GetValue(progressionClass) as IList;
+                if (displayDataList == null || displayDataList.Count == 0) return 0;
+
+                var itemNameForMatch = GetItemClassNameForMap(itemClass);
+
+                for (int i = 0; i < displayDataList.Count; i++)
+                {
+                    object displayData = displayDataList[i];
+                    if (displayData == null) continue;
+                    if (!DisplayDataMatchesItem(displayData, itemClass, itemNameForMatch)) continue;
+
+                    return GetRequiredLevelFromDisplayData(displayData, quality);
+                }
+            }
+            catch { }
+            return 0;
+        }
+
+        private static bool DisplayDataMatchesItem(object displayData, ItemClass itemClass, string itemNameForMatch)
+        {
+            if (displayData == null) return false;
+            var ddType = displayData.GetType();
+            var itemField = ddType.GetField("item", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (itemField != null)
+            {
+                var item = itemField.GetValue(displayData);
+                if (item == itemClass) return true;
+            }
+            var itemProp = ddType.GetProperty("Item", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (itemProp != null)
+            {
+                try
+                {
+                    var item = itemProp.GetValue(displayData, null);
+                    if (item == itemClass) return true;
+                }
+                catch { }
+            }
+            var itemNameField = ddType.GetField("ItemName", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (itemNameField != null && !string.IsNullOrEmpty(itemNameForMatch))
+            {
+                var name = itemNameField.GetValue(displayData) as string;
+                if (string.Equals(name, itemNameForMatch, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+
+        private static int GetRequiredLevelFromDisplayData(object displayData, int quality)
+        {
+            if (displayData == null || quality <= 0) return 0;
+            var ddType = displayData.GetType();
+
+            var qualityStartsField = ddType.GetField("QualityStarts", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (qualityStartsField != null)
+            {
+                var qualityStarts = qualityStartsField.GetValue(displayData) as int[];
+                if (qualityStarts != null && quality >= 1 && quality <= qualityStarts.Length)
+                {
+                    int level = qualityStarts[quality - 1];
+                    if (level >= 0) return level;
+                }
+            }
+
+            var getQualityLevelMethod = ddType.GetMethod("GetQualityLevel", new[] { typeof(int) });
+            if (getQualityLevelMethod != null)
+            {
+                for (int level = 1; level <= 100; level++)
+                {
+                    try
+                    {
+                        var q = getQualityLevelMethod.Invoke(displayData, new object[] { level });
+                        if (q is int qual && qual >= quality) return level;
+                    }
+                    catch { break; }
+                }
+            }
+            return 0;
         }
     }
 }

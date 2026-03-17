@@ -1,6 +1,6 @@
 # Class name to crafting skill map — how to maintain
 
-The mod restricts items by **crafting skill**. It decides which skill an item uses by looking up the item's **class name** (the C# type name of the `ItemClass`, e.g. `gunBowT0PrimitiveBow`) in **ClassNameToCraftingSkillMap.xml**. If the file is missing or the class name has no entry, **the item is not restricted**.
+The mod restricts items by **crafting skill**. It decides which skill an item uses by looking up the item's **map key** in **ClassNameToCraftingSkillMap.xml**. The key is the **item name** (from the game's item definition, e.g. `gunBowT0PrimitiveBow`), as shown by the 7dtd-dev-inspector-mod; the mod uses `ItemClass.Name` with `GetType().Name` as fallback. If the file is missing or the key has no entry, **the item is not restricted**.
 
 This doc explains how to edit the map when the game is updated or when you add mods.
 
@@ -21,9 +21,9 @@ This doc explains how to edit the map when the game is updated or when you add m
 2. Add, remove, or change `<Item className="..." craftingSkillGroup="..." />` entries as needed.
 3. Save the file. If you edited in `src/`, rebuild and deploy the mod so the updated XML is in the game's mod folder.
 
-## How to find class names
+## How to find the map key (className)
 
-- **7dtd-dev-inspector-mod:** Hover over an item in-game; the inspector can show the item's class name (the `ItemClass` type name).
+- **7dtd-dev-inspector-mod:** Hover over an item in-game; the inspector shows the item identifier used for lookup (the item name from the game's XML, same as `ItemClass.Name`). Use that value as `className` in the map.
 
 ## Valid `craftingSkillGroup` values
 
@@ -54,7 +54,7 @@ Do not use progression lookup names (e.g. `craftingbows`); use the game-reported
 </ClassNameToCraftingSkillMap>
 ```
 
-- **className:** Exact C# type name of the item's `ItemClass` (e.g. from hover in 7dtd-dev-inspector-mod).
+- **className:** Item name from the game's item definition (as shown by 7dtd-dev-inspector-mod; the mod looks up using `ItemClass.Name` then falls back to `GetType().Name`).
 - **craftingSkillGroup:** Game-reported name (e.g. Bows, Medical, Clothing). Must be one of the names the mod maps to a progression and config key; see CRAFTING_SKILL_MAPPINGS.md.
 
 For optional future ideas (e.g. heuristic-based generation), see [CLASS_NAME_MAP_FUTURE_IDEAS.md](CLASS_NAME_MAP_FUTURE_IDEAS.md).
