@@ -141,7 +141,10 @@
   <Item className="meleeToolShovelT1IronShovel" craftingSkillGroup="HarvestingTools"/>
   <Item className="meleeToolShovelT2SteelShovel" craftingSkillGroup="HarvestingTools"/>
   <Item className="meleeToolAxeT1IronFireaxe" craftingSkillGroup="HarvestingTools"/>
-  <Item className="meleeToolAxeT2SteelFireaxe" craftingSkillGroup="HarvestingTools"/>
+  <!-- V2.5 b32 ItemClass is meleeToolAxeT2SteelAxe (DevInspector). Progression rows may still use meleeToolAxeT2SteelFireaxe. -->
+  <Item className="meleeToolAxeT2SteelAxe" craftingSkillGroup="HarvestingTools" progressionMatchName="meleeToolAxeT2SteelFireaxe" requiredLevelMin="25"/>
+  <!-- Older or alternate name; keep if your build still uses it. -->
+  <Item className="meleeToolAxeT2SteelFireaxe" craftingSkillGroup="HarvestingTools" requiredLevelMin="25"/>
   <Item className="meleeToolAxeT3Chainsaw" craftingSkillGroup="HarvestingTools"/>
   <Item className="meleeToolPickT1IronPickaxe" craftingSkillGroup="HarvestingTools"/>
   <Item className="meleeToolPickT2SteelPickaxe" craftingSkillGroup="HarvestingTools"/>
@@ -167,8 +170,6 @@
   <Item className="autoTurret" craftingSkillGroup="Traps"/>
 
   <!-- Electrician -->
-  <Item className="meleeToolWireTool" craftingSkillGroup="Electrician"/>
-  <Item className="solarBank" craftingSkillGroup="Electrician"/>
   <Item className="generatorbank" craftingSkillGroup="Electrician"/>
   <Item className="electricwirerelay" craftingSkillGroup="Electrician"/>
   <Item className="switch" craftingSkillGroup="Electrician"/>
@@ -188,97 +189,97 @@
   <Item className="vaultDoor02_player" craftingSkillGroup="Electrician"/>
   <Item className="vaultHatch01_player" craftingSkillGroup="Electrician"/>
 
-  <!-- ItemClass.Name uses ironGarageDoor_*; progression unlock rows use ironGarageDoor01_* -->
-  <Item className="ironGarageDoor_PoweredWhite" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredWhite"/>
-  <Item className="ironGarageDoor_PoweredBrown" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredBrown"/>
-  <Item className="ironGarageDoor_PoweredRed" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredRed"/>
-  <Item className="ironGarageDoor_PoweredOrange" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredOrange"/>
-  <Item className="ironGarageDoor_PoweredYellow" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredYellow"/>
-  <Item className="ironGarageDoor_PoweredGreen" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredGreen"/>
-  <Item className="ironGarageDoor_PoweredBlue" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredBlue"/>
-  <Item className="ironGarageDoor_PoweredPurple" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredPurple"/>
-  <Item className="ironGarageDoor_PoweredGrey" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredGrey"/>
-  <Item className="ironGarageDoor_PoweredBlack" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredBlack"/>
-  <Item className="ironGarageDoor_PoweredPink" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredPink"/>
-  <Item className="ironGarageDoor_PoweredArmyGreen" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredArmyGreen"/>
+  <!-- Powered garage placeables are not matched in craftingelectrician/craftingworkstations DisplayData in V2.5 b32; requiredLevelOverride gates by Electrician level (tune as needed). -->
+  <Item className="ironGarageDoor_PoweredWhite" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredWhite" requiredLevelOverride="30"/>
+  <Item className="ironGarageDoor_PoweredBrown" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredBrown" requiredLevelOverride="30"/>
+  <Item className="ironGarageDoor_PoweredRed" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredRed" requiredLevelOverride="30"/>
+  <Item className="ironGarageDoor_PoweredOrange" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredOrange" requiredLevelOverride="30"/>
+  <Item className="ironGarageDoor_PoweredYellow" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredYellow" requiredLevelOverride="30"/>
+  <Item className="ironGarageDoor_PoweredGreen" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredGreen" requiredLevelOverride="30"/>
+  <Item className="ironGarageDoor_PoweredBlue" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredBlue" requiredLevelOverride="30"/>
+  <Item className="ironGarageDoor_PoweredPurple" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredPurple" requiredLevelOverride="30"/>
+  <Item className="ironGarageDoor_PoweredGrey" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredGrey" requiredLevelOverride="30"/>
+  <Item className="ironGarageDoor_PoweredBlack" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredBlack" requiredLevelOverride="30"/>
+  <Item className="ironGarageDoor_PoweredPink" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredPink" requiredLevelOverride="30"/>
+  <Item className="ironGarageDoor_PoweredArmyGreen" craftingSkillGroup="Electrician" progressionMatchName="ironGarageDoor01_PoweredArmyGreen" requiredLevelOverride="30"/>
 
-  <Item className="woodenGarageDoor3x3_PoweredWhite" craftingSkillGroup="Electrician" progressionMatchName="woodenGarageDoor01_3x3_PoweredWhite"/>
-  <Item className="woodenGarageDoor3x3_PoweredBrown" craftingSkillGroup="Electrician" progressionMatchName="woodenGarageDoor01_3x3_PoweredBrown"/>
-  <Item className="woodenGarageDoor3x3_PoweredRed" craftingSkillGroup="Electrician" progressionMatchName="woodenGarageDoor01_3x3_PoweredRed"/>
-  <Item className="woodenGarageDoor3x3_PoweredOrange" craftingSkillGroup="Electrician" progressionMatchName="woodenGarageDoor01_3x3_PoweredOrange"/>
-  <Item className="woodenGarageDoor3x3_PoweredYellow" craftingSkillGroup="Electrician" progressionMatchName="woodenGarageDoor01_3x3_PoweredYellow"/>
-  <Item className="woodenGarageDoor3x3_PoweredGreen" craftingSkillGroup="Electrician" progressionMatchName="woodenGarageDoor01_3x3_PoweredGreen"/>
-  <Item className="woodenGarageDoor3x3_PoweredBlue" craftingSkillGroup="Electrician" progressionMatchName="woodenGarageDoor01_3x3_PoweredBlue"/>
-  <Item className="woodenGarageDoor3x3_PoweredPurple" craftingSkillGroup="Electrician" progressionMatchName="woodenGarageDoor01_3x3_PoweredPurple"/>
-  <Item className="woodenGarageDoor3x3_PoweredGrey" craftingSkillGroup="Electrician" progressionMatchName="woodenGarageDoor01_3x3_PoweredGrey"/>
-  <Item className="woodenGarageDoor3x3_PoweredBlack" craftingSkillGroup="Electrician" progressionMatchName="woodenGarageDoor01_3x3_PoweredBlack"/>
-  <Item className="woodenGarageDoor3x3_PoweredPink" craftingSkillGroup="Electrician" progressionMatchName="woodenGarageDoor01_3x3_PoweredPink"/>
-  <Item className="woodenGarageDoor3x3_PoweredArmyGreen" craftingSkillGroup="Electrician"/>
+  <Item className="woodenGarageDoor3x3_PoweredWhite" craftingSkillGroup="Electrician" progressionMatchName="woodenGarageDoor01_3x3_PoweredWhite" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor3x3_PoweredBrown" craftingSkillGroup="Electrician" progressionMatchName="woodenGarageDoor01_3x3_PoweredBrown" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor3x3_PoweredRed" craftingSkillGroup="Electrician" progressionMatchName="woodenGarageDoor01_3x3_PoweredRed" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor3x3_PoweredOrange" craftingSkillGroup="Electrician" progressionMatchName="woodenGarageDoor01_3x3_PoweredOrange" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor3x3_PoweredYellow" craftingSkillGroup="Electrician" progressionMatchName="woodenGarageDoor01_3x3_PoweredYellow" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor3x3_PoweredGreen" craftingSkillGroup="Electrician" progressionMatchName="woodenGarageDoor01_3x3_PoweredGreen" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor3x3_PoweredBlue" craftingSkillGroup="Electrician" progressionMatchName="woodenGarageDoor01_3x3_PoweredBlue" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor3x3_PoweredPurple" craftingSkillGroup="Electrician" progressionMatchName="woodenGarageDoor01_3x3_PoweredPurple" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor3x3_PoweredGrey" craftingSkillGroup="Electrician" progressionMatchName="woodenGarageDoor01_3x3_PoweredGrey" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor3x3_PoweredBlack" craftingSkillGroup="Electrician" progressionMatchName="woodenGarageDoor01_3x3_PoweredBlack" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor3x3_PoweredPink" craftingSkillGroup="Electrician" progressionMatchName="woodenGarageDoor01_3x3_PoweredPink" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor3x3_PoweredArmyGreen" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
 
-  <Item className="woodenGarageDoor4x3_PoweredWhite" craftingSkillGroup="Electrician"/>
-  <Item className="woodenGarageDoor4x3_PoweredBrown" craftingSkillGroup="Electrician"/>
-  <Item className="woodenGarageDoor4x3_PoweredRed" craftingSkillGroup="Electrician"/>
-  <Item className="woodenGarageDoor4x3_PoweredOrange" craftingSkillGroup="Electrician"/>
-  <Item className="woodenGarageDoor4x3_PoweredYellow" craftingSkillGroup="Electrician"/>
-  <Item className="woodenGarageDoor4x3_PoweredGreen" craftingSkillGroup="Electrician"/>
-  <Item className="woodenGarageDoor4x3_PoweredBlue" craftingSkillGroup="Electrician"/>
-  <Item className="woodenGarageDoor4x3_PoweredPurple" craftingSkillGroup="Electrician"/>
-  <Item className="woodenGarageDoor4x3_PoweredGrey" craftingSkillGroup="Electrician"/>
-  <Item className="woodenGarageDoor4x3_PoweredBlack" craftingSkillGroup="Electrician"/>
-  <Item className="woodenGarageDoor4x3_PoweredPink" craftingSkillGroup="Electrician"/>
-  <Item className="woodenGarageDoor4x3_PoweredArmyGreen" craftingSkillGroup="Electrician"/>
+  <Item className="woodenGarageDoor4x3_PoweredWhite" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor4x3_PoweredBrown" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor4x3_PoweredRed" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor4x3_PoweredOrange" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor4x3_PoweredYellow" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor4x3_PoweredGreen" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor4x3_PoweredBlue" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor4x3_PoweredPurple" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor4x3_PoweredGrey" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor4x3_PoweredBlack" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor4x3_PoweredPink" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor4x3_PoweredArmyGreen" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
 
-  <Item className="woodenGarageDoor5x3_PoweredWhite" craftingSkillGroup="Electrician"/>
-  <Item className="woodenGarageDoor5x3_PoweredBrown" craftingSkillGroup="Electrician"/>
-  <Item className="woodenGarageDoor5x3_PoweredRed" craftingSkillGroup="Electrician"/>
-  <Item className="woodenGarageDoor5x3_PoweredOrange" craftingSkillGroup="Electrician"/>
-  <Item className="woodenGarageDoor5x3_PoweredYellow" craftingSkillGroup="Electrician"/>
-  <Item className="woodenGarageDoor5x3_PoweredGreen" craftingSkillGroup="Electrician"/>
-  <Item className="woodenGarageDoor5x3_PoweredBlue" craftingSkillGroup="Electrician"/>
-  <Item className="woodenGarageDoor5x3_PoweredPurple" craftingSkillGroup="Electrician"/>
-  <Item className="woodenGarageDoor5x3_PoweredGrey" craftingSkillGroup="Electrician"/>
-  <Item className="woodenGarageDoor5x3_PoweredBlack" craftingSkillGroup="Electrician"/>
-  <Item className="woodenGarageDoor5x3_PoweredPink" craftingSkillGroup="Electrician"/>
-  <Item className="woodenGarageDoor5x3_PoweredArmyGreen" craftingSkillGroup="Electrician"/>
+  <Item className="woodenGarageDoor5x3_PoweredWhite" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor5x3_PoweredBrown" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor5x3_PoweredRed" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor5x3_PoweredOrange" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor5x3_PoweredYellow" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor5x3_PoweredGreen" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor5x3_PoweredBlue" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor5x3_PoweredPurple" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor5x3_PoweredGrey" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor5x3_PoweredBlack" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor5x3_PoweredPink" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="woodenGarageDoor5x3_PoweredArmyGreen" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
 
-  <Item className="steelGarageDoor3x3_PoweredWhite" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor3x3_PoweredBrown" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor3x3_PoweredRed" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor3x3_PoweredOrange" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor3x3_PoweredYellow" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor3x3_PoweredGreen" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor3x3_PoweredBlue" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor3x3_PoweredPurple" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor3x3_PoweredGrey" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor3x3_PoweredBlack" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor3x3_PoweredPink" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor3x3_PoweredArmyGreen" craftingSkillGroup="Electrician"/>
+  <Item className="steelGarageDoor3x3_PoweredWhite" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor3x3_PoweredBrown" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor3x3_PoweredRed" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor3x3_PoweredOrange" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor3x3_PoweredYellow" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor3x3_PoweredGreen" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor3x3_PoweredBlue" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor3x3_PoweredPurple" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor3x3_PoweredGrey" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor3x3_PoweredBlack" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor3x3_PoweredPink" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor3x3_PoweredArmyGreen" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
 
-  <Item className="steelGarageDoor4x3_PoweredWhite" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor4x3_PoweredBrown" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor4x3_PoweredRed" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor4x3_PoweredOrange" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor4x3_PoweredYellow" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor4x3_PoweredGreen" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor4x3_PoweredBlue" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor4x3_PoweredPurple" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor4x3_PoweredGrey" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor4x3_PoweredBlack" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor4x3_PoweredPink" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor4x3_PoweredArmyGreen" craftingSkillGroup="Electrician"/>
+  <Item className="steelGarageDoor4x3_PoweredWhite" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor4x3_PoweredBrown" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor4x3_PoweredRed" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor4x3_PoweredOrange" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor4x3_PoweredYellow" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor4x3_PoweredGreen" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor4x3_PoweredBlue" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor4x3_PoweredPurple" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor4x3_PoweredGrey" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor4x3_PoweredBlack" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor4x3_PoweredPink" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor4x3_PoweredArmyGreen" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
 
-  <Item className="steelGarageDoor5x3_PoweredWhite" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor5x3_PoweredBrown" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor5x3_PoweredRed" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor5x3_PoweredOrange" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor5x3_PoweredYellow" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor5x3_PoweredGreen" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor5x3_PoweredBlue" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor5x3_PoweredPurple" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor5x3_PoweredGrey" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor5x3_PoweredBlack" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor5x3_PoweredPink" craftingSkillGroup="Electrician"/>
-  <Item className="steelGarageDoor5x3_PoweredArmyGreen" craftingSkillGroup="Electrician"/>
+  <Item className="steelGarageDoor5x3_PoweredWhite" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor5x3_PoweredBrown" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor5x3_PoweredRed" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor5x3_PoweredOrange" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor5x3_PoweredYellow" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor5x3_PoweredGreen" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor5x3_PoweredBlue" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor5x3_PoweredPurple" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor5x3_PoweredGrey" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor5x3_PoweredBlack" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor5x3_PoweredPink" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
+  <Item className="steelGarageDoor5x3_PoweredArmyGreen" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
 
   <Item className="metalReinforcedWoodDrawbridgePowered" craftingSkillGroup="Electrician"/>
 

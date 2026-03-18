@@ -63,6 +63,31 @@ namespace LimitByCraftingSkillMod.Tests
             Assert.Equal("craftingharvestingtools", GameReflection.ToProgressionLookupName("HarvestingTools"));
         }
 
+        [Theory]
+        [InlineData("Vehicles", "craftingvehicles")]
+        [InlineData("Workstations", "craftingworkstations")]
+        [InlineData("Electrician", "craftingelectrician")]
+        [InlineData("Robotics", "craftingrobotics")]
+        [InlineData("Traps", "craftingtraps")]
+        [InlineData("Seeds", "craftingseeds")]
+        [InlineData("Explosives", "craftingexplosives")]
+        [InlineData("MachineGuns", "craftingmachineguns")]
+        [InlineData("Rifles", "craftingrifles")]
+        [InlineData("Shotguns", "craftingshotguns")]
+        [InlineData("Handguns", "craftinghandguns")]
+        [InlineData("Spears", "craftingspears")]
+        [InlineData("Sledgehammers", "craftingsledgehammers")]
+        [InlineData("Clubs", "craftingclubs")]
+        [InlineData("Bows", "craftingbows")]
+        [InlineData("Blades", "craftingblades")]
+        [InlineData("Knuckles", "craftingknuckles")]
+        [InlineData("RepairTools", "craftingrepairtools")]
+        [InlineData("SalvageTools", "craftingsalvagetools")]
+        public void ToProgressionLookupName_ConfigCraftingSkills_AlignsWithProgressionNamesDoc(string gameGroup, string progressionName)
+        {
+            Assert.Equal(progressionName, GameReflection.ToProgressionLookupName(gameGroup));
+        }
+
         [Fact]
         public void UsesSyntheticQualityTierForRequiredLevel_ElectricianWorkstationsHarvesting_ReturnsTrue()
         {

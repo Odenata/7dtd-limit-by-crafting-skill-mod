@@ -20,7 +20,8 @@ namespace LimitByCraftingSkillMod
                 ApplyEquipItemPatchFromGameAssembly(harmony);
                 ApplyEquipmentHandleStackSwapPatchFromGameAssembly(harmony);
                 ApplyToolbeltHandleStackSwapPatchFromGameAssembly(harmony);
-                ApplyToolbeltHandleMoveToPreferredLocationPatchFromGameAssembly(harmony);
+                ApplyWorkstationVehicleStackSwapPatchesFromGameAssembly(harmony);
+                ApplyItemActionSpawnVehiclePatchFromGameAssembly(harmony);
                 ApplyAddItemToToolbeltPatchFromGameAssembly(harmony);
                 ApplyItemActionEntryEquipPatchFromGameAssembly(harmony);
                 ApplyProgressionLevelUpPatchFromGameAssembly(harmony);
@@ -162,30 +163,64 @@ namespace LimitByCraftingSkillMod
             }
         }
 
-        private static void ApplyToolbeltHandleMoveToPreferredLocationPatchFromGameAssembly(Harmony harmony)
+        private static void ApplyWorkstationVehicleStackSwapPatchesFromGameAssembly(Harmony harmony)
         {
             try
             {
                 var gameAssembly = typeof(Equipment).Assembly;
                 var itemStackType = gameAssembly.GetType("XUiC_ItemStack");
-                if (itemStackType == null)
+                if (itemStackType != null)
                 {
-                    SafeLog("[LimitByCraftingSkill] XUiC_ItemStack not found, HandleMoveToPreferredLocation patch skipped.");
-                    return;
+                    var hss = itemStackType.GetMethod("HandleStackSwap", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (hss != null)
+                    {
+                        var ws = typeof(WorkstationToolHandleStackSwapPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.Public);
+                        harmony.Patch(hss, prefix: new HarmonyMethod(ws));
+                        SafeLog("[LimitByCraftingSkill] Workstation tool grid HandleStackSwap patch applied.");
+                    }
                 }
-                var handleMove = itemStackType.GetMethod("HandleMoveToPreferredLocation", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (handleMove == null)
+                var partStackType = gameAssembly.GetType("XUiC_ItemPartStack");
+                if (partStackType != null)
                 {
-                    SafeLog("[LimitByCraftingSkill] HandleMoveToPreferredLocation not found on XUiC_ItemStack, patch skipped.");
-                    return;
+                    var hss2 = partStackType.GetMethod("HandleStackSwap", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (hss2 != null)
+                    {
+                        var vp = typeof(VehiclePartHandleStackSwapPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.Public);
+                        harmony.Patch(hss2, prefix: new HarmonyMethod(vp));
+                        SafeLog("[LimitByCraftingSkill] ItemPartStack.HandleStackSwap (vehicle mods) patch applied.");
+                    }
                 }
-                var prefix = typeof(ToolbeltHandleMoveToPreferredLocationPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.Public);
-                harmony.Patch(handleMove, prefix: new HarmonyMethod(prefix));
-                SafeLog("[LimitByCraftingSkill] ItemStack.HandleMoveToPreferredLocation (toolbelt move block) patch applied.");
             }
             catch (Exception ex)
             {
-                SafeLog($"[LimitByCraftingSkill] HandleMoveToPreferredLocation patch failed: {ex.Message}");
+                SafeLog($"[LimitByCraftingSkill] Workstation/vehicle stack swap patches failed: {ex.Message}");
+            }
+        }
+
+        private static void ApplyItemActionSpawnVehiclePatchFromGameAssembly(Harmony harmony)
+        {
+            try
+            {
+                var gameAssembly = typeof(Equipment).Assembly;
+                var spawnType = gameAssembly.GetType("ItemActionSpawnVehicle");
+                if (spawnType == null)
+                {
+                    SafeLog("[LimitByCraftingSkill] ItemActionSpawnVehicle not found, spawn patch skipped.");
+                    return;
+                }
+                var execute = spawnType.GetMethod("ExecuteAction", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (execute == null)
+                {
+                    SafeLog("[LimitByCraftingSkill] ItemActionSpawnVehicle.ExecuteAction not found.");
+                    return;
+                }
+                var prefix = typeof(ItemActionSpawnVehicleRestrictionPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.Public);
+                harmony.Patch(execute, prefix: new HarmonyMethod(prefix));
+                SafeLog("[LimitByCraftingSkill] ItemActionSpawnVehicle.ExecuteAction patch applied.");
+            }
+            catch (Exception ex)
+            {
+                SafeLog($"[LimitByCraftingSkill] ItemActionSpawnVehicle patch failed: {ex.Message}");
             }
         }
 

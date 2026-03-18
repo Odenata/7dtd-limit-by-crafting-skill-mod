@@ -5512,11 +5512,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "c:\\Users\\mates\\repos\\7dtd-limit-by-crafting-skill-mod\\tests\\LimitByCraftingSkillMod.Tests.csproj",
+      "projectUniqueName": "C:\\Users\\mates\\repos\\7dtd-limit-by-crafting-skill-mod\\tests\\LimitByCraftingSkillMod.Tests.csproj",
       "projectName": "LimitByCraftingSkillMod.Tests",
-      "projectPath": "c:\\Users\\mates\\repos\\7dtd-limit-by-crafting-skill-mod\\tests\\LimitByCraftingSkillMod.Tests.csproj",
+      "projectPath": "C:\\Users\\mates\\repos\\7dtd-limit-by-crafting-skill-mod\\tests\\LimitByCraftingSkillMod.Tests.csproj",
       "packagesPath": "C:\\Users\\mates\\.nuget\\packages\\",
-      "outputPath": "c:\\Users\\mates\\repos\\7dtd-limit-by-crafting-skill-mod\\tests\\obj\\",
+      "outputPath": "C:\\Users\\mates\\repos\\7dtd-limit-by-crafting-skill-mod\\tests\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\mates\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -5531,8 +5531,8 @@
         "net6.0": {
           "targetAlias": "net6.0",
           "projectReferences": {
-            "c:\\Users\\mates\\repos\\7dtd-limit-by-crafting-skill-mod\\src\\LimitByCraftingSkillMod.csproj": {
-              "projectPath": "c:\\Users\\mates\\repos\\7dtd-limit-by-crafting-skill-mod\\src\\LimitByCraftingSkillMod.csproj"
+            "C:\\Users\\mates\\repos\\7dtd-limit-by-crafting-skill-mod\\src\\LimitByCraftingSkillMod.csproj": {
+              "projectPath": "C:\\Users\\mates\\repos\\7dtd-limit-by-crafting-skill-mod\\src\\LimitByCraftingSkillMod.csproj"
             }
           }
         }

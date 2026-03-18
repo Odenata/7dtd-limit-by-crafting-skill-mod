@@ -19,7 +19,7 @@ Prevent placing items into player armor/equipment slots. Block at **XUiM_PlayerE
 
 ### Handheld (weapons and tools)
 
-**Preferred approach:** Prevent adding the item to the hotbar. All code paths that put an item into a hotbar slot must be blocked (e.g. intercept `Inventory.SetItem` / `SetSlot` when the destination index is a hotbar slot). If the item cannot be in the hotbar, the player cannot equip it to their hand. Block at **XUiC_ItemStack.HandleStackSwap** when the drop target is a toolbelt slot (same pattern as equipment drag-drop); the item remains on the cursor when blocked. Also block at **XUiC_ItemStack.HandleMoveToPreferredLocation** when the source is the player backpack (move to toolbelt) and the item is restricted. Block at **XUiM_PlayerInventory.AddItemToToolbelt** and **AddItemToPreferredToolbeltSlot** when the player uses the equip key (e.g. W) to add an item to the hotbar.
+**Preferred approach:** Prevent adding the item to the hotbar. All code paths that put an item into a hotbar slot must be blocked. Block at **XUiC_ItemStack.HandleStackSwap** when the drop target is a toolbelt slot; block at **XUiM_PlayerInventory.AddItemToToolbelt** / **AddItemToPreferredToolbeltSlot** (covers quick-move / shift-click fallback after backpack merge—see **`docs/QUICK_MOVE_AND_TOOLBELT_HOOKS.md`**). Do **not** prefix **HandleMoveToPreferredLocation**: vanilla tries **AddItemToBackpack** before **AddItemToToolbelt**, and skipping the whole method breaks backpack stacking.
 
 **Rejected alternatives (documented only):**
 

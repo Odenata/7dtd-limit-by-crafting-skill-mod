@@ -453,6 +453,27 @@ namespace LimitByCraftingSkillMod
         /// </summary>
         internal static int GetRequiredLevelForItem(ItemClass itemClass, ItemValue itemValue)
         {
+            var entity = GetLocalPlayer();
+            if (entity == null)
+                return GetRequiredLevelForItemWithProgression(itemClass, itemValue, null, missingProgressionReason: "no_player");
+            var progression = GetProgression(entity);
+            if (progression == null)
+                return GetRequiredLevelForItemWithProgression(itemClass, itemValue, null, missingProgressionReason: "no_progression");
+            return GetRequiredLevelForItemWithProgression(itemClass, itemValue, progression, missingProgressionReason: null);
+        }
+
+        /// <summary>
+        /// Unit tests: supply a fake progression with GetProgressionValue(string) returning an object that has ProgressionClass.DisplayDataList.
+        /// </summary>
+        internal static int GetRequiredLevelForItemForUnitTest(ItemClass itemClass, ItemValue itemValue, object progression)
+        {
+            return GetRequiredLevelForItemWithProgression(itemClass, itemValue, progression,
+                progression == null ? "no_progression" : null);
+        }
+
+        /// <param name="missingProgressionReason">If non-null, progression is null and this is the log reason (no_player / no_progression).</param>
+        private static int GetRequiredLevelForItemWithProgression(ItemClass itemClass, ItemValue itemValue, object progression, string missingProgressionReason)
+        {
             if (itemClass == null || itemValue == null) return 0;
             var mapKey = GetItemClassNameForMap(itemClass);
             var skillGroup = GetCraftingSkillGroup(itemClass);
@@ -475,10 +496,10 @@ namespace LimitByCraftingSkillMod
                 return 0;
             }
 
-            var entity = GetLocalPlayer();
-            if (entity == null)
+            if (progression == null)
             {
-                LogGetRequiredLevelExit0(mapKey, skillGroup, hasQ, rawQ, "no_player");
+                if (missingProgressionReason != null)
+                    LogGetRequiredLevelExit0(mapKey, skillGroup, hasQ, rawQ, missingProgressionReason);
                 return 0;
             }
             var lookupName = ToProgressionLookupName(skillGroup);
@@ -490,22 +511,13 @@ namespace LimitByCraftingSkillMod
 
             try
             {
-                object progression = GetProgression(entity);
-                if (progression == null)
-                {
-                    LogGetRequiredLevelExit0(mapKey, skillGroup, hasQ, rawQ, "no_progression");
-                    return 0;
-                }
-
                 var mapKeyName = GetItemClassNameForMap(itemClass);
                 var resolvedLevel = TryResolveRequiredLevelInTree(progression, lookupName, itemClass, mapKeyName, effectiveQuality);
                 if (resolvedLevel < 0 && string.Equals(skillGroup, "Electrician", StringComparison.OrdinalIgnoreCase))
                 {
                     resolvedLevel = TryResolveRequiredLevelInTree(progression, "craftingworkstations", itemClass, mapKeyName, effectiveQuality);
-                    // #region agent log
                     if (resolvedLevel >= 0 && AgentDebugSessionLog.IsTraceMapKey(mapKeyName))
                         AgentDebugSessionLog.WriteWorkstationFallback(mapKeyName, resolvedLevel);
-                    // #endregion
                 }
                 if (resolvedLevel < 0 && ClassNameToCraftingSkillMapLoader.TryGetRequiredLevelOverride(mapKeyName, out var ovLevel))
                     resolvedLevel = ovLevel;
@@ -516,7 +528,6 @@ namespace LimitByCraftingSkillMod
                     return resolvedLevel;
                 }
 
-                // #region agent log
                 if (AgentDebugSessionLog.IsTraceMapKey(mapKeyName))
                 {
                     var pc = GetProgressionClassFromProgressionValue(progression, lookupName);
@@ -531,7 +542,6 @@ namespace LimitByCraftingSkillMod
                     var hasXml = ClassNameToCraftingSkillMapLoader.TryGetProgressionMatchOverride(mapKeyName, out _);
                     AgentDebugSessionLog.WriteProgressionProbe(mapKeyName, lookupName + "|tried_ws", string.Join("|", candidates), hasXml, string.Join("|", samples));
                 }
-                // #endregion
 
                 LogGetRequiredLevelExit0(mapKey, skillGroup, hasQ, rawQ, "no_progression_match");
                 return 0;

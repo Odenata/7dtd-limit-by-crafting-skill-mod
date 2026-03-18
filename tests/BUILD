@@ -26,7 +26,10 @@ MOD_TEST_DEPS = XUNIT_DEPS + [
 net_xunit_test(
     name = "game_reflection",
     size = "small",
-    srcs = ["GameReflectionTests.cs"],
+    srcs = [
+        "GameReflectionTests.cs",
+        "RequiredLevelFromProgressionTests.cs",
+    ],
     deps = MOD_TEST_DEPS,
     dotnet_context_data = "@rules_dotnet_framework//:net_context_data_net472",
     testlauncher = "@xunit_runner_console//:net",

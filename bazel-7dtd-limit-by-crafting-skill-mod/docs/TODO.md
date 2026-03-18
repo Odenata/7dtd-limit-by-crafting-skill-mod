@@ -4,28 +4,19 @@ Tracked improvements and known gaps for **LimitByCraftingSkillMod** and related 
 
 ---
 
-## 1. Shift-click / container moves (high priority)
+## 1. Shift-click / container moves — addressed
 
-**Problem:** Restriction logic is blocking **shift-click** (and possibly other flows) when moving **correctly restricted** items into **container inventories** (loot, storage, etc.).  
+**Fix:** Removed **`HandleMoveToPreferredLocation`** prefix; **`AddItemToToolbelt`** / **`AddItemToPreferredToolbeltSlot`** handle the toolbelt path after vanilla **`AddItemToBackpack`**. See **`docs/QUICK_MOVE_AND_TOOLBELT_HOOKS.md`**.
 
-**Goal:** Restrict only moves into **toolbelt / hotbar** and **armor (equipment) slots**. Moving restricted items into chests, vehicles, workstations, player backpack-as-container, etc. should behave like vanilla.
-
-**Notes:** Audit Harmony patches on stack swap / move handlers; distinguish target grid type (hotbar vs container vs equipment).
+**Follow-up:** If new false positives appear, audit additional UI entry points.
 
 ---
 
 ## 2. Extract item names & progression names from game data
 
-**Problem:** `ItemClass.Name` and names on progression unlock rows often differ; we can’t rely on checked-in game API docs alone.
+**Tool:** Run **`tools/generate_classname_map_report.py`** against install **`items.xml`** (optional **`progression.xml`**). See **`tools/README_MAP_GENERATOR.md`**.
 
-**Ideas:**
-
-- Parse vanilla **`items.xml`** / **`progression.xml`** (and modded copies) from the game install to build:  
-  - all item class names  
-  - progression `DisplayData` / unlock identifiers as used in XML  
-- Or runtime **instrumentation**: scan **creative menu** item lists and log `ItemClass.Name` + `CraftingSkillGroup`.
-
-**Dev-tools:** When a pipeline exists, add a section to **`7dtd-mod-dev-tools`** API / workflow docs (e.g. under `docs/RUNTIME_API_WORKFLOW.md` or a new doc linked from `docs/game-api/README.md`). Placeholder: [`TODO_ITEM_PROGRESSION_NAME_PIPELINE.md`](../../7dtd-mod-dev-tools/docs/TODO_ITEM_PROGRESSION_NAME_PIPELINE.md) (sibling repo under `repos/`).
+**Dev-tools:** When a pipeline exists, add a section to **`7dtd-mod-dev-tools`** … Placeholder: [`TODO_ITEM_PROGRESSION_NAME_PIPELINE.md`](../../7dtd-mod-dev-tools/docs/TODO_ITEM_PROGRESSION_NAME_PIPELINE.md).
 
 ---
 
@@ -40,14 +31,11 @@ Tracked improvements and known gaps for **LimitByCraftingSkillMod** and related 
 
 ---
 
-## 4. Non-inventory interactions: vehicles & workstations
+## 4. Non-inventory interactions: vehicles & workstations — partial
 
-**Problem:** Restrictions today focus on **inventory / equip / toolbelt**. Players may still **use** gated items via:
+**Implemented (prototype):** **`WorkstationToolHandleStackSwapPatch`**, **`VehiclePartHandleStackSwapPatch`**, **`ItemActionSpawnVehicleRestrictionPatch`**. See **`docs/GAME_API_NOTES.md`**.
 
-- **Vehicle** interactions (install / fuel / drive-related items if applicable)  
-- **Workstation** UI (crafting, upgrading, placing from workstation context)
-
-**Goal:** Define desired behavior and patch the relevant code paths so skill gates match inventory rules where intended.
+**Still open:** **`VehicleInventory`** / fuel / refuel actions; server-authoritative validation for multiplayer; workstation **input/material** grids beyond tool slots.
 
 ---
 

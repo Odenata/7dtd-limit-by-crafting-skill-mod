@@ -170,8 +170,6 @@
   <Item className="autoTurret" craftingSkillGroup="Traps"/>
 
   <!-- Electrician -->
-  <Item className="meleeToolWireTool" craftingSkillGroup="Electrician"/>
-  <Item className="solarBank" craftingSkillGroup="Electrician"/>
   <Item className="generatorbank" craftingSkillGroup="Electrician"/>
   <Item className="electricwirerelay" craftingSkillGroup="Electrician"/>
   <Item className="switch" craftingSkillGroup="Electrician"/>

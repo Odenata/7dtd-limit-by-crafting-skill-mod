@@ -27,6 +27,11 @@
     <Compile Include="GameReflectionTests.cs" />
     <Compile Include="LimitByCraftingSkillLogicTests.cs" />
     <Compile Include="ModConfigTests.cs" />
+    <Compile Include="RequiredLevelFromProgressionTests.cs" />
   </ItemGroup>
+
+  <Target Name="CopyClassNameMapForTests" AfterTargets="Build">
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\src\ClassNameToCraftingSkillMap.xml" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>
