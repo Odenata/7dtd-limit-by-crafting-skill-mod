@@ -37,6 +37,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="AgentDebugSessionLog.cs" />
     <Compile Include="AddItemToToolbeltRestrictionPatch.cs" />
     <Compile Include="AssemblyInfo.cs" />
     <Compile Include="ClassNameToCraftingSkillMapLoader.cs" />

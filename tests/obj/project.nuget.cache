@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "0GhwZY3QC8Q=",
+  "dgSpecHash": "cCobk6kdF0o=",
   "success": true,
-  "projectFilePath": "C:\\Users\\mates\\repos\\7dtd-limit-by-crafting-skill-mod\\tests\\LimitByCraftingSkillMod.Tests.csproj",
+  "projectFilePath": "c:\\Users\\mates\\repos\\7dtd-limit-by-crafting-skill-mod\\tests\\LimitByCraftingSkillMod.Tests.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\mates\\.nuget\\packages\\microsoft.codecoverage\\17.6.0\\microsoft.codecoverage.17.6.0.nupkg.sha512",
     "C:\\Users\\mates\\.nuget\\packages\\microsoft.net.test.sdk\\17.6.0\\microsoft.net.test.sdk.17.6.0.nupkg.sha512",

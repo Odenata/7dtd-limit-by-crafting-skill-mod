@@ -4,12 +4,28 @@
   <!-- Server config overrides client in multiplayer. -->
   <CraftingSkills>
     <Armor>true</Armor>
+    <Bows>true</Bows>
+    <Handguns>true</Handguns>
+    <Shotguns>true</Shotguns>
+    <Rifles>true</Rifles>
+    <MachineGuns>true</MachineGuns>
+    <Explosives>true</Explosives>
+    <Blades>true</Blades>
+    <Clubs>true</Clubs>
+    <Spears>true</Spears>
+    <Sledgehammers>true</Sledgehammers>
+    <Knuckles>true</Knuckles>
     <HarvestingTools>true</HarvestingTools>
-    <Weapons>true</Weapons>
-    <Workstations>true</Workstations>
-    <Vehicles>true</Vehicles>
+    <RepairTools>true</RepairTools>
+    <SalvageTools>true</SalvageTools>
+    <Medical>false</Medical> <!-- Not implemented -->
+    <Food>false</Food> <!-- Not implemented -->
+    <Seeds>true</Seeds>
     <Traps>true</Traps>
     <Robotics>true</Robotics>
+    <Workstations>true</Workstations>
+    <Vehicles>true</Vehicles>
+    <Electrician>true</Electrician>
   </CraftingSkills>
   <!-- If true, writes extra info to the game log (for troubleshooting). Values: true, false -->
   <DebugMode>true</DebugMode>

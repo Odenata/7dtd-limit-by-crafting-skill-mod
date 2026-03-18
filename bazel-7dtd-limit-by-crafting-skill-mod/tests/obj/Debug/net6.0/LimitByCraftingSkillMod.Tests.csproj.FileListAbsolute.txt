@@ -104,3 +104,5 @@ C:\Users\mates\repos\7dtd-limit-by-crafting-skill-mod\tests\obj\Debug\net6.0\ref
 C:\Users\mates\repos\7dtd-limit-by-crafting-skill-mod\tests\obj\Debug\net6.0\LimitByCraftingSkillMod.Tests.pdb
 C:\Users\mates\repos\7dtd-limit-by-crafting-skill-mod\tests\obj\Debug\net6.0\LimitByCraftingSkillMod.Tests.genruntimeconfig.cache
 C:\Users\mates\repos\7dtd-limit-by-crafting-skill-mod\tests\obj\Debug\net6.0\ref\LimitByCraftingSkillMod.Tests.dll
+C:\Users\mates\repos\7dtd-limit-by-crafting-skill-mod\tests\bin\Debug\net6.0\Config.xml
+C:\Users\mates\repos\7dtd-limit-by-crafting-skill-mod\tests\bin\Debug\net6.0\ClassNameToCraftingSkillMap.xml

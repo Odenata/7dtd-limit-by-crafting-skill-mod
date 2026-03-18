@@ -18,8 +18,8 @@
     <HarvestingTools>true</HarvestingTools>
     <RepairTools>true</RepairTools>
     <SalvageTools>true</SalvageTools>
-    <Medical>true</Medical>
-    <Food>true</Food>
+    <Medical>false</Medical> <!-- Not implemented -->
+    <Food>false</Food> <!-- Not implemented -->
     <Seeds>true</Seeds>
     <Traps>true</Traps>
     <Robotics>true</Robotics>

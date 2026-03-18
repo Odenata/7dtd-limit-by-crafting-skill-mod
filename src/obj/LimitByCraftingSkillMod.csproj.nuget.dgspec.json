@@ -26,8 +26,8 @@
           "net472": {
             "targetAlias": "net472",
             "projectReferences": {
-              "c:\\Users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\Assembly-CSharp-Mock.csproj": {
-                "projectPath": "c:\\Users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\Assembly-CSharp-Mock.csproj"
+              "C:\\Users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\Assembly-CSharp-Mock.csproj": {
+                "projectPath": "C:\\Users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\Assembly-CSharp-Mock.csproj"
               },
               "C:\\users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\UnityEngine-CoreModule-Mock.csproj": {
                 "projectPath": "C:\\users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\UnityEngine-CoreModule-Mock.csproj"
@@ -54,14 +54,14 @@
         }
       }
     },
-    "c:\\Users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\Assembly-CSharp-Mock.csproj": {
+    "C:\\Users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\Assembly-CSharp-Mock.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\Assembly-CSharp-Mock.csproj",
+        "projectUniqueName": "C:\\Users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\Assembly-CSharp-Mock.csproj",
         "projectName": "Assembly-CSharp",
-        "projectPath": "c:\\Users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\Assembly-CSharp-Mock.csproj",
+        "projectPath": "C:\\Users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\Assembly-CSharp-Mock.csproj",
         "packagesPath": "C:\\Users\\mates\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\obj\\",
+        "outputPath": "C:\\Users\\mates\\repos\\7dtd-mod-dev-tools\\mocks\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\mates\\AppData\\Roaming\\NuGet\\NuGet.Config"

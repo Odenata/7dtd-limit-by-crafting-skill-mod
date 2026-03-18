@@ -5,11 +5,36 @@ namespace LimitByCraftingSkillMod.Tests
     public class GameReflectionTests
     {
         [Fact]
-        public void GetCraftingSkillGroup_WhenItemClassHasGroup_ReturnsGroup()
+        public void GetCraftingSkillGroup_WhenItemClassIsInMap_ReturnsMappedGroup()
         {
-            var itemClass = new ItemClass { Group = "HarvestingTools" };
+            var itemClass = new ItemClass { Name = "meleeToolPickT1IronPickaxe" };
             var result = GameReflection.GetCraftingSkillGroup(itemClass);
             Assert.Equal("HarvestingTools", result);
+        }
+
+        [Fact]
+        public void GetCraftingSkillGroup_WhenUnmappedAndGameCraftingSkillGroupIsTools_ReturnsHarvestingTools()
+        {
+            var itemClass = new ItemClass { Name = "someModPickNotInMap", CraftingSkillGroup = "Tools" };
+            Assert.Equal("HarvestingTools", GameReflection.GetCraftingSkillGroup(itemClass));
+        }
+
+        [Fact]
+        public void GetCraftingSkillGroup_WhenUnmappedAndGameCraftingSkillGroupIsElectrician_ReturnsElectrician()
+        {
+            var itemClass = new ItemClass { Name = "customWireBlock", CraftingSkillGroup = "Electrician" };
+            Assert.Equal("Electrician", GameReflection.GetCraftingSkillGroup(itemClass));
+        }
+
+        [Fact]
+        public void GetCraftingSkillGroup_MapEntryOverridesGameCraftingSkillGroup()
+        {
+            var itemClass = new ItemClass
+            {
+                Name = "meleeToolPickT1IronPickaxe",
+                CraftingSkillGroup = "Electrician"
+            };
+            Assert.Equal("HarvestingTools", GameReflection.GetCraftingSkillGroup(itemClass));
         }
 
         [Fact]
@@ -33,9 +58,24 @@ namespace LimitByCraftingSkillMod.Tests
         }
 
         [Fact]
-        public void ToProgressionLookupName_WhenOtherSkill_ReturnsSame()
+        public void ToProgressionLookupName_WhenHarvestingTools_ReturnsCraftingharvestingtools()
         {
-            Assert.Equal("HarvestingTools", GameReflection.ToProgressionLookupName("HarvestingTools"));
+            Assert.Equal("craftingharvestingtools", GameReflection.ToProgressionLookupName("HarvestingTools"));
+        }
+
+        [Fact]
+        public void UsesSyntheticQualityTierForRequiredLevel_ElectricianWorkstationsHarvesting_ReturnsTrue()
+        {
+            Assert.True(GameReflection.UsesSyntheticQualityTierForRequiredLevel("Electrician"));
+            Assert.True(GameReflection.UsesSyntheticQualityTierForRequiredLevel("Workstations"));
+            Assert.True(GameReflection.UsesSyntheticQualityTierForRequiredLevel("HarvestingTools"));
+        }
+
+        [Fact]
+        public void UsesSyntheticQualityTierForRequiredLevel_Weapons_ReturnsFalse()
+        {
+            Assert.False(GameReflection.UsesSyntheticQualityTierForRequiredLevel("Weapons"));
+            Assert.False(GameReflection.UsesSyntheticQualityTierForRequiredLevel("Blades"));
         }
 
         [Fact]
@@ -61,10 +101,19 @@ namespace LimitByCraftingSkillMod.Tests
         }
 
         [Fact]
-        public void GetRequiredLevelForItem_WhenItemHasNoQuality_ReturnsZero()
+        public void GetRequiredLevelForItem_WhenNotInMap_ReturnsZero()
         {
-            var itemClass = new ItemClass { Group = "Weapons" };
+            var itemClass = new ItemClass { Name = "unmappedTestItem_xyz" };
             var itemValue = new ItemValue { ItemClass = itemClass };
+            Assert.Equal(0, GameReflection.GetRequiredLevelForItem(itemClass, itemValue));
+        }
+
+        [Fact]
+        public void GetRequiredLevelForItem_WhenBladesNoQuality_ReturnsZero()
+        {
+            var itemClass = new ItemClass { Name = "meleeWpnBladeT0BoneKnife" };
+            var itemValue = new ItemValue { ItemClass = itemClass };
+            if (GameReflection.GetCraftingSkillGroup(itemClass) == null) return;
             var result = GameReflection.GetRequiredLevelForItem(itemClass, itemValue);
             Assert.Equal(0, result);
         }

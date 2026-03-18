@@ -1,8 +1,48 @@
 # Class name to crafting skill map — how to maintain
 
-The mod restricts items by **crafting skill**. It decides which skill an item uses by looking up the item's **map key** in **ClassNameToCraftingSkillMap.xml**. The key is the **item name** (from the game's item definition, e.g. `gunBowT0PrimitiveBow`), as shown by the 7dtd-dev-inspector-mod; the mod uses `ItemClass.Name` with `GetType().Name` as fallback. If the file is missing or the key has no entry, **the item is not restricted**.
+The mod restricts items by **crafting skill**. It resolves the skill in this order:
+
+1. **ClassNameToCraftingSkillMap.xml** — lookup by item name (`ItemClass.Name`, case-insensitive). Map entry wins if present.
+2. **Game `ItemClass.CraftingSkillGroup`** — only when **unmapped**, and only if the value is **Electrician**, **Workstations**, **HarvestingTools**, or **Tools** (treated as HarvestingTools). This covers wire tools, picks, shovels, etc. that the game tags but are not listed in the XML.
+
+If neither applies, **the item is not restricted** by this mod for handheld/hotbar logic.
+
+### `progressionMatchName` (optional)
+
+`ItemClass.Name` and the name on the **Electrician / Workstations** progression unlock row sometimes differ (e.g. placeable `ironGarageDoor_PoweredWhite` vs progression row `ironGarageDoor01_PoweredWhite`). If `GetRequiredLevelForItem` logs `no_progression_match` for a mapped item, add:
+
+```xml
+<Item className="ironGarageDoor_PoweredWhite" craftingSkillGroup="Electrician"
+      progressionMatchName="ironGarageDoor01_PoweredWhite"/>
+```
+
+Progression lookup uses `progressionMatchName` when set; the map key stays `className`.
+
+### Electrician items crafted via workbench (e.g. powered garage doors)
+
+Some items are tagged **Electrician** but their **unlock tier lives under `craftingworkstations`** in vanilla. The mod tries **Electrician** first, then **`craftingworkstations`**, while still comparing the player’s **Electrician** level to that required tier.
+
+### `requiredLevelOverride` (optional)
+
+If neither tree lists the item, set a fixed minimum level:
+
+```xml
+<Item className="ironGarageDoor_PoweredWhite" craftingSkillGroup="Electrician" requiredLevelOverride="40"/>
+```
+
+### `requiredLevelMin` (optional)
+
+After progression resolves a required level, the mod uses **max(vanillaResolved, min)** when set:
+
+```xml
+<Item className="meleeToolAxeT2SteelFireaxe" craftingSkillGroup="HarvestingTools" requiredLevelMin="25"/>
+```
+
+Use for verification or stricter floors. Unlike `requiredLevelOverride`, this does **not** replace a successful progression match—it only raises the bar.
 
 This doc explains how to edit the map when the game is updated or when you add mods.
+
+**Class name vs display:** Use **`ItemClass.Name`** (e.g. from DevInspector), not the localized item display name. The same axe may be `meleeToolAxeT2SteelAxe` in one game version and `meleeToolAxeT2SteelFireaxe` in another—add both `className` entries if needed.
 
 ## Where the map lives
 

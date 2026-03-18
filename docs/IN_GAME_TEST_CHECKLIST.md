@@ -14,6 +14,13 @@ After deploying the mod (`tools\deploy.ps1`), start 7 Days to Die and verify the
 - [ ] Add the same item when your skill level is sufficient → **allowed**.
 - [x] Restricted handheld items in inventory are visually indicated.
 
+### Electrician / Workstations / Harvesting (no item quality)
+
+- [ ] **Electrician:** Add a mapped placeable (e.g. generator bank, wire relay) to hotbar when below Electrician level → **blocked** if required level &gt; 0 in progression.
+- [ ] **Workstations:** Add **forge** or **workbench** item to hotbar when below Workstations level → **blocked** when progression matches.
+- [ ] **Harvesting:** Stone pick / stone shovel / T0 tools in hotbar respect **HarvestingTools** level (synthetic tier 1 + map entry).
+- [ ] With `DebugMode` true, if an item never restricts, check game log for `GetRequiredLevelForItem exit=0 reason=...` (e.g. `no_progression_match` ⇒ add map entry or fix progression match).
+
 ## Workstations
 
 - [ ] Open a placed workstation (e.g. Forge, Workbench) that is above your Workstations level → **blocked**; red popup shows "You don't know how to use [item name]" and "[Workstations] X/Y".

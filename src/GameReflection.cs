@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 
@@ -181,6 +182,35 @@ namespace LimitByCraftingSkillMod
             return progressionProp?.GetValue(entity, null);
         }
 
+        /// <summary>Gets the ProgressionClass for a skill by getting the ProgressionValue then its ProgressionClass (or cachedProgressionClass). Used when Progression.ProgressionClasses is not present at runtime.</summary>
+        private static object GetProgressionClassFromProgressionValue(object progression, string lookupName)
+        {
+            if (progression == null || string.IsNullOrEmpty(lookupName)) return null;
+            try
+            {
+                var progType = progression.GetType();
+                var getPvMethod = progType.GetMethod("GetProgressionValue", new[] { typeof(string) });
+                if (getPvMethod == null) return null;
+                var pv = getPvMethod.Invoke(progression, new object[] { lookupName });
+                if (pv == null) return null;
+                var pvType = pv.GetType();
+                var pcProp = pvType.GetProperty("ProgressionClass", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (pcProp != null)
+                {
+                    var pc = pcProp.GetValue(pv, null);
+                    if (pc != null) return pc;
+                }
+                var pcField = pvType.GetField("cachedProgressionClass", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (pcField != null)
+                {
+                    var pc = pcField.GetValue(pv);
+                    if (pc != null) return pc;
+                }
+                return null;
+            }
+            catch { return null; }
+        }
+
         private static int GetLevelFromProgressionValue(object pv)
         {
             if (pv == null) return -1;
@@ -282,19 +312,66 @@ namespace LimitByCraftingSkillMod
         }
 
         /// <summary>
-        /// Gets the crafting skill group name for the item class. Uses only ClassNameToCraftingSkillMap.xml:
-        /// looks up the item's map key (item name or type name) in the map; if found, returns the mapped craftingSkillGroup.
-        /// If the file is missing or the key has no mapping, returns null (do not restrict the item).
+        /// Gets the crafting skill group for restrictions. First ClassNameToCraftingSkillMap.xml (case-insensitive key).
+        /// If unmapped, uses the game's <c>ItemClass.CraftingSkillGroup</c> when it is Electrician, Workstations, HarvestingTools, or Tools (maps to HarvestingTools).
         /// </summary>
         internal static string GetCraftingSkillGroup(ItemClass itemClass)
         {
             if (itemClass == null) return null;
             var mapKey = GetItemClassNameForMap(itemClass);
-            if (string.IsNullOrWhiteSpace(mapKey)) return null;
-            var map = ClassNameToCraftingSkillMapLoader.GetMap();
-            if (!map.TryGetValue(mapKey, out var mapped) || string.IsNullOrWhiteSpace(mapped)) return null;
-            var trimmed = mapped.Trim();
-            return trimmed;
+            if (!string.IsNullOrWhiteSpace(mapKey))
+            {
+                var map = ClassNameToCraftingSkillMapLoader.GetMap();
+                if (map.TryGetValue(mapKey, out var mapped) && !string.IsNullOrWhiteSpace(mapped))
+                    return mapped.Trim();
+            }
+            return TrySkillGroupFromItemClassCraftingSkillGroup(itemClass);
+        }
+
+        /// <summary>
+        /// Reads the game's CraftingSkillGroup field/property; returns a normalized group only for electrician/harvesting/workstation coverage.
+        /// </summary>
+        private static string TrySkillGroupFromItemClassCraftingSkillGroup(ItemClass itemClass)
+        {
+            var raw = ReadItemClassCraftingSkillGroupRaw(itemClass);
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            var s = raw.Trim();
+            if (string.Equals(s, "Tools", StringComparison.OrdinalIgnoreCase))
+                return "HarvestingTools";
+            if (string.Equals(s, "HarvestingTools", StringComparison.OrdinalIgnoreCase))
+                return "HarvestingTools";
+            if (string.Equals(s, "Electrician", StringComparison.OrdinalIgnoreCase))
+                return "Electrician";
+            if (string.Equals(s, "Workstations", StringComparison.OrdinalIgnoreCase))
+                return "Workstations";
+            return null;
+        }
+
+        private static string ReadItemClassCraftingSkillGroupRaw(ItemClass itemClass)
+        {
+            if (itemClass == null) return null;
+            try
+            {
+                var t = itemClass.GetType();
+                var f = t.GetField("CraftingSkillGroup", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (f != null)
+                {
+                    var v = f.GetValue(itemClass) as string;
+                    if (!string.IsNullOrWhiteSpace(v)) return v;
+                }
+                var p = t.GetProperty("CraftingSkillGroup", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (p != null)
+                {
+                    try
+                    {
+                        var v = p.GetValue(itemClass, null) as string;
+                        if (!string.IsNullOrWhiteSpace(v)) return v;
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+            return null;
         }
 
         /// <summary>
@@ -338,66 +415,297 @@ namespace LimitByCraftingSkillMod
         }
 
         /// <summary>
-        /// Gets the minimum crafting level required to use this item at its current quality.
-        /// Uses Progression.ProgressionClasses[lookupName].DisplayDataList to find the item's DisplayData,
-        /// then QualityStarts or GetQualityLevel(level) to compute required level. Returns 0 if no progression data or no quality.
+        /// Skills whose handheld/placeable items often have no ItemValue quality; use progression tier 1 for required level.
+        /// </summary>
+        internal static bool UsesSyntheticQualityTierForRequiredLevel(string skillGroup)
+        {
+            if (string.IsNullOrWhiteSpace(skillGroup)) return false;
+            return string.Equals(skillGroup, "Electrician", StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(skillGroup, "Workstations", StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(skillGroup, "HarvestingTools", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static readonly HashSet<string> _debugLoggedNoMapKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        private static void LogGetRequiredLevelExit0(string mapKey, string skillGroup, bool hasQuality, int rawQuality, string reason)
+        {
+            try
+            {
+                if (ModConfig.Instance == null || !ModConfig.Instance.DebugMode) return;
+                if (reason == "no_map")
+                {
+                    var k = mapKey ?? "";
+                    lock (_debugLoggedNoMapKeys)
+                    {
+                        if (!_debugLoggedNoMapKeys.Add(k)) return;
+                    }
+                }
+                ModApi.DebugLog("[LimitByCraftingSkill] GetRequiredLevelForItem exit=0 reason=" + reason
+                    + " mapKey=" + (mapKey ?? "")
+                    + " skillGroup=" + (skillGroup ?? "")
+                    + " hasQuality=" + hasQuality + " rawQuality=" + rawQuality);
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Gets the minimum crafting level required to use this item at its current quality (or tier 1 for Electrician / Workstations / HarvestingTools when the item has no quality).
         /// </summary>
         internal static int GetRequiredLevelForItem(ItemClass itemClass, ItemValue itemValue)
         {
             if (itemClass == null || itemValue == null) return 0;
+            var mapKey = GetItemClassNameForMap(itemClass);
             var skillGroup = GetCraftingSkillGroup(itemClass);
-            if (string.IsNullOrWhiteSpace(skillGroup)) return 0;
-            if (!HasQuality(itemValue)) return 0;
-            var quality = GetQuality(itemValue);
-            if (quality <= 0) return 0;
+            if (string.IsNullOrWhiteSpace(skillGroup))
+            {
+                LogGetRequiredLevelExit0(mapKey, null, HasQuality(itemValue), GetQuality(itemValue), "no_map");
+                return 0;
+            }
+
+            var hasQ = HasQuality(itemValue);
+            var rawQ = GetQuality(itemValue);
+            int effectiveQuality;
+            if (hasQ && rawQ > 0)
+                effectiveQuality = rawQ;
+            else if (UsesSyntheticQualityTierForRequiredLevel(skillGroup))
+                effectiveQuality = 1;
+            else
+            {
+                LogGetRequiredLevelExit0(mapKey, skillGroup, hasQ, rawQ, "no_quality");
+                return 0;
+            }
 
             var entity = GetLocalPlayer();
-            if (entity == null) return 0;
+            if (entity == null)
+            {
+                LogGetRequiredLevelExit0(mapKey, skillGroup, hasQ, rawQ, "no_player");
+                return 0;
+            }
             var lookupName = ToProgressionLookupName(skillGroup);
-            if (string.IsNullOrWhiteSpace(lookupName)) return 0;
+            if (string.IsNullOrWhiteSpace(lookupName))
+            {
+                LogGetRequiredLevelExit0(mapKey, skillGroup, hasQ, rawQ, "no_lookup");
+                return 0;
+            }
 
             try
             {
                 object progression = GetProgression(entity);
-                if (progression == null) return 0;
-
-                var progType = progression.GetType();
-                var pcField = progType.GetField("ProgressionClasses", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (pcField == null) return 0;
-                var progClasses = pcField.GetValue(progression);
-                if (progClasses == null) return 0;
-
-                var dictType = progClasses.GetType();
-                var indexer = dictType.GetMethod("get_Item", new[] { typeof(string) })
-                    ?? dictType.GetMethod("get_Item", new[] { typeof(object) });
-                if (indexer == null) return 0;
-
-                object progressionClass = null;
-                try
+                if (progression == null)
                 {
-                    progressionClass = indexer.Invoke(progClasses, new object[] { lookupName });
+                    LogGetRequiredLevelExit0(mapKey, skillGroup, hasQ, rawQ, "no_progression");
+                    return 0;
                 }
-                catch { }
-                if (progressionClass == null) return 0;
 
-                var displayDataListField = progressionClass.GetType().GetField("DisplayDataList", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (displayDataListField == null) return 0;
-                var displayDataList = displayDataListField.GetValue(progressionClass) as IList;
-                if (displayDataList == null || displayDataList.Count == 0) return 0;
-
-                var itemNameForMatch = GetItemClassNameForMap(itemClass);
-
-                for (int i = 0; i < displayDataList.Count; i++)
+                var mapKeyName = GetItemClassNameForMap(itemClass);
+                var resolvedLevel = TryResolveRequiredLevelInTree(progression, lookupName, itemClass, mapKeyName, effectiveQuality);
+                if (resolvedLevel < 0 && string.Equals(skillGroup, "Electrician", StringComparison.OrdinalIgnoreCase))
                 {
-                    object displayData = displayDataList[i];
-                    if (displayData == null) continue;
-                    if (!DisplayDataMatchesItem(displayData, itemClass, itemNameForMatch)) continue;
+                    resolvedLevel = TryResolveRequiredLevelInTree(progression, "craftingworkstations", itemClass, mapKeyName, effectiveQuality);
+                    // #region agent log
+                    if (resolvedLevel >= 0 && AgentDebugSessionLog.IsTraceMapKey(mapKeyName))
+                        AgentDebugSessionLog.WriteWorkstationFallback(mapKeyName, resolvedLevel);
+                    // #endregion
+                }
+                if (resolvedLevel < 0 && ClassNameToCraftingSkillMapLoader.TryGetRequiredLevelOverride(mapKeyName, out var ovLevel))
+                    resolvedLevel = ovLevel;
+                if (resolvedLevel >= 0)
+                {
+                    if (ClassNameToCraftingSkillMapLoader.TryGetRequiredLevelMin(mapKeyName, out var minLv))
+                        resolvedLevel = System.Math.Max(resolvedLevel, minLv);
+                    return resolvedLevel;
+                }
 
-                    return GetRequiredLevelFromDisplayData(displayData, quality);
+                // #region agent log
+                if (AgentDebugSessionLog.IsTraceMapKey(mapKeyName))
+                {
+                    var pc = GetProgressionClassFromProgressionValue(progression, lookupName);
+                    IList ddl = null;
+                    if (pc != null)
+                    {
+                        var f = pc.GetType().GetField("DisplayDataList", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                        ddl = f?.GetValue(pc) as IList;
+                    }
+                    var samples = ddl != null ? CollectSampleProgressionItemNames(ddl, 24) : new List<string>();
+                    var candidates = BuildProgressionMatchCandidates(mapKeyName);
+                    var hasXml = ClassNameToCraftingSkillMapLoader.TryGetProgressionMatchOverride(mapKeyName, out _);
+                    AgentDebugSessionLog.WriteProgressionProbe(mapKeyName, lookupName + "|tried_ws", string.Join("|", candidates), hasXml, string.Join("|", samples));
+                }
+                // #endregion
+
+                LogGetRequiredLevelExit0(mapKey, skillGroup, hasQ, rawQ, "no_progression_match");
+                return 0;
+            }
+            catch
+            {
+                LogGetRequiredLevelExit0(mapKey, skillGroup, hasQ, rawQ, "exception");
+                return 0;
+            }
+        }
+
+        private static int TryResolveRequiredLevelInTree(object progression, string progressionLookupName, ItemClass itemClass, string mapKeyName, int effectiveQuality)
+        {
+            if (progression == null || string.IsNullOrEmpty(progressionLookupName)) return -1;
+            var progressionClass = GetProgressionClassFromProgressionValue(progression, progressionLookupName);
+            if (progressionClass == null) return -1;
+            var displayDataListField = progressionClass.GetType().GetField("DisplayDataList", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            var displayDataList = displayDataListField?.GetValue(progressionClass) as IList;
+            if (displayDataList == null || displayDataList.Count == 0) return -1;
+            var candidates = BuildProgressionMatchCandidates(mapKeyName);
+            foreach (var itemNameForMatch in candidates)
+            {
+                var resolved = TryResolveRequiredLevelWithProgressionName(itemClass, displayDataList, effectiveQuality, itemNameForMatch);
+                if (resolved >= 0) return resolved;
+            }
+            var garageFb = TryResolvePoweredGarageViaUnlockScan(displayDataList, effectiveQuality, mapKeyName);
+            return garageFb >= 0 ? garageFb : -1;
+        }
+
+        private static List<string> BuildProgressionMatchCandidates(string mapKeyName)
+        {
+            var list = new List<string>();
+            void Add(string s)
+            {
+                if (string.IsNullOrWhiteSpace(s)) return;
+                foreach (var e in list)
+                    if (string.Equals(e, s, StringComparison.OrdinalIgnoreCase)) return;
+                list.Add(s);
+            }
+            if (string.IsNullOrEmpty(mapKeyName)) return list;
+            if (ClassNameToCraftingSkillMapLoader.TryGetProgressionMatchOverride(mapKeyName, out var ex)) Add(ex);
+            Add(mapKeyName);
+            if (mapKeyName.StartsWith("ironGarageDoor_", StringComparison.OrdinalIgnoreCase) &&
+                !mapKeyName.StartsWith("ironGarageDoor01_", StringComparison.OrdinalIgnoreCase))
+                Add("ironGarageDoor01_" + mapKeyName.Substring("ironGarageDoor_".Length));
+            if (mapKeyName.StartsWith("woodenGarageDoor3x3_", StringComparison.OrdinalIgnoreCase) &&
+                mapKeyName.IndexOf("woodenGarageDoor01_3x3_", StringComparison.OrdinalIgnoreCase) < 0)
+                Add("woodenGarageDoor01_3x3_" + mapKeyName.Substring("woodenGarageDoor3x3_".Length));
+            return list;
+        }
+
+        private static int TryResolveRequiredLevelWithProgressionName(ItemClass itemClass, IList displayDataList, int effectiveQuality, string itemNameForMatch)
+        {
+            for (int i = 0; i < displayDataList.Count; i++)
+            {
+                object displayData = displayDataList[i];
+                if (displayData == null) continue;
+                if (!DisplayDataMatchesItem(displayData, itemClass, itemNameForMatch)) continue;
+                return GetRequiredLevelFromDisplayData(displayData, effectiveQuality);
+            }
+            for (int i = 0; i < displayDataList.Count; i++)
+            {
+                object displayData = displayDataList[i];
+                if (displayData == null) continue;
+                var unlockListField = displayData.GetType().GetField("UnlockDataList", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                var unlockList = unlockListField?.GetValue(displayData) as IList;
+                var count = unlockList?.Count ?? 0;
+                if (count == 0)
+                {
+                    var mGetUd = displayData.GetType().GetMethod("GetUnlockData", new[] { typeof(int) });
+                    if (mGetUd != null)
+                    {
+                        for (var u = 0; u < 256; u++)
+                        {
+                            object ud = null;
+                            try { ud = mGetUd.Invoke(displayData, new object[] { u }); } catch { break; }
+                            if (ud == null) break;
+                            if (!UnlockEntryMatchesCraftItem(displayData, u, ud, itemClass, itemNameForMatch)) continue;
+                            return GetRequiredLevelFromDisplayData(displayData, effectiveQuality);
+                        }
+                    }
+                    continue;
+                }
+                for (var u = 0; u < count; u++)
+                {
+                    var ud = unlockList[u];
+                    if (!UnlockEntryMatchesCraftItem(displayData, u, ud, itemClass, itemNameForMatch)) continue;
+                    return GetRequiredLevelFromDisplayData(displayData, effectiveQuality);
                 }
             }
-            catch { }
-            return 0;
+            return -1;
+        }
+
+        /// <summary>
+        /// Powered garage placeables often fail name-only progression match; scan unlock rows for any ItemClass
+        /// containing "garagedoor" and the same color suffix (e.g. ..._PoweredWhite → tail "White").
+        /// </summary>
+        private static int TryResolvePoweredGarageViaUnlockScan(IList displayDataList, int effectiveQuality, string mapKeyName)
+        {
+            if (string.IsNullOrEmpty(mapKeyName)) return -1;
+            if (mapKeyName.IndexOf("garagedoor", StringComparison.OrdinalIgnoreCase) < 0) return -1;
+            if (mapKeyName.IndexOf("powered", StringComparison.OrdinalIgnoreCase) < 0) return -1;
+            var li = mapKeyName.LastIndexOf('_');
+            if (li < 0 || li >= mapKeyName.Length - 1) return -1;
+            var tail = mapKeyName.Substring(li + 1);
+            if (tail.Length < 2) return -1;
+
+            for (int i = 0; i < displayDataList.Count; i++)
+            {
+                var displayData = displayDataList[i];
+                if (displayData == null) continue;
+                if (!PoweredGarageUnlockListContainsTail(displayData, tail)) continue;
+                var lvl = GetRequiredLevelFromDisplayData(displayData, effectiveQuality);
+                return lvl;
+            }
+            return -1;
+        }
+
+        private static bool PoweredGarageUnlockListContainsTail(object displayData, string tail)
+        {
+            var ddType = displayData.GetType();
+            var mGetItem = ddType.GetMethod("GetUnlockItem", new[] { typeof(int) });
+            if (mGetItem == null) return false;
+
+            bool IndexMatches(int u)
+            {
+                try
+                {
+                    var ic = mGetItem.Invoke(displayData, new object[] { u }) as ItemClass;
+                    if (ic == null) return false;
+                    var n = GetItemClassNameForMap(ic);
+                    if (string.IsNullOrEmpty(n)) return false;
+                    if (n.IndexOf("garagedoor", StringComparison.OrdinalIgnoreCase) < 0) return false;
+                    return n.IndexOf(tail, StringComparison.OrdinalIgnoreCase) >= 0;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+
+            var unlockListField = ddType.GetField("UnlockDataList", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            var unlockList = unlockListField?.GetValue(displayData) as IList;
+            var count = unlockList?.Count ?? 0;
+            if (count > 0)
+            {
+                for (var u = 0; u < count; u++)
+                    if (IndexMatches(u)) return true;
+                return false;
+            }
+            for (var u = 0; u < 512; u++)
+            {
+                ItemClass ic = null;
+                try { ic = mGetItem.Invoke(displayData, new object[] { u }) as ItemClass; } catch { break; }
+                if (ic == null) break;
+                if (IndexMatches(u)) return true;
+            }
+            return false;
+        }
+
+        private static List<string> CollectSampleProgressionItemNames(IList displayDataList, int max)
+        {
+            var r = new List<string>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < displayDataList.Count && r.Count < max; i++)
+            {
+                var dd = displayDataList[i];
+                if (dd == null) continue;
+                var f = dd.GetType().GetField("ItemName", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                var n = f?.GetValue(dd) as string;
+                if (string.IsNullOrEmpty(n) || !seen.Add(n)) continue;
+                r.Add(n);
+            }
+            return r;
         }
 
         private static bool DisplayDataMatchesItem(object displayData, ItemClass itemClass, string itemNameForMatch)
@@ -425,6 +733,115 @@ namespace LimitByCraftingSkillMod
             {
                 var name = itemNameField.GetValue(displayData) as string;
                 if (string.Equals(name, itemNameForMatch, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            if (!string.IsNullOrEmpty(itemNameForMatch))
+            {
+                object ddItem = null;
+                if (itemField != null) ddItem = itemField.GetValue(displayData);
+                if (ddItem == null && itemProp != null) try { ddItem = itemProp.GetValue(displayData, null); } catch { }
+                if (ddItem is ItemClass ddItemClass)
+                {
+                    var ddMapKey = GetItemClassNameForMap(ddItemClass);
+                    if (string.Equals(ddMapKey, itemNameForMatch, StringComparison.OrdinalIgnoreCase)) return true;
+                }
+            }
+            if (itemNameField != null && !string.IsNullOrEmpty(itemNameForMatch))
+            {
+                var name = itemNameField.GetValue(displayData) as string;
+                if (!string.IsNullOrEmpty(name))
+                {
+                    const int minContainsLength = 5;
+                    if (name.Length >= minContainsLength && itemNameForMatch.Length >= minContainsLength)
+                    {
+                        if (name.IndexOf(itemNameForMatch, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                        if (itemNameForMatch.IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        private static bool UnlockEntryMatchesCraftItem(object displayData, int unlockIndex, object unlockData, ItemClass itemClass, string itemNameForMatch)
+        {
+            if (unlockData != null && UnlockDataMatchesItem(unlockData, itemClass, itemNameForMatch)) return true;
+            if (displayData != null && itemClass != null)
+            {
+                var m = displayData.GetType().GetMethod("GetUnlockItem", new[] { typeof(int) });
+                if (m != null)
+                {
+                    try
+                    {
+                        var ic = m.Invoke(displayData, new object[] { unlockIndex }) as ItemClass;
+                        if (ic != null)
+                        {
+                            if (ReferenceEquals(ic, itemClass)) return true;
+                            if (!string.IsNullOrEmpty(itemNameForMatch) &&
+                                string.Equals(GetItemClassNameForMap(ic), itemNameForMatch, StringComparison.OrdinalIgnoreCase)) return true;
+                        }
+                    }
+                    catch { }
+                }
+            }
+            if (unlockData != null && !string.IsNullOrEmpty(itemNameForMatch))
+            {
+                var recipeField = unlockData.GetType().GetField("RecipeList", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                var arr = recipeField?.GetValue(unlockData) as string[];
+                if (arr != null)
+                {
+                    foreach (var r in arr)
+                    {
+                        if (string.IsNullOrEmpty(r)) continue;
+                        if (string.Equals(r, itemNameForMatch, StringComparison.OrdinalIgnoreCase)) return true;
+                        if (r.Length >= 4 && itemNameForMatch.Length >= 4)
+                        {
+                            if (r.IndexOf(itemNameForMatch, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                            if (itemNameForMatch.IndexOf(r, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        private static bool UnlockDataMatchesItem(object unlockData, ItemClass itemClass, string itemNameForMatch)
+        {
+            if (unlockData == null) return false;
+            var t = unlockData.GetType();
+            var itemField = t.GetField("item", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (itemField != null && itemField.GetValue(unlockData) == itemClass) return true;
+            var itemProp = t.GetProperty("Item", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (itemProp != null)
+            {
+                try { if (itemProp.GetValue(unlockData, null) == itemClass) return true; } catch { }
+            }
+            var itemNameField = t.GetField("ItemName", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (itemNameField != null && !string.IsNullOrEmpty(itemNameForMatch))
+            {
+                var name = itemNameField.GetValue(unlockData) as string;
+                if (string.Equals(name, itemNameForMatch, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            if (!string.IsNullOrEmpty(itemNameForMatch))
+            {
+                object uItem = null;
+                if (itemField != null) uItem = itemField.GetValue(unlockData);
+                if (uItem == null && itemProp != null) try { uItem = itemProp.GetValue(unlockData, null); } catch { }
+                if (uItem is ItemClass uIc)
+                {
+                    if (string.Equals(GetItemClassNameForMap(uIc), itemNameForMatch, StringComparison.OrdinalIgnoreCase)) return true;
+                }
+            }
+            if (itemNameField != null && !string.IsNullOrEmpty(itemNameForMatch))
+            {
+                var name = itemNameField.GetValue(unlockData) as string;
+                if (!string.IsNullOrEmpty(name))
+                {
+                    const int minLen = 5;
+                    if (name.Length >= minLen && itemNameForMatch.Length >= minLen)
+                    {
+                        if (name.IndexOf(itemNameForMatch, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                        if (itemNameForMatch.IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                    }
+                }
             }
             return false;
         }

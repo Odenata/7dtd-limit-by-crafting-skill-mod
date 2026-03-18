@@ -1,6 +1,6 @@
 # Limit by Crafting Skill Mod
 
-Restricts equipping and using items to the player's crafting skill level for that item type. See [LootProgressionByCraftingSkillModIdea.md](LootProgressionByCraftingSkillModIdea.md) and [docs/DESIGN.md](docs/DESIGN.md) for design.
+Restricts equipping and using items to the player's crafting skill level for that item type. See [LootProgressionByCraftingSkillModIdea.md](LootProgressionByCraftingSkillModIdea.md) and [docs/DESIGN.md](docs/DESIGN.md) for design. **Open work:** [docs/TODO.md](docs/TODO.md).
 
 ## Build
 
@@ -13,6 +13,10 @@ Restricts equipping and using items to the player's crafting skill level for tha
 - **Bazel:** `bazel test //tests:all` (on Windows may require `BAZEL_SH` set to bash for test runner; see 7dtd-mod-dev-tools docs).
 - **dotnet:** From repo root with 7dtd-mod-dev-tools as sibling: `dotnet test tests\LimitByCraftingSkillMod.Tests.csproj`.
 - **In-game:** After deploy, use [docs/IN_GAME_TEST_CHECKLIST.md](docs/IN_GAME_TEST_CHECKLIST.md).
+
+## Debugging required-level issues
+
+To trace why an item shows required level **0** or wrong tier after a game update, see **[docs/DEBUG_INSTRUMENTATION.md](docs/DEBUG_INSTRUMENTATION.md)** (NDJSON log helpers and where to hook `GetRequiredLevelForItem`).
 
 ## Deploy
 

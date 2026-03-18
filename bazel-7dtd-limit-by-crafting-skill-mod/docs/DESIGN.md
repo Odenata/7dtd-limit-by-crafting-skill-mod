@@ -7,7 +7,9 @@ The player may not equip or use an item if the item's **required level** (for it
 ## Item "required level"
 
 - **Source:** Each item has `ItemClass.CraftingSkillGroup` (string) and optionally a quality tier. Quality is exposed as `ItemValue.Quality` (e.g. 1–5). Items without quality are treated as requiring a single tier (e.g. required level 0 or 1 — no restriction, or a minimal level to be validated against the game's progression data).
-- **Derivation:** Required level is derived from the game's progression/recipe data. The game uses `ProgressionClass` and related types (e.g. `DisplayData` with quality tiers, `LevelRequirements`, `GetRequirementsForLevel`). This mapping will be validated against the runtime API (ProgressionValue, ProgressionClass, QualityInfo, etc.). See `docs/GAME_API_NOTES.md` for patch targets and types. Progression lookup names for crafting skills (e.g. craftingarmor) are in GAME_API_NOTES and in 7dtd-mod-dev-tools (e.g. PROGRESSION_NAMES.md).
+- **Derivation:** Required level comes from `ProgressionValue` → `ProgressionClass` → `DisplayDataList`. Each `DisplayData` row has `QualityStarts[quality-1]` for tier `quality` (1-based). Matching the item to a row: direct `DisplayData.item` / `ItemName` when set; otherwise scan `UnlockDataList` (or `GetUnlockData(i)` when the list is empty), matching via unlock `item`/`ItemName`, `DisplayData.GetUnlockItem(i)`, or `UnlockData.RecipeList` strings. Armor and some other skills use empty top-level `ItemName` and populate unlocks instead.
+- **No quality tier:** For **Electrician**, **Workstations**, and **HarvestingTools**, inventory items often have no `ItemValue` quality (or quality 0). Those skills use **synthetic tier 1** for progression lookup so placeables (generator, forge) and stone tools still get a non-zero required level when progression matches. Other skills still require real quality.
+- **Debug:** With `Config.xml` → `DebugMode` true, `GetRequiredLevelForItem` logs `exit=0` with **reason** (`no_map`, `no_quality`, `no_progression_match`, etc.). `no_map` is logged at most once per item name. Optional NDJSON file logging: **`docs/DEBUG_INSTRUMENTATION.md`**.
 
 ## Restriction points
 
@@ -61,6 +63,14 @@ The exact API for this popup is to be identified in the game API investigation.
 
 - **Per–crafting-skill toggles:** One toggle per crafting skill (e.g. Armor, HarvestingTools, Workstations, Vehicles). When enabled, restriction applies for that skill; when disabled, items for that skill are not restricted.
 - **Server vs client:** In multiplayer, restrictions must respect the **server's** config, not the client's. Where config is read (server vs client process) and how server authority is enforced is documented here and implemented when the game API for that is clear. Initial implementation can be client-only with a note to add server path later.
+
+## Out of scope (by design)
+
+- **Food and Medicine:** Not implemented. Those items are typically used from **any** inventory slot; blocking would need new hooks on consume/use, not just hotbar/equip. See **`docs/TODO.md`** for maintainer notes.
+
+## Roadmap / known gaps
+
+See **`docs/TODO.md`** (shift-click containers, vehicle/workstation non-inventory paths, name extraction, `.gitignore`, etc.).
 
 ## Optional (document only, no implementation)
 

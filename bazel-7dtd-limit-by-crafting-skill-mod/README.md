@@ -14,6 +14,10 @@ Restricts equipping and using items to the player's crafting skill level for tha
 - **dotnet:** From repo root with 7dtd-mod-dev-tools as sibling: `dotnet test tests\LimitByCraftingSkillMod.Tests.csproj`.
 - **In-game:** After deploy, use [docs/IN_GAME_TEST_CHECKLIST.md](docs/IN_GAME_TEST_CHECKLIST.md).
 
+## Debugging required-level issues
+
+To trace why an item shows required level **0** or wrong tier after a game update, see **[docs/DEBUG_INSTRUMENTATION.md](docs/DEBUG_INSTRUMENTATION.md)** (NDJSON log helpers and where to hook `GetRequiredLevelForItem`).
+
 ## Deploy
 
 - **Bazel run:** `bazel run //tools:deploy` (builds if DLL missing, then copies to game `Mods` folder).
