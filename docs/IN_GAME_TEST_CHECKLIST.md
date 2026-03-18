@@ -47,3 +47,15 @@ After deploying the mod (`tools\deploy.ps1`), start 7 Days to Die and verify the
 ## Debug
 
 - [ ] Set `DebugMode` to true in Config.xml → check game log for mod messages when attempting restricted actions.
+
+## Optional: progression.xml vs map (local dev)
+
+With your game install’s `progression.xml`:
+
+1. Set **`PROGRESSION_XML_PATH`** (or **`7DTD_PROGRESSION_XML`**) to `…\Data\Config\progression.xml`.
+2. Optionally set **`CLASSNAME_MAP_XML`** to `src\ClassNameToCraftingSkillMap.xml`.
+3. Run **`bazel test //tests:progression_assembly_integration`**.
+
+The test asserts each mapped item resolves against unlock lists (same garage-door transforms as the mod). Skips when the env var is unset. Optional **`ASSEMBLY_CSHARP_DLL`** → `…\Managed\Assembly-CSharp.dll` runs a reflection smoke check on progression types.
+
+For validating required levels against **live** game progression (player skill vs placeable), see **[LOCAL_GAME_HARNESS.md](LOCAL_GAME_HARNESS.md)** (in-game debug + optional separate harness repo).

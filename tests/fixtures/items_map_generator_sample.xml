@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Minimal items.xml fragment for map generator tests (not full game schema). -->
+<items>
+  <item name="gunBowT0PrimitiveBow">
+    <property name="CraftingSkillGroup" value="Bows"/>
+  </item>
+  <item name="gunBowT1WoodenBow">
+    <property name="CraftingSkillGroup" value="Bows"/>
+  </item>
+  <item name="medicalFirstAidBandage">
+    <property name="CraftingSkillGroup" value="Medical"/>
+  </item>
+  <item name="dupItem">
+    <property name="CraftingSkillGroup" value="Seeds"/>
+  </item>
+  <item name="dupItem">
+    <property name="CraftingSkillGroup" value="Bows"/>
+  </item>
+</items>

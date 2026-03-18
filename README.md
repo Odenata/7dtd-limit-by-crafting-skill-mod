@@ -8,11 +8,16 @@ Restricts equipping and using items to the player's crafting skill level for tha
 - **Bazel run (non-hermetic, uses host dotnet):** `bazel run //tools:build`
 - **Local (IDE/deploy):** `.\tools\build.ps1` — requires `7dtd-mod-dev-tools` as a sibling repo (e.g. `repos\7dtd-mod-dev-tools`).
 
+## ClassName map generator (hermetic Python)
+
+- **Run:** `bazel run //tools:generate_classname_map_report -- --items <game>\Data\Config\items.xml --map src/ClassNameToCraftingSkillMap.xml --out-csv … --out-generated-xml src/ClassNameToCraftingSkillMap_generated.xml`
+- **Details:** [tools/README_MAP_GENERATOR.md](tools/README_MAP_GENERATOR.md)
+
 ## Test
 
 - **Bazel:** `bazel test //tests:all` (on Windows may require `BAZEL_SH` set to bash for test runner; see 7dtd-mod-dev-tools docs).
 - **dotnet:** From repo root with 7dtd-mod-dev-tools as sibling: `dotnet test tests\LimitByCraftingSkillMod.Tests.csproj`.
-- **In-game:** After deploy, use [docs/IN_GAME_TEST_CHECKLIST.md](docs/IN_GAME_TEST_CHECKLIST.md).
+- **In-game:** After deploy, use [docs/IN_GAME_TEST_CHECKLIST.md](docs/IN_GAME_TEST_CHECKLIST.md). Optional: [docs/LOCAL_GAME_HARNESS.md](docs/LOCAL_GAME_HARNESS.md) (live progression / future standalone harness).
 
 ## Debugging required-level issues
 

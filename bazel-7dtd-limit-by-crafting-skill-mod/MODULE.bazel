@@ -3,6 +3,15 @@ module(
     version = "0.1.0",
 )
 
+bazel_dep(name = "rules_python", version = "1.9.0")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    configure_coverage_tool = False,
+    is_default = True,
+    python_version = "3.12",
+)
+
 bazel_dep(name = "rules_dotnet_framework")
 git_override(
     module_name = "rules_dotnet_framework",

@@ -12,11 +12,21 @@ Tracked improvements and known gaps for **LimitByCraftingSkillMod** and related 
 
 ---
 
-## 2. Extract item names & progression names from game data
+## 2. Extract item names & progression names from game data — addressed (baseline)
 
-**Tool:** Run **`tools/generate_classname_map_report.py`** against install **`items.xml`** (optional **`progression.xml`**). See **`tools/README_MAP_GENERATOR.md`**.
+**Tool:** **`bazel run //tools:generate_classname_map_report`** with install **`items.xml`** (optional **`progression.xml`**). Hermetic Python via **rules_python**; see **`tools/README_MAP_GENERATOR.md`**. **`src/ClassNameToCraftingSkillMap_generated.xml`** is the sorted/merged view (mod map + optional `items.xml` `CraftingSkillGroup` rows). CI: **`.github/workflows/map-generator.yml`**.
 
-**Dev-tools:** When a pipeline exists, add a section to **`7dtd-mod-dev-tools`** … Placeholder: [`TODO_ITEM_PROGRESSION_NAME_PIPELINE.md`](../../7dtd-mod-dev-tools/docs/TODO_ITEM_PROGRESSION_NAME_PIPELINE.md).
+**Dev-tools:** Broader pipeline still TBD — [`TODO_ITEM_PROGRESSION_NAME_PIPELINE.md`](../../7dtd-mod-dev-tools/docs/TODO_ITEM_PROGRESSION_NAME_PIPELINE.md).
+
+---
+
+## Electrician `requiredLevelOverride` / progression (TODO)
+
+**Problem:** Required levels from `craftingelectrician` + `craftingworkstations` `DisplayData` often yield **0** or wrong tiers for placeables (e.g. powered garage doors), so restrictions do not apply reliably.
+
+**Done for reference:** `ClassNameToCraftingSkillMap_generated.xml` sets **`requiredLevelOverride="30"`** on powered garage placeables: **`ironGarageDoor_Powered*`**, **`steelGarageDoor*Powered*`**, **`woodenGarageDoor*Powered*`** (hand-maintained in generated file until the generator or runtime logic is fixed).
+
+**TODO:** Audit the full **Electrician** map set: for each item, record vanilla progression tier (or confirm override/min), remove redundant overrides when progression resolve is trustworthy, and optionally teach **`generate_classname_map_report.py`** to emit overrides only where validated.
 
 ---
 

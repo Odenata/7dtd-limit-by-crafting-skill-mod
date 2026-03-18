@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Minimal progression.xml for map generator tests -->
+<progression>
+  <crafting_skill name="craftingElectrician" max_level="100">
+    <display_entry item="ironGarageDoor01_FixtureTail" unlock_level="1"/>
+  </crafting_skill>
+</progression>

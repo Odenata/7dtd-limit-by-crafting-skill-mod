@@ -12,6 +12,7 @@
 /optimize+
 /define:TRACE;RELEASE
 src/AddItemToToolbeltRestrictionPatch.cs
+src/AgentDebugSessionLog.cs
 src/AssemblyInfo.cs
 src/ClassNameToCraftingSkillMapLoader.cs
 src/EquipItemRestrictionPatch.cs
@@ -29,7 +30,8 @@ src/RestrictionFeedback.cs
 src/RestrictionHelper.cs
 src/RestrictionLabelColor.cs
 src/ToolbeltHandleStackSwapPatch.cs
-src/ToolbeltHandleMoveToPreferredLocationPatch.cs
+src/WorkstationVehicleStackSwapPatches.cs
+src/ItemActionSpawnVehicleRestrictionPatch.cs
 bazel-out/x64_windows-fastbuild/bin/src/LimitByCraftingSkillMod.dll._tf_.cs
 /r:external/rules_dotnet_framework++toolchain+Microsoft.NETFramework.ReferenceAssemblies.net472.1.0.0/build/.NETFramework/v4.7.2/System.Xml.dll
 /r:external/rules_dotnet_framework++toolchain+Microsoft.NETFramework.ReferenceAssemblies.net472.1.0.0/build/.NETFramework/v4.7.2/mscorlib.dll

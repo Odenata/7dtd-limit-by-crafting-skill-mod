@@ -29,6 +29,8 @@ namespace LimitByCraftingSkillMod.Tests
         public void IsRestricted_WhenRequiredLevelZero_ReturnsFalse()
         {
             Assert.False(LimitByCraftingSkillLogic.IsRestricted(0, 0, true));
+            Assert.False(LimitByCraftingSkillLogic.IsRestricted(5, 0, true));
+            Assert.True(LimitByCraftingSkillLogic.IsRestricted(5, 10, true));
         }
     }
 }

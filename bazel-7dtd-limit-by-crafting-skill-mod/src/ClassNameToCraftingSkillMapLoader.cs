@@ -54,7 +54,7 @@ namespace LimitByCraftingSkillMod
             return false;
         }
 
-        /// <summary>When set, use this required level if progression trees do not list the item.</summary>
+        /// <summary>When set, use this level if progression resolves to ≤0 (no match or tier 0). For floors when level is already &gt;0, use requiredLevelMin.</summary>
         public static bool TryGetRequiredLevelOverride(string className, out int level)
         {
             level = 0;

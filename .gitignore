@@ -1,0 +1,42 @@
+# Bazel (nested workspace + output — avoid Windows path-length issues with git add)
+/bazel-*
+/bazel-bin
+/bazel-out
+/bazel-testlogs
+/.bazelrc.user
+
+# .NET / MSBuild
+**/bin/
+**/obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# IDE
+.vs/
+.idea/
+*.swp
+*.swo
+*~
+
+# Local / debug
+debug-*.log
+*.log
+.env
+.env.*
+
+# Python (local runs / editors)
+**/__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+*.egg-info/
+.eggs/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store

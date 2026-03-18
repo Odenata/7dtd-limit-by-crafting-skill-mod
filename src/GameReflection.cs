@@ -513,13 +513,20 @@ namespace LimitByCraftingSkillMod
             {
                 var mapKeyName = GetItemClassNameForMap(itemClass);
                 var resolvedLevel = TryResolveRequiredLevelInTree(progression, lookupName, itemClass, mapKeyName, effectiveQuality);
-                if (resolvedLevel < 0 && string.Equals(skillGroup, "Electrician", StringComparison.OrdinalIgnoreCase))
+                // Electrician placeables (e.g. powered garage) may match craftingelectrician at tier 0 while the real
+                // unlock tier lives under craftingworkstations — always take the higher of the two trees.
+                if (string.Equals(skillGroup, "Electrician", StringComparison.OrdinalIgnoreCase))
                 {
-                    resolvedLevel = TryResolveRequiredLevelInTree(progression, "craftingworkstations", itemClass, mapKeyName, effectiveQuality);
-                    if (resolvedLevel >= 0 && AgentDebugSessionLog.IsTraceMapKey(mapKeyName))
-                        AgentDebugSessionLog.WriteWorkstationFallback(mapKeyName, resolvedLevel);
+                    var wsLevel = TryResolveRequiredLevelInTree(progression, "craftingworkstations", itemClass, mapKeyName, effectiveQuality);
+                    if (wsLevel > resolvedLevel)
+                    {
+                        resolvedLevel = wsLevel;
+                        if (AgentDebugSessionLog.IsTraceMapKey(mapKeyName))
+                            AgentDebugSessionLog.WriteWorkstationFallback(mapKeyName, resolvedLevel);
+                    }
                 }
-                if (resolvedLevel < 0 && ClassNameToCraftingSkillMapLoader.TryGetRequiredLevelOverride(mapKeyName, out var ovLevel))
+                // Override applies when progression gives no positive gate (including matched row at tier 0).
+                if (resolvedLevel <= 0 && ClassNameToCraftingSkillMapLoader.TryGetRequiredLevelOverride(mapKeyName, out var ovLevel))
                     resolvedLevel = ovLevel;
                 if (resolvedLevel >= 0)
                 {
@@ -562,13 +569,82 @@ namespace LimitByCraftingSkillMod
             var displayDataList = displayDataListField?.GetValue(progressionClass) as IList;
             if (displayDataList == null || displayDataList.Count == 0) return -1;
             var candidates = BuildProgressionMatchCandidates(mapKeyName);
+            var poweredIronGarage = IsPoweredIronGarageMapKey(mapKeyName);
+            var best = -1;
             foreach (var itemNameForMatch in candidates)
             {
-                var resolved = TryResolveRequiredLevelWithProgressionName(itemClass, displayDataList, effectiveQuality, itemNameForMatch);
-                if (resolved >= 0) return resolved;
+                var resolved = poweredIronGarage
+                    ? TryResolveRequiredLevelWithProgressionNameMax(itemClass, displayDataList, effectiveQuality, itemNameForMatch)
+                    : TryResolveRequiredLevelWithProgressionName(itemClass, displayDataList, effectiveQuality, itemNameForMatch);
+                if (!poweredIronGarage && resolved >= 0)
+                    return resolved;
+                if (resolved > best)
+                    best = resolved;
             }
+            if (best >= 0)
+                return best;
             var garageFb = TryResolvePoweredGarageViaUnlockScan(displayDataList, effectiveQuality, mapKeyName);
             return garageFb >= 0 ? garageFb : -1;
+        }
+
+        /// <summary>
+        /// Powered iron garage placeables often hit a parent DisplayData row with QualityStarts[0]==0 before a specific row
+        /// with a higher tier; take the maximum required level across all matching rows.
+        /// </summary>
+        private static bool IsPoweredIronGarageMapKey(string mapKeyName)
+        {
+            if (string.IsNullOrEmpty(mapKeyName)) return false;
+            if (mapKeyName.IndexOf("garagedoor", StringComparison.OrdinalIgnoreCase) < 0) return false;
+            if (mapKeyName.IndexOf("powered", StringComparison.OrdinalIgnoreCase) < 0) return false;
+            return mapKeyName.StartsWith("ironGarageDoor_", StringComparison.OrdinalIgnoreCase)
+                   && !mapKeyName.StartsWith("ironGarageDoor01_", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>Like <see cref="TryResolveRequiredLevelWithProgressionName"/> but returns the maximum level among all matching DisplayData rows.</summary>
+        private static int TryResolveRequiredLevelWithProgressionNameMax(ItemClass itemClass, IList displayDataList, int effectiveQuality, string itemNameForMatch)
+        {
+            var best = -1;
+            for (int i = 0; i < displayDataList.Count; i++)
+            {
+                object displayData = displayDataList[i];
+                if (displayData == null) continue;
+                if (!DisplayDataMatchesItem(displayData, itemClass, itemNameForMatch)) continue;
+                var lvl = GetRequiredLevelFromDisplayData(displayData, effectiveQuality);
+                if (lvl > best) best = lvl;
+            }
+            for (int i = 0; i < displayDataList.Count; i++)
+            {
+                object displayData = displayDataList[i];
+                if (displayData == null) continue;
+                var unlockListField = displayData.GetType().GetField("UnlockDataList", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                var unlockList = unlockListField?.GetValue(displayData) as IList;
+                var count = unlockList?.Count ?? 0;
+                if (count == 0)
+                {
+                    var mGetUd = displayData.GetType().GetMethod("GetUnlockData", new[] { typeof(int) });
+                    if (mGetUd != null)
+                    {
+                        for (var u = 0; u < 256; u++)
+                        {
+                            object ud = null;
+                            try { ud = mGetUd.Invoke(displayData, new object[] { u }); } catch { break; }
+                            if (ud == null) break;
+                            if (!UnlockEntryMatchesCraftItem(displayData, u, ud, itemClass, itemNameForMatch)) continue;
+                            var lvl = GetRequiredLevelFromDisplayData(displayData, effectiveQuality);
+                            if (lvl > best) best = lvl;
+                        }
+                    }
+                    continue;
+                }
+                for (var u = 0; u < count; u++)
+                {
+                    var ud = unlockList[u];
+                    if (!UnlockEntryMatchesCraftItem(displayData, u, ud, itemClass, itemNameForMatch)) continue;
+                    var lvl = GetRequiredLevelFromDisplayData(displayData, effectiveQuality);
+                    if (lvl > best) best = lvl;
+                }
+            }
+            return best;
         }
 
         private static List<string> BuildProgressionMatchCandidates(string mapKeyName)
@@ -649,15 +725,60 @@ namespace LimitByCraftingSkillMod
             var tail = mapKeyName.Substring(li + 1);
             if (tail.Length < 2) return -1;
 
+            string canonical = null;
+            if (mapKeyName.StartsWith("ironGarageDoor_", StringComparison.OrdinalIgnoreCase) &&
+                !mapKeyName.StartsWith("ironGarageDoor01_", StringComparison.OrdinalIgnoreCase))
+                canonical = "ironGarageDoor01_" + mapKeyName.Substring("ironGarageDoor_".Length);
+
+            var matches = new System.Collections.Generic.List<object>();
             for (int i = 0; i < displayDataList.Count; i++)
             {
                 var displayData = displayDataList[i];
-                if (displayData == null) continue;
-                if (!PoweredGarageUnlockListContainsTail(displayData, tail)) continue;
-                var lvl = GetRequiredLevelFromDisplayData(displayData, effectiveQuality);
-                return lvl;
+                if (displayData != null && PoweredGarageUnlockListContainsTail(displayData, tail))
+                    matches.Add(displayData);
             }
-            return -1;
+            if (matches.Count == 0) return -1;
+
+            if (!string.IsNullOrEmpty(canonical))
+            {
+                foreach (var displayData in matches)
+                {
+                    var name = GetDisplayDataItemName(displayData);
+                    if (string.Equals(name, canonical, StringComparison.OrdinalIgnoreCase))
+                        return GetRequiredLevelFromDisplayData(displayData, effectiveQuality);
+                }
+            }
+
+            var bestSpecific = -1;
+            foreach (var displayData in matches)
+            {
+                var name = GetDisplayDataItemName(displayData);
+                if (string.IsNullOrEmpty(name)) continue;
+                if (name.IndexOf("ironGarageDoor01", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                if (name.IndexOf(tail, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                var lvl = GetRequiredLevelFromDisplayData(displayData, effectiveQuality);
+                if (lvl > bestSpecific) bestSpecific = lvl;
+            }
+            if (bestSpecific >= 0) return bestSpecific;
+
+            var bestAny = -1;
+            foreach (var displayData in matches)
+            {
+                var lvl = GetRequiredLevelFromDisplayData(displayData, effectiveQuality);
+                if (lvl > bestAny) bestAny = lvl;
+            }
+            return bestAny;
+        }
+
+        private static string GetDisplayDataItemName(object displayData)
+        {
+            if (displayData == null) return null;
+            try
+            {
+                var f = displayData.GetType().GetField("ItemName", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                return f?.GetValue(displayData) as string;
+            }
+            catch { return null; }
         }
 
         private static bool PoweredGarageUnlockListContainsTail(object displayData, string tail)
@@ -886,6 +1007,15 @@ namespace LimitByCraftingSkillMod
                 }
             }
             return 0;
+        }
+
+        /// <summary>Public entry points for tests (Bazel test assembly name may not receive InternalsVisibleTo).</summary>
+        public static class TestHooks
+        {
+            public static int TryResolveCraftingElectricianRequiredLevel(object progression, ItemClass itemClass, string mapKeyName, int effectiveQuality)
+            {
+                return TryResolveRequiredLevelInTree(progression, "craftingelectrician", itemClass, mapKeyName, effectiveQuality);
+            }
         }
     }
 }

@@ -53,6 +53,17 @@ net_xunit_test(
     testlauncher = "@xunit_runner_console//:net",
 )
 
+net_xunit_test(
+    name = "progression_assembly_integration",
+    size = "small",
+    srcs = ["ProgressionAndAssemblyIntegrationTests.cs"],
+    deps = XUNIT_DEPS + [
+        "@rules_dotnet_framework//dotnet/stdlib.net/net472:system.xml.dll",
+    ],
+    dotnet_context_data = "@rules_dotnet_framework//:net_context_data_net472",
+    testlauncher = "@xunit_runner_console//:net",
+)
+
 test_suite(
     name = "unit",
     tests = UNIT_TESTS,

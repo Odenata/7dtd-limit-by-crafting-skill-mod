@@ -9,6 +9,8 @@ test_suite(
     name = "all",
     tests = [
         "//tests:all",
+        "//tests:progression_assembly_integration",
+        "//tests/map_generator:generate_classname_map_report_test",
         "@seven_days_to_die_mod_dev_tools//tools:validate_all_scripts",
     ],
 )

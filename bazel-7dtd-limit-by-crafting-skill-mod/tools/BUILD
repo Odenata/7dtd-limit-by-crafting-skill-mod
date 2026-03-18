@@ -1,4 +1,19 @@
+load("@rules_python//python:py_binary.bzl", "py_binary")
+load("@rules_python//python:py_library.bzl", "py_library")
 load("@seven_days_to_die_mod_dev_tools//tools/_shared:powershell_rules.bzl", "powershell_binary")
+
+py_library(
+    name = "generate_classname_map_report_lib",
+    srcs = ["generate_classname_map_report.py"],
+    visibility = ["//tests/map_generator:__pkg__"],
+)
+
+py_binary(
+    name = "generate_classname_map_report",
+    srcs = ["generate_classname_map_report.py"],
+    main = "generate_classname_map_report.py",
+    visibility = ["//visibility:public"],
+)
 
 exports_files([
     "build.ps1",

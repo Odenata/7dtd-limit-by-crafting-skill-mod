@@ -18,13 +18,17 @@ If neither applies, **the item is not restricted** by this mod for handheld/hotb
 
 Progression lookup uses `progressionMatchName` when set; the map key stays `className`.
 
+**Name vs level:** `progressionMatchName` only helps **find** the right progression row. If the mod still does not restrict the item, check whether the resolved **required level is 0**: restriction applies only when **`requiredLevel > 0`**. The first matching row may use `QualityStarts[0] == 0` (vanilla “free” tier) while a later row has a higher tier—for **powered iron garage** placeables (`ironGarageDoor_*Powered*`), the mod uses the **maximum** level across matching rows in the Electrician tree. If you still see no gate, use **`requiredLevelMin`** or **`requiredLevelOverride`** below.
+
 ### Electrician items crafted via workbench (e.g. powered garage doors)
 
 Some items are tagged **Electrician** but their **unlock tier lives under `craftingworkstations`** in vanilla. The mod tries **Electrician** first, then **`craftingworkstations`**, while still comparing the player’s **Electrician** level to that required tier.
 
 ### `requiredLevelOverride` (optional)
 
-If neither tree lists the item, set a fixed minimum level:
+Use when progression resolves to **no positive requirement** (no match, **or** match at tier **0**). The mod applies the override whenever the computed required level is **≤ 0**. For “raise a level that already resolved” (e.g. vanilla says 10 but you want 25), use **`requiredLevelMin`** instead.
+
+Set a fixed gate when needed:
 
 ```xml
 <Item className="ironGarageDoor_PoweredWhite" craftingSkillGroup="Electrician" requiredLevelOverride="40"/>
@@ -47,6 +51,7 @@ This doc explains how to edit the map when the game is updated or when you add m
 ## Where the map lives
 
 - **In the repo:** `src/ClassNameToCraftingSkillMap.xml`
+- **Generated reference (sorted by group / name similarity):** `src/ClassNameToCraftingSkillMap_generated.xml` — refresh with `bazel run //tools:generate_classname_map_report` **including `--progression …/progression.xml`** for suggested `progressionMatchName` rows (see `tools/README_MAP_GENERATOR.md`). Carries hand-map overrides when present; **never** auto-fills `requiredLevelOverride`.
 - **At runtime:** The file must be in the **mod folder** next to the mod DLL and `Config.xml` (same folder the game loads the mod from). The build/deploy process copies it there.
 
 ## When to edit the map

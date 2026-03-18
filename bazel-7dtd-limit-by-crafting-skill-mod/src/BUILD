@@ -5,6 +5,7 @@ net_library(
     out = "LimitByCraftingSkillMod.dll",
     srcs = [
         "AddItemToToolbeltRestrictionPatch.cs",
+        "AgentDebugSessionLog.cs",
         "AssemblyInfo.cs",
         "ClassNameToCraftingSkillMapLoader.cs",
         "EquipItemRestrictionPatch.cs",

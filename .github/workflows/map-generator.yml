@@ -1,0 +1,14 @@
+name: Map generator
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  py-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bazelbuild/setup-bazelisk@v3
+      - name: Hermetic Python map generator tests
+        run: bazel test //tests/map_generator:generate_classname_map_report_test
