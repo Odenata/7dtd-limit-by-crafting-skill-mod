@@ -38,6 +38,7 @@
 
   <ItemGroup>
     <Compile Include="AgentDebugSessionLog.cs" />
+    <Compile Include="BlockActivateRestrictionPatch.cs" />
     <Compile Include="AddItemToToolbeltRestrictionPatch.cs" />
     <Compile Include="AssemblyInfo.cs" />
     <Compile Include="ClassNameToCraftingSkillMapLoader.cs" />
@@ -45,6 +46,7 @@
     <Compile Include="EquipmentRestrictionPatch.cs" />
     <Compile Include="EquipmentStackHandleStackSwapPatch.cs" />
     <Compile Include="GameReflection.cs" />
+    <Compile Include="InWorldRestrictionDebugLog.cs" />
     <Compile Include="HotbarRestrictionPatch.cs" />
     <Compile Include="InventoryGridRestrictionColorPatches.cs" />
     <Compile Include="ItemActionEntryEquipPatch.cs" />
@@ -58,6 +60,12 @@
     <Compile Include="ToolbeltHandleStackSwapPatch.cs" />
     <Compile Include="WorkstationVehicleStackSwapPatches.cs" />
     <Compile Include="ItemActionSpawnVehicleRestrictionPatch.cs" />
+    <Compile Include="VehicleDriveRestrictionPatch.cs" />
+    <Compile Include="WorkstationOpenRestrictionPatch.cs" />
+    <Compile Include="WorkstationOpenedRestrictionPatch.cs" />
+    <Compile Include="WorkstationWindowSetTileEntityRestrictionPatch.cs" />
+    <Compile Include="WorkstationWindowOnOpenRestrictionPatch.cs" />
+    <Compile Include="GUIWindowManagerOpenNameLogPatch.cs" />
     <None Include="ModInfo.xml" />
     <None Include="Config.xml" CopyToOutputDirectory="PreserveNewest" />
     <None Include="ClassNameToCraftingSkillMap.xml" CopyToOutputDirectory="PreserveNewest" />

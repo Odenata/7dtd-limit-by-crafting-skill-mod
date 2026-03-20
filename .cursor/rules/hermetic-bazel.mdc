@@ -1,0 +1,24 @@
+---
+description: Prefer Bazel-managed dependencies; avoid host installs unless the user explicitly approves
+alwaysApply: true
+---
+
+# Hermetic builds (Bazel-first)
+
+## Default
+
+- Resolve tools and third-party libraries **through Bazel** (`bazel` / `bazelisk`): `MODULE.bazel` deps, `WORKSPACE` / `WORKSPACE.bzlmod`, repository rules (`http_archive`, `git_repository`, `rules_*`), macros, etc.
+- When adding or upgrading dependencies, **edit Bazel** files (`MODULE.bazel`, `WORKSPACE`, `WORKSPACE.bzlmod`, `BUILD`, `*.bzl`) so the tree stays **reproducible** on clean machines.
+
+## Do not (unless the user explicitly asks)
+
+Do **not** propose or run ad-hoc host installs: `apt`, `yum`, `dnf`, `brew`, `choco`, `scoop`, `pip install` (outside a Bazel-managed env), `npm install -g`, `yarn global`, `go install` onto PATH, etc.
+
+## Exceptions
+
+- If the user **explicitly** requests a host install: call out **loss of hermeticity**, suggest a Bazel-native option when possible, then continue only with clear confirmation.
+- Editing manifest files (`requirements.txt`, `package.json`, etc.) is fine **when** the project’s Bazel setup is defined to consume them—still avoid global / one-off installs.
+
+## After dependency changes
+
+- Run **`bazel build`** / **`bazel test`** (or repo-documented equivalents) for affected targets and mention any lockfiles, digests, or `MODULE.bazel` pins CI needs.

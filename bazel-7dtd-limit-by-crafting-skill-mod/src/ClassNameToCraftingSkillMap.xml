@@ -343,11 +343,13 @@
   <Item className="vehicleGyrocopterPlaceable" craftingSkillGroup="Vehicles"/>
   <Item className="vehicleMinibikePlaceable" craftingSkillGroup="Vehicles"/>
   <Item className="vehicleMotorcyclePlaceable" craftingSkillGroup="Vehicles"/>
-  <Item className="vehicleTruck4x4Placeable" craftingSkillGroup="Vehicles"/>
+  <!-- 4x4 Truck: game progression unlocks at Vehicles 70 -->
+  <Item className="vehicleTruck4x4Placeable" craftingSkillGroup="Vehicles" requiredLevelOverride="70"/>
 
   <!-- Workstations -->
   <Item className="cementMixer" craftingSkillGroup="Workstations"/>
-  <Item className="chemistryStation" craftingSkillGroup="Workstations"/>
+  <!-- Chemistry Station: game progression unlocks at Workstations 50 -->
+  <Item className="chemistryStation" craftingSkillGroup="Workstations" requiredLevelOverride="50"/>
   <Item className="cntApiary" craftingSkillGroup="Workstations"/>
   <Item className="cntDewCollector" craftingSkillGroup="Workstations"/>
   <Item className="forge" craftingSkillGroup="Workstations"/>

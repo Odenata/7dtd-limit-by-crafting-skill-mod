@@ -32,6 +32,8 @@ When the player attempts to open the placed workstation UI (e.g. default keybind
 
 Workstation modifiers (e.g. Bellows, Crucible) that are not placed in the world are not restricted in the initial implementation (future work).
 
+**Chemistry Station:** blocked by intercepting its specific UI window name (`GUIWindowManager.Open("workstation_chemistryStation", ...)`) when the player is below the required Workstations level.
+
 ### Vehicles
 
 Only restrict the **drive** action. Allow: open vehicle inventory, refuel, pick up, passenger seats. Map vehicle entity/block to required level via the **Vehicles** crafting skill. Vehicle types are mapped to crafting components by the chassis heuristic: e.g. look up component by vehicle name + `" Chassis"` (e.g. "Bicycle Chassis" for "Bicycle"). Avoid hardcoding vehicle names; use a data-driven or name-based lookup so new/renamed vehicles work.

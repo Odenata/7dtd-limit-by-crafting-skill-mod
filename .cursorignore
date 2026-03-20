@@ -1,0 +1,25 @@
+﻿# Reduce Cursor indexing / AI context (OOM mitigation)
+
+# Bazel
+bazel-*/
+**/bazel-out/**
+**/bazel-bin/**
+**/bazel-testlogs/**
+
+# .NET build outputs
+**/bin/**
+**/obj/**
+
+# Node
+node_modules/
+
+# Common generated trees
+dist/
+build/
+.next/
+out/
+target/
+
+# Game / mod reference assemblies often copied under src
+**/Assembly-CSharp.dll
+**/Assembly-CSharp.pdb

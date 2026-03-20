@@ -471,6 +471,279 @@ namespace LimitByCraftingSkillMod
                 progression == null ? "no_progression" : null);
         }
 
+        /// <summary>
+        /// Required level for a placed workstation block (Workstations skill, synthetic quality tier 1).
+        /// Uses block name for ClassNameToCraftingSkillMap lookup; returns 0 if not in map or not Workstations.
+        /// </summary>
+        internal static int GetRequiredLevelForWorkstationBlock(object blockValue)
+        {
+            if (blockValue == null) return 0;
+            var block = GetBlockFromBlockValue(blockValue);
+            if (block == null) return 0;
+            var map = ClassNameToCraftingSkillMapLoader.GetMap();
+            var mapKey = GetBlockNameForMap(block);
+            if (string.IsNullOrWhiteSpace(mapKey) || !map.TryGetValue(mapKey, out var skillGroup) || !string.Equals(skillGroup, "Workstations", StringComparison.OrdinalIgnoreCase))
+            {
+                mapKey = GetWorkstationBlockMapKeyFromTypeName(block.GetType().Name, map);
+                if (string.IsNullOrWhiteSpace(mapKey) || !map.TryGetValue(mapKey, out skillGroup) || !string.Equals(skillGroup, "Workstations", StringComparison.OrdinalIgnoreCase))
+                    return 0;
+            }
+            var entity = GetLocalPlayer();
+            if (entity == null) return 0;
+            var progression = GetProgression(entity);
+            if (progression == null) return 0;
+            var lookupName = ToProgressionLookupName(skillGroup);
+            if (string.IsNullOrWhiteSpace(lookupName)) return 0;
+            var resolved = TryResolveRequiredLevelByMapKeyOnly(progression, lookupName, mapKey, effectiveQuality: 1);
+            if (resolved >= 0 && ClassNameToCraftingSkillMapLoader.TryGetRequiredLevelOverride(mapKey, out var ovLevel))
+                resolved = Math.Max(resolved, ovLevel);
+            if (resolved >= 0 && ClassNameToCraftingSkillMapLoader.TryGetRequiredLevelMin(mapKey, out var minLv))
+                resolved = Math.Max(resolved, minLv);
+            if (resolved < 0 && ClassNameToCraftingSkillMapLoader.TryGetRequiredLevelOverride(mapKey, out var fallbackOv))
+                resolved = fallbackOv;
+            if (resolved < 0 && ClassNameToCraftingSkillMapLoader.TryGetRequiredLevelMin(mapKey, out var fallbackMin))
+                resolved = fallbackMin;
+            return resolved >= 0 ? resolved : 0;
+        }
+
+        internal static object GetBlockFromBlockValue(object blockValue)
+        {
+            if (blockValue == null) return null;
+            try
+            {
+                var prop = blockValue.GetType().GetProperty("Block", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (prop != null) return prop.GetValue(blockValue, null);
+                var field = blockValue.GetType().GetField("Block", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                return field?.GetValue(blockValue);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// Gets the BlockValue from a TileEntity (e.g. TileEntityWorkstation). Uses BlockValue property or blockValue field.
+        /// </summary>
+        internal static object GetBlockValueFromTileEntity(object tileEntity)
+        {
+            if (tileEntity == null) return null;
+            try
+            {
+                var t = tileEntity.GetType();
+                var prop = t.GetProperty("BlockValue", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (prop != null) return prop.GetValue(tileEntity, null);
+                var field = t.GetField("blockValue", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                return field?.GetValue(tileEntity);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// Tries to get a Workstations map key from a block type name when Block.Name is not in map (e.g. BlockForge → forge, BlockChemistryStation → chemistryStation).
+        /// </summary>
+        private static string GetWorkstationBlockMapKeyFromTypeName(string typeName, System.Collections.Generic.IReadOnlyDictionary<string, string> map)
+        {
+            if (string.IsNullOrEmpty(typeName) || map == null) return null;
+            if (!typeName.StartsWith("Block", StringComparison.Ordinal) || typeName.Length <= 5) return null;
+            var suffix = typeName.Substring(5);
+            if (suffix.Length == 0) return null;
+            var candidate = char.ToLowerInvariant(suffix[0]) + suffix.Substring(1);
+            if (map.TryGetValue(candidate, out var group) && string.Equals(group, "Workstations", StringComparison.OrdinalIgnoreCase))
+                return candidate;
+            return null;
+        }
+
+        /// <summary>
+        /// Block name used for ClassNameToCraftingSkillMap lookup (Name property/field, then type name).
+        /// </summary>
+        internal static string GetBlockNameForMap(object block)
+        {
+            if (block == null) return null;
+            try
+            {
+                var t = block.GetType();
+                var nameProp = t.GetProperty("Name", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (nameProp != null)
+                {
+                    var v = nameProp.GetValue(block, null);
+                    if (v is string s && !string.IsNullOrWhiteSpace(s)) return s.Trim();
+                }
+                var nameField = t.GetField("Name", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (nameField != null)
+                {
+                    var v = nameField.GetValue(block);
+                    if (v is string s2 && !string.IsNullOrWhiteSpace(s2)) return s2.Trim();
+                }
+                return block.GetType().Name;
+            }
+            catch
+            {
+                return block.GetType().Name;
+            }
+        }
+
+        /// <summary>
+        /// Map key for a vehicle entity (EntityDriveable/EntityVehicle) for ClassNameToCraftingSkillMap.
+        /// Uses entity type name heuristic so new vehicles work if they follow naming (e.g. EntityXyz → vehicleXyzPlaceable).
+        /// Returns null if not a Vehicles skill vehicle.
+        /// </summary>
+        internal static string GetVehicleEntityMapKey(object vehicleEntity)
+        {
+            if (vehicleEntity == null) return null;
+            var typeName = vehicleEntity.GetType().Name;
+            if (string.IsNullOrEmpty(typeName)) return null;
+            var map = ClassNameToCraftingSkillMapLoader.GetMap();
+            if (typeName.StartsWith("Entity", StringComparison.OrdinalIgnoreCase) && typeName.Length > 6)
+            {
+                var suffix = typeName.Substring(6);
+                var candidate = "vehicle" + suffix + "Placeable";
+                if (map.ContainsKey(candidate)) return candidate;
+                if (suffix.StartsWith("V", StringComparison.Ordinal) && suffix.Length > 1)
+                {
+                    candidate = "vehicle" + suffix.Substring(1) + "Placeable";
+                    if (map.ContainsKey(candidate)) return candidate;
+                }
+                if (string.Equals(suffix, "VJeep", StringComparison.OrdinalIgnoreCase) && map.ContainsKey("vehicleTruck4x4Placeable"))
+                    return "vehicleTruck4x4Placeable";
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Required level to drive this vehicle entity (Vehicles skill, synthetic tier 1). Returns 0 if not in map or not Vehicles.
+        /// </summary>
+        internal static int GetRequiredLevelForVehicleEntity(object vehicleEntity)
+        {
+            var mapKey = GetVehicleEntityMapKey(vehicleEntity);
+            if (string.IsNullOrWhiteSpace(mapKey)) return 0;
+            var map = ClassNameToCraftingSkillMapLoader.GetMap();
+            if (!map.TryGetValue(mapKey, out var skillGroup) || !string.Equals(skillGroup, "Vehicles", StringComparison.OrdinalIgnoreCase))
+                return 0;
+            var entity = GetLocalPlayer();
+            if (entity == null) return 0;
+            var progression = GetProgression(entity);
+            if (progression == null) return 0;
+            var lookupName = ToProgressionLookupName(skillGroup);
+            if (string.IsNullOrWhiteSpace(lookupName)) return 0;
+            var resolved = TryResolveRequiredLevelByMapKeyOnly(progression, lookupName, mapKey, effectiveQuality: 1);
+            if (resolved >= 0 && ClassNameToCraftingSkillMapLoader.TryGetRequiredLevelOverride(mapKey, out var ovLevel))
+                resolved = Math.Max(resolved, ovLevel);
+            if (resolved >= 0 && ClassNameToCraftingSkillMapLoader.TryGetRequiredLevelMin(mapKey, out var minLv))
+                resolved = Math.Max(resolved, minLv);
+            if (resolved < 0 && ClassNameToCraftingSkillMapLoader.TryGetRequiredLevelOverride(mapKey, out var fallbackOv))
+                resolved = fallbackOv;
+            if (resolved < 0 && ClassNameToCraftingSkillMapLoader.TryGetRequiredLevelMin(mapKey, out var fallbackMin))
+                resolved = fallbackMin;
+            return resolved >= 0 ? resolved : 0;
+        }
+
+        /// <summary>
+        /// Display name for a vehicle entity (e.g. "Bicycle", "Minibike") for popup message.
+        /// </summary>
+        internal static string GetVehicleEntityDisplayName(object vehicleEntity)
+        {
+            if (vehicleEntity == null) return "vehicle";
+            var typeName = vehicleEntity.GetType().Name;
+            if (typeName.StartsWith("Entity", StringComparison.OrdinalIgnoreCase) && typeName.Length > 6)
+            {
+                var suffix = typeName.Substring(6);
+                if (suffix.StartsWith("V", StringComparison.Ordinal) && suffix.Length > 1)
+                    suffix = suffix.Substring(1);
+                if (string.Equals(suffix, "Jeep", StringComparison.OrdinalIgnoreCase))
+                    return "4x4 Truck";
+                return suffix;
+            }
+            return typeName;
+        }
+
+        /// <summary>
+        /// Resolves required level from progression by map key name only (no ItemClass). Used for blocks/placeables.
+        /// </summary>
+        private static int TryResolveRequiredLevelByMapKeyOnly(object progression, string progressionLookupName, string mapKeyName, int effectiveQuality)
+        {
+            if (progression == null || string.IsNullOrEmpty(progressionLookupName)) return -1;
+            var progressionClass = GetProgressionClassFromProgressionValue(progression, progressionLookupName);
+            if (progressionClass == null) return -1;
+            var displayDataListField = progressionClass.GetType().GetField("DisplayDataList", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            var displayDataList = displayDataListField?.GetValue(progressionClass) as IList;
+            if (displayDataList == null || displayDataList.Count == 0) return -1;
+            var candidates = BuildProgressionMatchCandidates(mapKeyName);
+            foreach (var itemNameForMatch in candidates)
+            {
+                for (int i = 0; i < displayDataList.Count; i++)
+                {
+                    object displayData = displayDataList[i];
+                    if (displayData == null) continue;
+                    if (!DisplayDataMatchesMapKey(displayData, itemNameForMatch)) continue;
+                    var lvl = GetRequiredLevelFromDisplayData(displayData, effectiveQuality);
+                    if (lvl >= 0) return lvl;
+                }
+                for (int i = 0; i < displayDataList.Count; i++)
+                {
+                    object displayData = displayDataList[i];
+                    if (displayData == null) continue;
+                    var unlockListField = displayData.GetType().GetField("UnlockDataList", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    var unlockList = unlockListField?.GetValue(displayData) as IList;
+                    var count = unlockList?.Count ?? 0;
+                    if (count == 0)
+                    {
+                        var mGetUd = displayData.GetType().GetMethod("GetUnlockData", new[] { typeof(int) });
+                        if (mGetUd != null)
+                        {
+                            for (var u = 0; u < 256; u++)
+                            {
+                                object ud = null;
+                                try { ud = mGetUd.Invoke(displayData, new object[] { u }); } catch { break; }
+                                if (ud == null) break;
+                                if (!UnlockEntryMatchesMapKey(ud, itemNameForMatch)) continue;
+                                var lvl = GetRequiredLevelFromDisplayData(displayData, effectiveQuality);
+                                if (lvl >= 0) return lvl;
+                            }
+                        }
+                        continue;
+                    }
+                    for (var u = 0; u < count; u++)
+                    {
+                        var ud = unlockList[u];
+                        if (!UnlockEntryMatchesMapKey(ud, itemNameForMatch)) continue;
+                        var lvl = GetRequiredLevelFromDisplayData(displayData, effectiveQuality);
+                        if (lvl >= 0) return lvl;
+                    }
+                }
+            }
+            return -1;
+        }
+
+        private static bool DisplayDataMatchesMapKey(object displayData, string mapKeyName)
+        {
+            if (displayData == null || string.IsNullOrEmpty(mapKeyName)) return false;
+            var itemNameField = displayData.GetType().GetField("ItemName", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (itemNameField != null)
+            {
+                var name = itemNameField.GetValue(displayData) as string;
+                if (string.Equals(name, mapKeyName, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+
+        private static bool UnlockEntryMatchesMapKey(object unlockData, string mapKeyName)
+        {
+            if (unlockData == null || string.IsNullOrEmpty(mapKeyName)) return false;
+            var t = unlockData.GetType();
+            var itemNameField = t.GetField("ItemName", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (itemNameField != null)
+            {
+                var name = itemNameField.GetValue(unlockData) as string;
+                if (string.Equals(name, mapKeyName, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            var itemField = t.GetField("item", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            var item = itemField?.GetValue(unlockData);
+            if (item != null)
+            {
+                var icName = GetItemClassNameForMap(item as ItemClass);
+                if (string.Equals(icName, mapKeyName, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+
         /// <param name="missingProgressionReason">If non-null, progression is null and this is the log reason (no_player / no_progression).</param>
         private static int GetRequiredLevelForItemWithProgression(ItemClass itemClass, ItemValue itemValue, object progression, string missingProgressionReason)
         {

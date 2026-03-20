@@ -6,7 +6,7 @@ Use the [Runtime API Workflow](https://github.com/Odenata/7dtd-mod-dev-tools/blo
 
 ## Investigation summary (from checked-in docs)
 
-APIs were confirmed from `7dtd-mod-dev-tools/docs/game-api/assembly-csharp/by-type/`: **EntityAlive.Progression** (field) → **Progression.GetProgressionValue(string)** → **ProgressionValue.Level** for player skill level; **ItemClass.CraftingSkillGroup**; **Inventory.SetItem(int, ItemStack)** with **PUBLIC_SLOTS_PLAYMODE** for hotbar size; **Progression.ProgressionClasses**, **ProgressionClass.DisplayDataList**, **DisplayData.QualityStarts** for required-level mapping. Mod uses reflection (GameReflection) and HotbarRestrictionPatch/ArmorRestrictionPatch. Workstation open, vehicle drive, and popup API remain TBD until confirmed in-game or via runtime export query.
+APIs were confirmed from `7dtd-mod-dev-tools/docs/game-api/assembly-csharp/by-type/`: **EntityAlive.Progression** (field) → **Progression.GetProgressionValue(string)** → **ProgressionValue.Level** for player skill level; **ItemClass.CraftingSkillGroup**; **Inventory.SetItem(int, ItemStack)** with **PUBLIC_SLOTS_PLAYMODE** for hotbar size; **Progression.ProgressionClasses**, **ProgressionClass.DisplayDataList**, **DisplayData.QualityStarts** for required-level mapping. Mod uses reflection (GameReflection) and HotbarRestrictionPatch/ArmorRestrictionPatch. Workstation open (**BlockWorkstation.OnBlockActivated**), vehicle drive (**EntityDriveable.EnterVehicle**), and popup (**GameManager.ShowTooltip** with "ui_denied") are implemented; see sections below.
 
 ## Player crafting level
 
@@ -33,17 +33,19 @@ APIs were confirmed from `7dtd-mod-dev-tools/docs/game-api/assembly-csharp/by-ty
 ## Workstation / block open
 
 - **Goal:** Intercept the moment the player tries to open the workstation UI (e.g. press E on placed Forge/Workbench). Block and show popup if restricted.
-- **To confirm:** TileEntity or block interaction that opens the UI; method name and type to patch. May be in block activation or TileEntity open logic.
+- **Confirmed:** **`BlockWorkstation.OnBlockActivated(WorldBase _world, int _cIdx, Vector3i _blockPos, BlockValue _blockValue, EntityPlayerLocal _player)`** runs when the player activates the block; it then calls `_world.GetGameManager().TELockServer(...)`. Patch this method with a Prefix: when Workstations restriction applies and player level &lt; required level for the block, show popup and return false so TELockServer is not called. Required level for block: **`GameReflection.GetRequiredLevelForWorkstationBlock(BlockValue)`** using block name → ClassNameToCraftingSkillMap (Workstations) → progression with synthetic quality 1.
+- **Mod:** **WorkstationOpenRestrictionPatch** (client-side; blocks before opening UI).
 
 ## Vehicle
 
 - **Goal:** Restrict only "drive"; allow open inventory, refuel, pick up, passenger.
-- **To confirm:** How "drive" is triggered vs "open inventory" / "refuel". Method or UI path to patch for drive only. Chassis ↔ vehicle name: e.g. entity or block name containing " Chassis" and mapping to vehicle display name (avoid hardcoding; use name heuristic). Note for future developers that the name heuristic is fragile as future vehicle additions may not use the same naming scheme.
+- **Confirmed:** **`EntityDriveable.EnterVehicle(EntityAlive _entity)`** is called when the player chooses "drive" (attach as driver). Other actions (open inventory, refuel) use different code paths. Patch EnterVehicle with a Prefix: when Vehicles restriction applies and vehicle required level &gt; player level, show popup and return false. Vehicle → required level: **`GameReflection.GetRequiredLevelForVehicleEntity(object)`** / **GetVehicleEntityMapKey(object)** using entity type name heuristic (e.g. EntityBicycle → vehicleBicyclePlaceable) and ClassNameToCraftingSkillMap (Vehicles); progression with synthetic tier 1.
+- **Mod:** **VehicleDriveRestrictionPatch** (client-side).
 
 ## Popup / feedback
 
 - **Goal:** Show red text: "You don't know how to use [item name]" and "[Crafting Skill Name] [player level]/[required level]".
-- **To confirm:** In-game API for on-screen popup or notification (e.g. XUi, notification list, or similar). How to set text color to red.
+- **Confirmed:** **`GameManager.ShowTooltip(EntityPlayerLocal _player, string _text, string _arg, string _alertSound = null, ...)`**. Use **`_alertSound = "ui_denied"`** for the red/denied style (same as vanilla e.g. ttWorkstationNotEmpty, ttRepairBeforePickup). Two lines can be passed as a single string with `\n`. Mod uses **RestrictionFeedback.ShowRestrictionPopup(localPlayer, itemDisplayName, craftingSkillDisplayName, playerLevel, requiredLevel)** which invokes ShowTooltip via reflection.
 
 ## Server config
 
@@ -60,9 +62,11 @@ APIs were confirmed from `7dtd-mod-dev-tools/docs/game-api/assembly-csharp/by-ty
 | Vehicle mod slots | **`XUiC_ItemPartStack.HandleStackSwap`** under **`XUiC_VehiclePartStackGrid`** | **VehiclePartHandleStackSwapPatch** (Vehicles skill items only) |
 | Vehicle deploy | **`ItemActionSpawnVehicle.ExecuteAction`** | **ItemActionSpawnVehicleRestrictionPatch** (client; server should run same mod for MP) |
 | Armor       | **`XUiM_PlayerEquipment.EquipItem(ItemStack)`** (block here); **`XUiC_EquipmentStack.HandleStackSwap()`** (block drag-drop); **`Equipment.SetSlotItem`** (observe only) | **EquipItemRestrictionPatch** blocks at EquipItem. **EquipmentStackHandleStackSwapPatch** blocks at HandleStackSwap when the dragged stack (from XUi.dragAndDrop.CurrentStack) is restricted; item stays on cursor. We do not block at SetSlotItem to avoid item loss. |
+| Workstation open UI | **`BlockWorkstation.OnBlockActivated(WorldBase, int, Vector3i, BlockValue, EntityPlayerLocal)`** | **WorkstationOpenRestrictionPatch** (client). Block name → GetRequiredLevelForWorkstationBlock. |
 | Workstation (other) | Material/input grids, TE open | Partial: tool grid only; see §4 in TODO.md. |
-| Vehicle (other)     | Fuel, **VehicleInventory**, drive | Partial: part grid + spawn; server sync TBD. |
-| Popup       | **`XUiC_CollectedItemList.AddItemStack`** / **`AddCraftingSkillNotification`** or message API | For red text: may need different API (e.g. GameManager, tooltip, or message window); to be confirmed in-game. |
+| Vehicle drive       | **`EntityDriveable.EnterVehicle(EntityAlive)`** | **VehicleDriveRestrictionPatch** (client). Entity type → GetRequiredLevelForVehicleEntity. |
+| Vehicle (other)     | Fuel, **VehicleInventory**, part grid, spawn | Part grid + spawn patched; drive patched; server sync TBD. |
+| Popup       | **`GameManager.ShowTooltip(EntityPlayerLocal, string, string, string _alertSound)`** with **`"ui_denied"`** | **RestrictionFeedback.ShowRestrictionPopup** (reflection). Red style. |
 | In-inventory red label | **`XUiC_ItemStackGrid.OnOpen`**, **`XUiC_EquipmentStackGrid.OnOpen`**, grid **`Update`**, **`Progression.addProgressionCurrency`** | Red label for restricted items in **all** UIs that display items: player backpack, toolbelt, equipment, container, vehicle, workstation, etc. Any controller assignable to `XUiC_ItemStackGrid` or `XUiC_EquipmentStackGrid` is treated the same (base-type detection via `IsAssignableFrom`). Known ItemStackGrid subclasses: Backpack, Toolbelt, PartList, VehicleContainer, WorkstationGrid, PowerSourceSlots, PowerRangedAmmoSlots. Apply on grid OnOpen (Postfix), set **RestrictionColorsDirty** when crafting skill levels up, refresh in grid Update when dirty (throttled). Get slot view via **ViewComponent** → **uiTransform** → **gameObject**; set **UILabel** `color`/`mColor` on that GameObject and children (or XUiV_Label for equipment slots). |
 
 After confirming names and overloads in the runtime export (or in-game), update this table and the compat layer. Prefer a small compat helper and reflection for game-version resilience; see RUNTIME_API_MISMATCH_DEBUGGING.md.

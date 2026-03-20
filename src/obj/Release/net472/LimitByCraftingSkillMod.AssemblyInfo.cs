@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("LimitByCraftingSkillMod")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+008ae6dcee9a9965be18b2fadccd1f490198dfa9")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+933b436271a46a99c668073ddff739d822549337")]
 [assembly: System.Reflection.AssemblyProductAttribute("LimitByCraftingSkillMod")]
 [assembly: System.Reflection.AssemblyTitleAttribute("LimitByCraftingSkillMod")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
