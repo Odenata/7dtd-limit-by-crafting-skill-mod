@@ -22,9 +22,9 @@ namespace LimitByCraftingSkillMod
                 ApplyToolbeltHandleStackSwapPatchFromGameAssembly(harmony);
                 ApplyWorkstationVehicleStackSwapPatchesFromGameAssembly(harmony);
                 ApplyWorkstationOpenPatchFromGameAssembly(harmony);
-                ApplyWorkstationOpenedChokePointPatchFromGameAssembly(harmony);
                 ApplyWorkstationWindowSetTileEntityPatchFromGameAssembly(harmony);
                 ApplyWorkstationWindowOnOpenRestrictionPatchFromGameAssembly(harmony);
+                ApplyGameManagerWorkstationOpenedPatchFromGameAssembly(harmony);
                 ApplyGUIWindowManagerOpenNameLoggingPatchFromGameAssembly(harmony);
                 ApplyVehicleDrivePatchFromGameAssembly(harmony);
                 ApplyItemActionSpawnVehiclePatchFromGameAssembly(harmony);
@@ -203,256 +203,28 @@ namespace LimitByCraftingSkillMod
             }
         }
 
+        /// <summary>
+        /// Previously patched Block.OnBlockActivated / BlockWorkstation / composite paths with Prefix+skip.
+        /// Any Harmony prefix that skips these instance methods correlated with client UI lock until rejoin.
+        /// Workstation restriction is enforced in <see cref="ApplyWorkstationWindowOnOpenRestrictionPatchFromGameAssembly"/> (OnOpen Postfix).
+        /// Types like WorkstationOpenRestrictionPatch remain in the repo for reference.
+        /// </summary>
         private static void ApplyWorkstationOpenPatchFromGameAssembly(Harmony harmony)
         {
             try
             {
-                var gameAssembly = typeof(Equipment).Assembly;
-                var worldBaseType = gameAssembly.GetType("WorldBase");
-                var vector3iType = gameAssembly.GetType("Vector3i");
-                var blockValueType = gameAssembly.GetType("BlockValue");
-                var entityPlayerLocalType = gameAssembly.GetType("EntityPlayerLocal");
-                if (worldBaseType == null || vector3iType == null || blockValueType == null || entityPlayerLocalType == null)
-                {
-                    SafeLog("[LimitByCraftingSkill] Required types for BlockWorkstation.OnBlockActivated not found, patch skipped.");
-                    try { InWorldRestrictionDebugLog.Write("H1", "ModApi:ApplyWorkstationOpenPatch", "skip", "{\"reason\":\"required_types_not_found\"}", null); } catch { }
-                    return;
-                }
-                var argTypesNoString = new Type[] { worldBaseType, typeof(int), vector3iType, blockValueType, entityPlayerLocalType };
-                var prefix = typeof(WorkstationOpenRestrictionPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.Public);
-                // Patch base Block.OnBlockActivated(WorldBase,...) so Chemistry Station (and any block not inheriting BlockWorkstation) is restricted when activated.
-                var blockType = gameAssembly.GetType("Block");
-                // Patch Block.ActivateBlock and Block.ActivateBlockOnce so Chemistry Station (and any workstation) is restricted
-                // even when the game does not call OnBlockActivated (e.g. composite block path).
-                if (blockType != null)
-                {
-                    var actArgTypes = new Type[] { worldBaseType, typeof(int), vector3iType, blockValueType };
-                    var actBlock = blockType.GetMethod("ActivateBlock", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                        null, new Type[] { worldBaseType, typeof(int), vector3iType, blockValueType, typeof(bool), typeof(bool) }, null);
-                    if (actBlock != null)
-                    {
-                        var prefixAct = typeof(BlockActivateRestrictionPatch).GetMethod("PrefixActivateBlock", BindingFlags.Static | BindingFlags.Public);
-                        if (prefixAct != null)
-                        {
-                            try
-                            {
-                                harmony.Patch(actBlock, prefix: new HarmonyMethod(prefixAct));
-                                SafeLog("[LimitByCraftingSkill] Block.ActivateBlock (workstation restrict) patch applied.");
-                                try { InWorldRestrictionDebugLog.Write("H_ACT", "ModApi:ApplyWorkstationOpenPatch", "ActivateBlock_patch_applied", "{}", null); } catch { }
-                            }
-                            catch (Exception ex) { SafeLog("[LimitByCraftingSkill] Block.ActivateBlock patch skip: " + ex.Message); }
-                        }
-                    }
-                    var actOnce = blockType.GetMethod("ActivateBlockOnce", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                        null, actArgTypes, null);
-                    if (actOnce != null)
-                    {
-                        var prefixActOnce = typeof(BlockActivateRestrictionPatch).GetMethod("PrefixActivateBlockOnce", BindingFlags.Static | BindingFlags.Public);
-                        if (prefixActOnce != null)
-                        {
-                            try
-                            {
-                                harmony.Patch(actOnce, prefix: new HarmonyMethod(prefixActOnce));
-                                SafeLog("[LimitByCraftingSkill] Block.ActivateBlockOnce (workstation restrict) patch applied.");
-                                try { InWorldRestrictionDebugLog.Write("H_ACT", "ModApi:ApplyWorkstationOpenPatch", "ActivateBlockOnce_patch_applied", "{}", null); } catch { }
-                            }
-                            catch (Exception ex) { SafeLog("[LimitByCraftingSkill] Block.ActivateBlockOnce patch skip: " + ex.Message); }
-                        }
-                    }
-                }
-                if (blockType != null && prefix != null)
-                {
-                    var blockOnActivated = blockType.GetMethod("OnBlockActivated", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                        null, argTypesNoString, null);
-                    if (blockOnActivated != null)
-                    {
-                        try
-                        {
-                            harmony.Patch(blockOnActivated, prefix: new HarmonyMethod(prefix));
-                            SafeLog("[LimitByCraftingSkill] Block.OnBlockActivated(WorldBase,...) (workstation open) patch applied.");
-                            try { InWorldRestrictionDebugLog.Write("H_BLK", "ModApi:ApplyWorkstationOpenPatch", "block_base_patch_applied", "{}", null); } catch { }
-                        }
-                        catch (Exception ex) { SafeLog("[LimitByCraftingSkill] Block base patch skip: " + ex.Message); }
-                    }
-                }
-                // Also patch the base Block.OnBlockActivated(string, ...) overload.
-                // Chemistry Station may route through the command-name based activation path which we weren't covering.
-                var prefixWithCmdClrIdx = typeof(WorkstationOpenRestrictionPatch).GetMethod("PrefixWithCommandClrIdx", BindingFlags.Static | BindingFlags.Public);
-                if (blockType != null && prefixWithCmdClrIdx != null)
-                {
-                    var cmdStringType = typeof(string);
-                    var argTypesWithCommandBase = new Type[] { cmdStringType, worldBaseType, typeof(int), vector3iType, blockValueType, entityPlayerLocalType };
-                    var blockOnActivatedWithCommand = blockType.GetMethod("OnBlockActivated", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                        null, argTypesWithCommandBase, null);
-                    if (blockOnActivatedWithCommand != null)
-                    {
-                        try
-                        {
-                            harmony.Patch(blockOnActivatedWithCommand, prefix: new HarmonyMethod(prefixWithCmdClrIdx));
-                            SafeLog("[LimitByCraftingSkill] Block.OnBlockActivated(string, ...) (workstation open) patch applied.");
-                            try { InWorldRestrictionDebugLog.Write("H_BLK_CMD", "ModApi:ApplyWorkstationOpenPatch", "block_base_string_patch_applied", "{}", null); } catch { }
-                        }
-                        catch (Exception ex)
-                        {
-                            SafeLog("[LimitByCraftingSkill] Block base string patch skip: " + ex.Message);
-                        }
-                    }
-                }
-                var blockWorkstationType = gameAssembly.GetType("BlockWorkstation");
-                if (blockWorkstationType == null)
-                {
-                    SafeLog("[LimitByCraftingSkill] BlockWorkstation not found, workstation open patch skipped.");
-                    try { InWorldRestrictionDebugLog.Write("H1", "ModApi:ApplyWorkstationOpenPatch", "skip", "{\"reason\":\"BlockWorkstation_not_found\"}", null); } catch { }
-                    return;
-                }
-                var onBlockActivated = blockWorkstationType.GetMethod("OnBlockActivated", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                    null, argTypesNoString, null);
-                if (onBlockActivated == null)
-                {
-                    SafeLog("[LimitByCraftingSkill] BlockWorkstation.OnBlockActivated(WorldBase,int,Vector3i,BlockValue,EntityPlayerLocal) not found.");
-                    try { InWorldRestrictionDebugLog.Write("H1", "ModApi:ApplyWorkstationOpenPatch", "skip", "{\"reason\":\"OnBlockActivated_not_found\"}", null); } catch { }
-                    return;
-                }
-                harmony.Patch(onBlockActivated, prefix: new HarmonyMethod(prefix));
-                var stringType = typeof(string);
-                var onBlockActivatedWithCommand = blockWorkstationType.GetMethod("OnBlockActivated", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                    null, new Type[] { stringType, worldBaseType, typeof(int), vector3iType, blockValueType, entityPlayerLocalType }, null);
-                if (onBlockActivatedWithCommand != null)
-                {
-                    var prefixWithCommand = typeof(WorkstationOpenRestrictionPatch).GetMethod("PrefixWithCommand", BindingFlags.Static | BindingFlags.Public);
-                    if (prefixWithCommand != null)
-                    {
-                        harmony.Patch(onBlockActivatedWithCommand, prefix: new HarmonyMethod(prefixWithCommand));
-                        SafeLog("[LimitByCraftingSkill] BlockWorkstation.OnBlockActivated(string, ...) (workstation open) patch applied.");
-                    }
-                }
-                var argTypesWithCommand = new Type[] { stringType, worldBaseType, typeof(int), vector3iType, blockValueType, entityPlayerLocalType };
-                var patchedSubtypes = new System.Collections.Generic.List<string>();
-                foreach (var subType in gameAssembly.GetTypes())
-                {
-                    if (subType == null || !subType.IsClass || subType == blockWorkstationType || !blockWorkstationType.IsAssignableFrom(subType))
-                        continue;
-                    var subMethod = subType.GetMethod("OnBlockActivated", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                        null, argTypesWithCommand, null);
-                    if (subMethod == null || subMethod.DeclaringType != subType)
-                        continue;
-                    var prefixWithCmd = typeof(WorkstationOpenRestrictionPatch).GetMethod("PrefixWithCommand", BindingFlags.Static | BindingFlags.Public);
-                    if (prefixWithCmd != null)
-                    {
-                        try
-                        {
-                            harmony.Patch(subMethod, prefix: new HarmonyMethod(prefixWithCmd));
-                            patchedSubtypes.Add(subType.Name);
-                            SafeLog("[LimitByCraftingSkill] " + subType.Name + ".OnBlockActivated(string, ...) (workstation open) patch applied.");
-                        }
-                        catch (Exception subEx) { SafeLog("[LimitByCraftingSkill] " + subType.Name + " patch skip: " + subEx.Message); }
-                    }
-                }
-                SafeLog("[LimitByCraftingSkill] BlockWorkstation.OnBlockActivated (workstation open) patch applied.");
-                // #region agent log
-                try
-                {
-                    var subtypesJson = string.Join(",", patchedSubtypes.ConvertAll(s => "\"" + (s ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"") + "\""));
-                    InWorldRestrictionDebugLog.Write("H1", "ModApi:ApplyWorkstationOpenPatch", "patch_applied", "{\"applied\":true,\"blockWorkstationFound\":true,\"onBlockActivatedFound\":true,\"subtypesPatched\":[" + subtypesJson + "]}", null);
-                }
-                catch { }
-                // #endregion
-                // Patch BlockCompositeTileEntity so Chemistry Station (and other composite workstations) are restricted when opened via activation command.
-                var blockCompositeType = gameAssembly.GetType("BlockCompositeTileEntity");
-                if (blockCompositeType == null)
-                    try { InWorldRestrictionDebugLog.Write("H_CMD", "ModApi:ApplyWorkstationOpenPatch", "composite_skip", "{\"reason\":\"BlockCompositeTileEntity_not_found\"}", null); } catch { }
-                else
-                {
-                    var compositeNoString = blockCompositeType.GetMethod("OnBlockActivated", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                        null, argTypesNoString, null);
-                    if (compositeNoString != null && prefix != null)
-                    {
-                        try
-                        {
-                            harmony.Patch(compositeNoString, prefix: new HarmonyMethod(prefix));
-                            SafeLog("[LimitByCraftingSkill] BlockCompositeTileEntity.OnBlockActivated(WorldBase,...) (workstation open) patch applied.");
-                            try { InWorldRestrictionDebugLog.Write("H_CMD", "ModApi:ApplyWorkstationOpenPatch", "composite_no_string_patch_applied", "{}", null); } catch { }
-                        }
-                        catch (Exception ex) { SafeLog("[LimitByCraftingSkill] BlockCompositeTileEntity (WorldBase) patch skip: " + ex.Message); }
-                    }
-                    var compositeMethod = blockCompositeType.GetMethod("OnBlockActivated", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                        null, argTypesWithCommand, null);
-                    if (compositeMethod == null)
-                        try { InWorldRestrictionDebugLog.Write("H_CMD", "ModApi:ApplyWorkstationOpenPatch", "composite_skip", "{\"reason\":\"OnBlockActivated_string_not_found\"}", null); } catch { }
-                    else
-                    {
-                        var prefixWithCmd2 = typeof(WorkstationOpenRestrictionPatch).GetMethod("PrefixWithCommandClrIdx", BindingFlags.Static | BindingFlags.Public);
-                        if (prefixWithCmd2 != null)
-                        {
-                            try
-                            {
-                                harmony.Patch(compositeMethod, prefix: new HarmonyMethod(prefixWithCmd2));
-                                SafeLog("[LimitByCraftingSkill] BlockCompositeTileEntity.OnBlockActivated(string, ...) (workstation open) patch applied.");
-                                try { InWorldRestrictionDebugLog.Write("H_CMD", "ModApi:ApplyWorkstationOpenPatch", "composite_patch_applied", "{}", null); } catch { }
-                            }
-                            catch (Exception ex)
-                            {
-                                SafeLog("[LimitByCraftingSkill] BlockCompositeTileEntity patch skip: " + ex.Message);
-                                try { InWorldRestrictionDebugLog.Write("H_CMD", "ModApi:ApplyWorkstationOpenPatch", "composite_skip", "{\"reason\":\"patch_failed\",\"error\":\"" + (ex.Message ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"}", null); } catch { }
-                            }
-                        }
-                    }
-                }
+                SafeLog("[LimitByCraftingSkill] OnBlockActivated workstation prefixes not applied (avoid UI lock). Restriction uses WorkstationWindowGroup.OnOpen Postfix.");
+                try { InWorldRestrictionDebugLog.Write("H1", "ModApi:ApplyWorkstationOpenPatch", "disabled_on_block_activated", "{}", null); } catch { }
             }
             catch (Exception ex)
             {
-                SafeLog($"[LimitByCraftingSkill] Workstation open patch failed: {ex.Message}");
-                // #region agent log
+                SafeLog($"[LimitByCraftingSkill] Workstation open patch hook failed: {ex.Message}");
                 try { InWorldRestrictionDebugLog.Write("H1", "ModApi:ApplyWorkstationOpenPatch", "patch_failed", "{\"error\":\"" + (ex.Message ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"}", null); } catch { }
-                // #endregion
             }
         }
 
         /// <summary>
-        /// Patches GameManager.workstationOpened so we can block opening the UI for any workstation (including Chemistry Bench) in one place.
-        /// </summary>
-        private static void ApplyWorkstationOpenedChokePointPatchFromGameAssembly(Harmony harmony)
-        {
-            try
-            {
-                var gameAssembly = typeof(Equipment).Assembly;
-                var gameManagerType = gameAssembly.GetType("GameManager");
-                if (gameManagerType == null)
-                {
-                    SafeLog("[LimitByCraftingSkill] GameManager not found, workstationOpened choke point patch skipped.");
-                    return;
-                }
-                var teType = gameAssembly.GetType("TileEntityWorkstation");
-                var uiType = gameAssembly.GetType("LocalPlayerUI");
-                if (teType == null || uiType == null)
-                {
-                    SafeLog("[LimitByCraftingSkill] TileEntityWorkstation or LocalPlayerUI not found, workstationOpened patch skipped.");
-                    return;
-                }
-                var method = gameManagerType.GetMethod("workstationOpened", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                    null, new Type[] { teType, uiType }, null);
-                if (method == null)
-                {
-                    SafeLog("[LimitByCraftingSkill] GameManager.workstationOpened not found.");
-                    return;
-                }
-                var prefix = typeof(WorkstationOpenedRestrictionPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.Public);
-                if (prefix != null)
-                {
-                    harmony.Patch(method, prefix: new HarmonyMethod(prefix));
-                    SafeLog("[LimitByCraftingSkill] GameManager.workstationOpened (workstation UI choke point) patch applied.");
-                    try { InWorldRestrictionDebugLog.Write("H_WS", "ModApi:ApplyWorkstationOpenedChokePoint", "patch_applied", "{}", null); } catch { }
-                }
-            }
-            catch (Exception ex)
-            {
-                SafeLog($"[LimitByCraftingSkill] WorkstationOpened choke point patch failed: {ex.Message}");
-                try { InWorldRestrictionDebugLog.Write("H_WS", "ModApi:ApplyWorkstationOpenedChokePoint", "patch_failed", "{\"error\":\"" + (ex.Message ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"}", null); } catch { }
-            }
-        }
-
-        /// <summary>
-        /// Patches XUiC_WorkstationWindowGroup.SetTileEntity so we block binding the workstation TE when restricted (UI path used when workstationOpened is not called).
+        /// Postfix SetTileEntity — runs after TE bind (always has TileEntity); Prefix+skip caused UI lock.
         /// </summary>
         private static void ApplyWorkstationWindowSetTileEntityPatchFromGameAssembly(Harmony harmony)
         {
@@ -460,119 +232,163 @@ namespace LimitByCraftingSkillMod
             {
                 var gameAssembly = typeof(Equipment).Assembly;
                 var windowType = gameAssembly.GetType("XUiC_WorkstationWindowGroup");
-                if (windowType == null)
-                {
-                    SafeLog("[LimitByCraftingSkill] XUiC_WorkstationWindowGroup not found, SetTileEntity patch skipped.");
-                    try { InWorldRestrictionDebugLog.Write("H_SET", "ModApi:SetTileEntityPatch", "skip", "{\"reason\":\"XUiC_WorkstationWindowGroup_not_found\"}", null); } catch { }
-                    return;
-                }
                 var teType = gameAssembly.GetType("TileEntityWorkstation");
-                if (teType == null)
+                if (windowType == null || teType == null)
                 {
-                    SafeLog("[LimitByCraftingSkill] TileEntityWorkstation not found, SetTileEntity patch skipped.");
-                    try { InWorldRestrictionDebugLog.Write("H_SET", "ModApi:SetTileEntityPatch", "skip", "{\"reason\":\"TileEntityWorkstation_not_found\"}", null); } catch { }
+                    SafeLog("[LimitByCraftingSkill] XUiC_WorkstationWindowGroup or TileEntityWorkstation not found, SetTileEntity postfix skipped.");
+                    try { InWorldRestrictionDebugLog.Write("H_SET", "ModApi:SetTileEntityPatch", "skip", "{\"reason\":\"types_not_found\"}", null); } catch { }
                     return;
                 }
+
+                var postfixSt = typeof(WorkstationRestrictionUi).GetMethod("PostfixSetTileEntity", BindingFlags.Static | BindingFlags.Public);
+                if (postfixSt == null)
+                    return;
+
                 var method = windowType.GetMethod("SetTileEntity", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
                     null, new Type[] { teType }, null);
-                if (method == null)
+                if (method != null)
                 {
-                    SafeLog("[LimitByCraftingSkill] XUiC_WorkstationWindowGroup.SetTileEntity not found.");
-                    try { InWorldRestrictionDebugLog.Write("H_SET", "ModApi:SetTileEntityPatch", "skip", "{\"reason\":\"SetTileEntity_not_found\"}", null); } catch { }
-                    return;
+                    harmony.Patch(method, postfix: new HarmonyMethod(postfixSt));
+                    SafeLog("[LimitByCraftingSkill] XUiC_WorkstationWindowGroup.SetTileEntity Postfix patch applied.");
+                    try { InWorldRestrictionDebugLog.Write("H_SET", "ModApi:SetTileEntityPatch", "patch_applied", "{}", null); } catch { }
                 }
-                var prefix = typeof(WorkstationWindowSetTileEntityRestrictionPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.Public);
-                if (prefix != null)
-                {
-                    harmony.Patch(method, prefix: new HarmonyMethod(prefix));
-                    SafeLog("[LimitByCraftingSkill] XUiC_WorkstationWindowGroup.SetTileEntity (workstation UI) patch applied.");
-                }
-                var argTypes = new Type[] { teType };
+
                 foreach (var subType in gameAssembly.GetTypes())
                 {
                     if (subType == null || !subType.IsClass || subType == windowType || !windowType.IsAssignableFrom(subType))
                         continue;
                     var subMethod = subType.GetMethod("SetTileEntity", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                        null, argTypes, null);
+                        null, new Type[] { teType }, null);
                     if (subMethod == null || subMethod.DeclaringType != subType)
                         continue;
-                    var prefixSub = typeof(WorkstationWindowSetTileEntityRestrictionPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.Public);
-                    if (prefixSub != null)
+                    try
                     {
-                        try
-                        {
-                            harmony.Patch(subMethod, prefix: new HarmonyMethod(prefixSub));
-                            SafeLog("[LimitByCraftingSkill] " + subType.Name + ".SetTileEntity (workstation UI) patch applied.");
-                        }
-                        catch (Exception subEx) { SafeLog("[LimitByCraftingSkill] " + subType.Name + " SetTileEntity patch skip: " + subEx.Message); }
+                        harmony.Patch(subMethod, postfix: new HarmonyMethod(postfixSt));
+                        SafeLog("[LimitByCraftingSkill] " + subType.Name + ".SetTileEntity Postfix patch applied.");
+                    }
+                    catch (Exception subEx)
+                    {
+                        SafeLog("[LimitByCraftingSkill] SetTileEntity postfix on " + subType.Name + " skip: " + subEx.Message);
                     }
                 }
-                try { InWorldRestrictionDebugLog.Write("H_SET", "ModApi:SetTileEntityPatch", "patch_applied", "{}", null); } catch { }
             }
             catch (Exception ex)
             {
-                SafeLog($"[LimitByCraftingSkill] Workstation SetTileEntity patch failed: {ex.Message}");
+                SafeLog($"[LimitByCraftingSkill] Workstation SetTileEntity postfix failed: {ex.Message}");
                 try { InWorldRestrictionDebugLog.Write("H_SET", "ModApi:SetTileEntityPatch", "patch_failed", "{\"error\":\"" + (ex.Message ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"}", null); } catch { }
             }
         }
 
         /// <summary>
-        /// Patch XUiC_WorkstationWindowGroup.OnOpen() so we can enforce restrictions even when
-        /// block activation / workstationOpened / SetTileEntity hooks are bypassed.
+        /// Postfix OnOpen: always patch CraftingWindowGroup (filtered to workstation controllers) so base.OnOpen() inside
+        /// WorkstationWindowGroup.OnOpen is covered; additionally patch every OnOpen declared on subtypes of WorkstationWindowGroup
+        /// (covers intermediate overrides when DeclaringType is not XUiC_WorkstationWindowGroup).
         /// </summary>
         private static void ApplyWorkstationWindowOnOpenRestrictionPatchFromGameAssembly(Harmony harmony)
         {
             try
             {
                 var gameAssembly = typeof(Equipment).Assembly;
-                var windowType = gameAssembly.GetType("XUiC_WorkstationWindowGroup");
-                if (windowType == null)
+                var wsType = gameAssembly.GetType("XUiC_WorkstationWindowGroup");
+                var craftType = gameAssembly.GetType("XUiC_CraftingWindowGroup");
+                if (wsType == null)
                 {
-                    SafeLog("[LimitByCraftingSkill] XUiC_WorkstationWindowGroup not found, OnOpen patch skipped.");
-                    try { InWorldRestrictionDebugLog.Write("H_UIOPEN", "ModApi:ApplyWorkstationWindowOnOpen", "skip", "{\"reason\":\"XUiC_WorkstationWindowGroup_not_found\"}", null); } catch { }
+                    SafeLog("[LimitByCraftingSkill] XUiC_WorkstationWindowGroup not found, OnOpen postfix skipped.");
+                    try { InWorldRestrictionDebugLog.Write("H_UIOPEN", "ModApi:ApplyWorkstationWindowOnOpen", "skip", "{\"reason\":\"WS_not_found\"}", null); } catch { }
                     return;
                 }
 
-                var method = windowType.GetMethod("OnOpen", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
-                if (method == null)
-                {
-                    SafeLog("[LimitByCraftingSkill] XUiC_WorkstationWindowGroup.OnOpen not found, OnOpen patch skipped.");
-                    try { InWorldRestrictionDebugLog.Write("H_UIOPEN", "ModApi:ApplyWorkstationWindowOnOpen", "skip", "{\"reason\":\"OnOpen_not_found\"}", null); } catch { }
+                var postfixWs = typeof(WorkstationRestrictionUi).GetMethod("PostfixWorkstationWindowGroupOnOpen", BindingFlags.Static | BindingFlags.Public);
+                var postfixFiltered = typeof(WorkstationRestrictionUi).GetMethod("PostfixFilteredCraftingOnOpen", BindingFlags.Static | BindingFlags.Public);
+                if (postfixWs == null || postfixFiltered == null)
                     return;
-                }
 
-                var prefix = typeof(WorkstationWindowOnOpenRestrictionPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.Public);
-                if (prefix != null)
+                if (craftType != null)
                 {
-                    harmony.Patch(method, prefix: new HarmonyMethod(prefix));
-                    try { InWorldRestrictionDebugLog.Write("H_UIOPEN", "ModApi:ApplyWorkstationWindowOnOpen", "patch_applied_base", "{}", null); } catch { }
+                    var craftOnOpen = craftType.GetMethod("OnOpen", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
+                    if (craftOnOpen != null)
+                    {
+                        harmony.Patch(craftOnOpen, postfix: new HarmonyMethod(postfixFiltered));
+                        SafeLog("[LimitByCraftingSkill] XUiC_CraftingWindowGroup.OnOpen Postfix (filtered to workstation) applied.");
+                        try { InWorldRestrictionDebugLog.Write("H_UIOPEN", "ModApi:ApplyWorkstationWindowOnOpen", "patch_applied_crafting_base", "{}", null); } catch { }
+                    }
+
+                    for (var midType = wsType.BaseType; midType != null && midType != craftType; midType = midType.BaseType)
+                    {
+                        var midOnOpen = midType.GetMethod("OnOpen", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
+                        if (midOnOpen == null || midOnOpen.DeclaringType != midType)
+                            continue;
+                        try
+                        {
+                            harmony.Patch(midOnOpen, postfix: new HarmonyMethod(postfixWs));
+                            SafeLog("[LimitByCraftingSkill] " + midType.Name + ".OnOpen Postfix (between Crafting and WorkstationWindowGroup) applied.");
+                        }
+                        catch (Exception midEx)
+                        {
+                            SafeLog("[LimitByCraftingSkill] OnOpen postfix on " + midType.Name + " skip: " + midEx.Message);
+                        }
+                    }
                 }
 
-                // Patch derived types too (same method signature: OnOpen()).
-                var argTypes = Type.EmptyTypes;
                 foreach (var subType in gameAssembly.GetTypes())
                 {
-                    if (subType == null || !subType.IsClass || subType == windowType || !windowType.IsAssignableFrom(subType))
+                    if (subType == null || !subType.IsClass || !wsType.IsAssignableFrom(subType))
                         continue;
-                    var subMethod = subType.GetMethod("OnOpen", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, argTypes, null);
-                    if (subMethod == null || subMethod.DeclaringType != subType)
-                        continue;
-                    if (prefix == null)
+                    var sm = subType.GetMethod("OnOpen", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
+                    if (sm == null || sm.DeclaringType != subType)
                         continue;
                     try
                     {
-                        harmony.Patch(subMethod, prefix: new HarmonyMethod(prefix));
-                        try { InWorldRestrictionDebugLog.Write("H_UIOPEN", "ModApi:ApplyWorkstationWindowOnOpen", "patch_applied", "{\"windowSubtype\":\"" + subType.Name.Replace("\"", "\\\"") + "\"}", null); } catch { }
+                        harmony.Patch(sm, postfix: new HarmonyMethod(postfixWs));
+                        SafeLog("[LimitByCraftingSkill] " + subType.Name + ".OnOpen Postfix applied.");
                     }
                     catch (Exception subEx)
                     {
-                        SafeLog("[LimitByCraftingSkill] OnOpen patch skip: " + subEx.Message);
+                        SafeLog("[LimitByCraftingSkill] OnOpen postfix on " + subType.Name + " skip: " + subEx.Message);
                     }
                 }
             }
             catch (Exception ex)
             {
-                SafeLog("[LimitByCraftingSkill] OnOpen restriction patch failed: " + ex.Message);
+                SafeLog("[LimitByCraftingSkill] OnOpen restriction postfix failed: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Postfix GameManager.workstationOpened — TE + LocalPlayerUI when the central open path runs.
+        /// </summary>
+        private static void ApplyGameManagerWorkstationOpenedPatchFromGameAssembly(Harmony harmony)
+        {
+            try
+            {
+                var gameAssembly = typeof(Equipment).Assembly;
+                var gmType = gameAssembly.GetType("GameManager");
+                var teType = gameAssembly.GetType("TileEntityWorkstation");
+                var lpuiType = gameAssembly.GetType("LocalPlayerUI");
+                if (gmType == null || teType == null || lpuiType == null)
+                {
+                    SafeLog("[LimitByCraftingSkill] GameManager / TileEntityWorkstation / LocalPlayerUI not found, workstationOpened postfix skipped.");
+                    return;
+                }
+
+                var postfix = typeof(WorkstationRestrictionUi).GetMethod("PostfixGameManagerWorkstationOpened", BindingFlags.Static | BindingFlags.Public);
+                if (postfix == null)
+                    return;
+
+                var method = gmType.GetMethod("workstationOpened", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null, new Type[] { teType, lpuiType }, null);
+                if (method == null)
+                {
+                    SafeLog("[LimitByCraftingSkill] GameManager.workstationOpened(TileEntityWorkstation, LocalPlayerUI) not found, postfix skipped.");
+                    return;
+                }
+
+                harmony.Patch(method, postfix: new HarmonyMethod(postfix));
+                SafeLog("[LimitByCraftingSkill] GameManager.workstationOpened Postfix applied.");
+            }
+            catch (Exception ex)
+            {
+                SafeLog("[LimitByCraftingSkill] GameManager.workstationOpened postfix failed: " + ex.Message);
             }
         }
 
@@ -620,49 +436,68 @@ namespace LimitByCraftingSkillMod
         }
 
         /// <summary>
-        /// Debug-only instrumentation: logs GUI window names opened via GUIWindowManager.Open/OpenIfNotOpen.
-        /// Helps identify which UI Chemistry Station uses.
+        /// Chemistry Station: Postfix on GUIWindowManager Open / OpenIfNotOpen — close + popup if Workstations level too low.
+        /// Prefix+skip caused UI lock; Postfix runs after vanilla Open.
         /// </summary>
         private static void ApplyGUIWindowManagerOpenNameLoggingPatchFromGameAssembly(Harmony harmony)
         {
             try
             {
                 var gameAssembly = typeof(Equipment).Assembly;
-                var guiWindowManagerType = gameAssembly.GetType("GUIWindowManager");
-                if (guiWindowManagerType == null)
+                var wmType = gameAssembly.GetType("GUIWindowManager");
+                if (wmType == null)
+                {
+                    SafeLog("[LimitByCraftingSkill] GUIWindowManager not found, chemistry Postfix skipped.");
+                    return;
+                }
+
+                var patchType = typeof(GUIWindowManagerOpenNameLogPatch);
+
+                var px1 = patchType.GetMethod("PostfixOpen_String_Bool_Bool_Bool", BindingFlags.Static | BindingFlags.Public);
+                var px2 = patchType.GetMethod("PostfixOpen_String_Int_Int_Bool_Bool", BindingFlags.Static | BindingFlags.Public);
+                var px3 = patchType.GetMethod("PostfixOpenIfNotOpen_String_Bool_Bool_Bool", BindingFlags.Static | BindingFlags.Public);
+                if (px1 == null || px2 == null || px3 == null)
                     return;
 
-                var prefixOpen4 = typeof(GUIWindowManagerOpenNameLogPatch).GetMethod("PrefixOpen_String_Bool_Bool_Bool", BindingFlags.Static | BindingFlags.Public);
-                var prefixOpen5 = typeof(GUIWindowManagerOpenNameLogPatch).GetMethod("PrefixOpen_String_Int_Int_Bool_Bool", BindingFlags.Static | BindingFlags.Public);
-                var prefixOpenIfNotOpen4 = typeof(GUIWindowManagerOpenNameLogPatch).GetMethod("PrefixOpenIfNotOpen_String_Bool_Bool_Bool", BindingFlags.Static | BindingFlags.Public);
-
-                if (prefixOpen5 != null)
+                var open1 = wmType.GetMethod("Open", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null, new Type[] { typeof(string), typeof(bool), typeof(bool), typeof(bool) }, null);
+                if (open1 != null)
                 {
-                    var m = guiWindowManagerType.GetMethod("Open", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                        null, new[] { typeof(string), typeof(int), typeof(int), typeof(bool), typeof(bool) }, null);
-                    if (m != null)
-                        harmony.Patch(m, prefix: new HarmonyMethod(prefixOpen5));
+                    harmony.Patch(open1, postfix: new HarmonyMethod(px1));
+                    SafeLog("[LimitByCraftingSkill] GUIWindowManager.Open(string,bool,bool,bool) chemistry Postfix applied.");
                 }
 
-                if (prefixOpen4 != null)
+                var open2 = wmType.GetMethod("Open", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null, new Type[] { typeof(string), typeof(int), typeof(int), typeof(bool), typeof(bool) }, null);
+                if (open2 != null)
                 {
-                    var m = guiWindowManagerType.GetMethod("Open", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                        null, new[] { typeof(string), typeof(bool), typeof(bool), typeof(bool) }, null);
-                    if (m != null)
-                        harmony.Patch(m, prefix: new HarmonyMethod(prefixOpen4));
+                    harmony.Patch(open2, postfix: new HarmonyMethod(px2));
+                    SafeLog("[LimitByCraftingSkill] GUIWindowManager.Open(string,int,int,bool,bool) chemistry Postfix applied.");
                 }
 
-                if (prefixOpenIfNotOpen4 != null)
+                var openIfNotOpen = wmType.GetMethod("OpenIfNotOpen", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null, new Type[] { typeof(string), typeof(bool), typeof(bool), typeof(bool) }, null);
+                if (openIfNotOpen != null)
                 {
-                    var m = guiWindowManagerType.GetMethod("OpenIfNotOpen", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                        null, new[] { typeof(string), typeof(bool), typeof(bool), typeof(bool) }, null);
-                    if (m != null)
-                        harmony.Patch(m, prefix: new HarmonyMethod(prefixOpenIfNotOpen4));
+                    harmony.Patch(openIfNotOpen, postfix: new HarmonyMethod(px3));
+                    SafeLog("[LimitByCraftingSkill] GUIWindowManager.OpenIfNotOpen chemistry Postfix applied.");
+                }
+
+                var px4 = patchType.GetMethod("PostfixSwitchVisible_String_Bool_Bool", BindingFlags.Static | BindingFlags.Public);
+                if (px4 != null)
+                {
+                    var switchVisible = wmType.GetMethod("SwitchVisible", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                        null, new Type[] { typeof(string), typeof(bool), typeof(bool) }, null);
+                    if (switchVisible != null)
+                    {
+                        harmony.Patch(switchVisible, postfix: new HarmonyMethod(px4));
+                        SafeLog("[LimitByCraftingSkill] GUIWindowManager.SwitchVisible chemistry Postfix applied.");
+                    }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // best-effort instrumentation only
+                SafeLog("[LimitByCraftingSkill] GUIWindowManager chemistry Postfix failed: " + ex.Message);
             }
         }
 

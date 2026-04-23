@@ -3,6 +3,8 @@ using System;
 namespace LimitByCraftingSkillMod
 {
     /// <summary>
+    /// Prefix helpers for Block.ActivateBlock / ActivateBlockOnce (currently not registered in ModApi —
+    /// skipping those methods broke client interaction until rejoin). Kept for a possible safer revival.
     /// Prefix for Block.ActivateBlock and Block.ActivateBlockOnce so we restrict workstation opens
     /// (e.g. Chemistry Station) even when the game does not call OnBlockActivated on BlockWorkstation or Block.
     /// This is the single entry point for "use block" before the block's activation logic runs.

@@ -1,17 +1,16 @@
 using System;
+using System.Reflection;
 
 namespace LimitByCraftingSkillMod
 {
     /// <summary>
-    /// Debug-only: log GUI window names opened via GUIWindowManager.Open.
-    /// Useful to identify what UI Chemistry Station uses when workstation hooks don't fire.
+    /// Chemistry Station often opens via <see cref="GUIWindowManager"/> before / without the same XUi hooks as forge.
+    /// Uses Postfix (never Prefix+skip) so we close immediately after Open + popup — avoids client UI lock from skipping Open.
     /// </summary>
     internal static class GUIWindowManagerOpenNameLogPatch
     {
-        private const string ChemistryStationWindowName = "workstation_chemistryStation";
+        internal const string ChemistryStationWindowName = "workstation_chemistryStation";
         private const string ChemistryStationMapKey = "chemistryStation";
-
-        // No logging in final build: this patch is only responsible for enforcing restrictions.
 
         private static int GetChemistryStationRequiredLevel()
         {
@@ -23,47 +22,79 @@ namespace LimitByCraftingSkillMod
             return 0;
         }
 
-        private static bool MaybeBlockChemistryStationOpen(string windowName)
+        /// <summary>Harmony Postfix for GUIWindowManager.Open(string, bool, bool, bool).</summary>
+        public static void PostfixOpen_String_Bool_Bool_Bool(object __instance, string _windowName, bool _bModal, bool _bIsNotEscClosable, bool _bCloseAllOpenWindows)
         {
-            if (string.IsNullOrWhiteSpace(windowName))
-                return true;
-            if (!string.Equals(windowName, ChemistryStationWindowName, StringComparison.OrdinalIgnoreCase))
-                return true;
-            if (ModConfig.Instance == null || !ModConfig.Instance.IsRestrictionEnabledForSkill("Workstations"))
-                return true;
-
-            var requiredLevel = GetChemistryStationRequiredLevel();
-            if (requiredLevel <= 0)
-                return true;
-
-            var player = GameReflection.GetLocalPlayer() as EntityAlive;
-            if (player == null)
-                return true;
-
-            var playerLevel = GameReflection.GetPlayerCraftingLevel(player, "Workstations");
-            if (!LimitByCraftingSkillLogic.IsRestricted(playerLevel, requiredLevel, true))
-                return true;
-
-            // Use a friendly hardcoded display name; map key may not match UI capitalization.
-            RestrictionFeedback.ShowRestrictionPopup(player, "Chemistry Station", "Workstations", playerLevel, requiredLevel);
-            return false;
+            AfterChemistryWindowMayHaveOpened(__instance, _windowName);
         }
 
-        // Prefix methods (wired in via ModApi reflection patching).
-        public static bool PrefixOpen_String_Bool_Bool_Bool(string _windowName, bool _bModal, bool _bIsNotEscClosable, bool _bCloseAllOpenWindows)
+        /// <summary>Harmony Postfix for GUIWindowManager.Open(string, int, int, bool, bool).</summary>
+        public static void PostfixOpen_String_Int_Int_Bool_Bool(object __instance, string _windowName, int _x, int _y, bool _bModal, bool _bIsNotEscClosable)
         {
-            return MaybeBlockChemistryStationOpen(_windowName);
+            AfterChemistryWindowMayHaveOpened(__instance, _windowName);
         }
 
-        public static bool PrefixOpen_String_Int_Int_Bool_Bool(string _windowName, int _x, int _y, bool _bModal, bool _bIsNotEscClosable)
+        /// <summary>Harmony Postfix for GUIWindowManager.OpenIfNotOpen(string, bool, bool, bool).</summary>
+        public static void PostfixOpenIfNotOpen_String_Bool_Bool_Bool(object __instance, string _windowName, bool _bModal, bool _bIsNotEscClosable, bool _bCloseAllOpenWindows)
         {
-            return MaybeBlockChemistryStationOpen(_windowName);
+            AfterChemistryWindowMayHaveOpened(__instance, _windowName);
         }
 
-        public static bool PrefixOpenIfNotOpen_String_Bool_Bool_Bool(string _windowName, bool _bModal, bool _bIsNotEscClosable, bool _bCloseAllOpenWindows)
+        /// <summary>Harmony Postfix — some builds use SwitchVisible instead of Open for workstation panels.</summary>
+        public static void PostfixSwitchVisible_String_Bool_Bool(object __instance, string _windowName, bool _bIsNotEscClosable, bool _modal)
         {
-            return MaybeBlockChemistryStationOpen(_windowName);
+            AfterChemistryWindowMayHaveOpened(__instance, _windowName);
+        }
+
+        private static readonly object ChemistryUiDedupeLock = new object();
+        private static int _lastChemistryUiCloseTicks;
+
+        private static void AfterChemistryWindowMayHaveOpened(object guiWindowManager, string windowName)
+        {
+            try
+            {
+                if (guiWindowManager == null || string.IsNullOrWhiteSpace(windowName))
+                    return;
+                if (!string.Equals(windowName, ChemistryStationWindowName, StringComparison.OrdinalIgnoreCase))
+                    return;
+                if (ModConfig.Instance == null || !ModConfig.Instance.IsRestrictionEnabledForSkill("Workstations"))
+                    return;
+
+                var requiredLevel = GetChemistryStationRequiredLevel();
+                if (requiredLevel <= 0)
+                    return;
+
+                var player = GameReflection.GetLocalPlayer() as EntityAlive;
+                if (player == null)
+                    return;
+
+                var playerLevel = GameReflection.GetPlayerCraftingLevel(player, "Workstations");
+                if (!LimitByCraftingSkillLogic.IsRestricted(playerLevel, requiredLevel, true))
+                    return;
+
+                lock (ChemistryUiDedupeLock)
+                {
+                    var now = Environment.TickCount;
+                    var dt = now - _lastChemistryUiCloseTicks;
+                    if (dt >= 0 && dt < 400)
+                        return;
+                    _lastChemistryUiCloseTicks = now;
+                }
+
+                var closeIfOpen = guiWindowManager.GetType().GetMethod("CloseIfOpen", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null, new[] { typeof(string) }, null);
+                closeIfOpen?.Invoke(guiWindowManager, new object[] { ChemistryStationWindowName });
+
+                RestrictionFeedback.ShowRestrictionPopup(player, "Chemistry Station", "Workstations", playerLevel, requiredLevel);
+
+                if (ModConfig.Instance.DebugMode)
+                    ModApi.DebugLog("[LimitByCraftingSkill] Chemistry Station GUI blocked (GUIWindowManager Postfix) Workstations " + playerLevel + "/" + requiredLevel);
+            }
+            catch (Exception ex)
+            {
+                if (ModConfig.Instance != null && ModConfig.Instance.DebugMode)
+                    ModApi.DebugLog("[LimitByCraftingSkill] GUIWindowManager chemistry Postfix: " + ex.Message);
+            }
         }
     }
 }
-

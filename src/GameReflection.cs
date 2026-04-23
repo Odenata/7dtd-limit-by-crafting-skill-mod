@@ -494,7 +494,13 @@ namespace LimitByCraftingSkillMod
             if (progression == null) return 0;
             var lookupName = ToProgressionLookupName(skillGroup);
             if (string.IsNullOrWhiteSpace(lookupName)) return 0;
-            var resolved = TryResolveRequiredLevelByMapKeyOnly(progression, lookupName, mapKey, effectiveQuality: 1);
+            var resolved = -1;
+            foreach (var progressionMapKey in EnumerateWorkstationProgressionMapKeys(mapKey))
+            {
+                resolved = TryResolveRequiredLevelByMapKeyOnly(progression, lookupName, progressionMapKey, effectiveQuality: 1);
+                if (resolved >= 0)
+                    break;
+            }
             if (resolved >= 0 && ClassNameToCraftingSkillMapLoader.TryGetRequiredLevelOverride(mapKey, out var ovLevel))
                 resolved = Math.Max(resolved, ovLevel);
             if (resolved >= 0 && ClassNameToCraftingSkillMapLoader.TryGetRequiredLevelMin(mapKey, out var minLv))
@@ -549,6 +555,62 @@ namespace LimitByCraftingSkillMod
             if (map.TryGetValue(candidate, out var group) && string.Equals(group, "Workstations", StringComparison.OrdinalIgnoreCase))
                 return candidate;
             return null;
+        }
+
+        /// <summary>
+        /// Progression DisplayData ItemName often differs from block Name / map key (e.g. toolForge vs forge). Try each until one matches.
+        /// </summary>
+        private static System.Collections.Generic.IEnumerable<string> EnumerateWorkstationProgressionMapKeys(string mapKey)
+        {
+            if (string.IsNullOrWhiteSpace(mapKey))
+                yield break;
+
+            var list = new System.Collections.Generic.List<string>();
+            void Add(string k)
+            {
+                if (string.IsNullOrWhiteSpace(k)) return;
+                var t = k.Trim();
+                foreach (var e in list)
+                    if (string.Equals(e, t, StringComparison.OrdinalIgnoreCase))
+                        return;
+                list.Add(t);
+            }
+
+            if (ClassNameToCraftingSkillMapLoader.TryGetProgressionMatchOverride(mapKey, out var pm) && !string.IsNullOrWhiteSpace(pm))
+                Add(pm.Trim());
+            Add(mapKey);
+
+            switch (mapKey.Trim().ToLowerInvariant())
+            {
+                case "forge":
+                    Add("toolForge");
+                    Add("terrForge");
+                    Add("cntForge");
+                    break;
+                case "workbench":
+                    Add("toolWorkbenchPlaceable");
+                    Add("cntWorkbench");
+                    break;
+                case "cementmixer":
+                    Add("cementMixerPlaceable");
+                    Add("cntCementMixer");
+                    break;
+                case "chemistrystation":
+                    Add("chemistryStationPlaceable");
+                    Add("cntChemistryStation");
+                    break;
+                case "cntapiary":
+                    Add("apiary");
+                    Add("cntApiary");
+                    break;
+                case "cntdewcollector":
+                    Add("dewCollector");
+                    Add("cntDewCollector");
+                    break;
+            }
+
+            foreach (var k in list)
+                yield return k;
         }
 
         /// <summary>
