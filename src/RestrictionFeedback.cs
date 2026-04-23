@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace LimitByCraftingSkillMod
 {
@@ -10,15 +11,21 @@ namespace LimitByCraftingSkillMod
     /// Shows in-world feedback when the player is blocked from using an item (workstation, vehicle, etc.).
     /// Message: "You don't know how to use [item name]" and "[Crafting Skill Name] [player level]/[required level]".
     /// Uses GameManager.ShowTooltip with "ui_denied"; popup text color is set on the tooltip XUiV_Label after show
-    /// (NGUI hex markup in the string is not reliable for popup tooltips). See docs/GAME_API_NOTES.md.
+    /// (NGUI hex markup in the string is not reliable for popup tooltips). Amber tint for readability; see docs/GAME_API_NOTES.md.
     /// </summary>
     internal static class RestrictionFeedback
     {
         /// <summary>First words of restriction body; used to detect our tooltip after DisplayTooltipText runs.</summary>
         internal const string RestrictionTooltipBodyMarker = "You don't know how to use";
 
-        /// <summary>Matches inventory restriction emphasis; visible on dark HUD.</summary>
-        private static readonly Color TooltipRestrictionRed = new Color(0.95f, 0.12f, 0.12f, 1f);
+        /// <summary>Warning-style amber: readable on typical HUD backgrounds; distinct from success/neutral UI.</summary>
+        private static readonly Color TooltipRestrictionAmber = new Color(0.96f, 0.76f, 0.33f, 1f);
+
+        /// <summary>Keep tint through fade-out after fields clear (singleton popup; time + alpha gated).</summary>
+        private static float restrictionTooltipTintFadeTailUntilTime;
+
+        private const float PopupTooltipTextAlphaFadeDone = 0.02f;
+        private const float PopupTooltipFadeTailSeconds = 0.34f;
 
         /// <summary>
         /// Called from Harmony Postfix on XUiC_PopupToolTip.DisplayTooltipText after vanilla assigns text.
@@ -29,7 +36,56 @@ namespace LimitByCraftingSkillMod
             {
                 if (popupInstance == null || !PopupShowsRestrictionMessage(popupInstance))
                     return;
+                BumpRestrictionTooltipFadeTail();
                 TintPopupTooltipHierarchy(popupInstance);
+            }
+            catch
+            {
+                // ignored
+            }
+        }
+
+        /// <summary>
+        /// Harmony postfix on XUiC_PopupToolTip.Update — keeps restriction amber through fade-out (fields can clear before alpha).
+        /// </summary>
+        internal static void OnPopupToolTipUpdate(object popupInstance)
+        {
+            try
+            {
+                if (popupInstance == null)
+                    return;
+
+                if (PopupShowsRestrictionMessage(popupInstance))
+                    BumpRestrictionTooltipFadeTail();
+
+                if (!ShouldApplyRestrictionTooltipTint(popupInstance))
+                    return;
+
+                TintPopupTooltipHierarchy(popupInstance);
+                TryGlobalRestrictionLabelScanForPlayer(GameReflection.GetLocalPlayer());
+
+                if (TryGetPopupTextAlpha(popupInstance, out var a) && a <= PopupTooltipTextAlphaFadeDone)
+                    restrictionTooltipTintFadeTailUntilTime = 0f;
+            }
+            catch
+            {
+                // ignored
+            }
+        }
+
+        /// <summary>
+        /// Harmony postfix on GameManager.ShowTooltip* — runs with the real message body (not binding fields).
+        /// </summary>
+        internal static void OnGameManagerShowTooltipAfter(object player, string text)
+        {
+            try
+            {
+                if (player == null || string.IsNullOrEmpty(text))
+                    return;
+                if (text.IndexOf(RestrictionTooltipBodyMarker, StringComparison.OrdinalIgnoreCase) < 0)
+                    return;
+                BumpRestrictionTooltipFadeTail();
+                ScheduleApplyRestrictionTooltipLabelRed(player);
             }
             catch
             {
@@ -51,13 +107,133 @@ namespace LimitByCraftingSkillMod
                     return true;
             }
 
+            // tooltipText may be empty or localized key while UILabel.text already shows our line.
+            return AnyUILabelUnderPopupHierarchyContainsMarker(popup);
+        }
+
+        private static bool AnyUILabelUnderPopupHierarchyContainsMarker(object popupRoot)
+        {
+            var asm = typeof(GameManager).Assembly;
+            var uiLabelType = asm.GetType("UILabel");
+            if (uiLabelType == null)
+                return false;
+
+            var q = new Queue<object>();
+            q.Enqueue(popupRoot);
+            while (q.Count > 0)
+            {
+                var c = q.Dequeue();
+                if (c == null)
+                    continue;
+
+                var go = RestrictionLabelColor.GetViewGameObject(c) as GameObject;
+                if (go != null)
+                {
+                    foreach (var comp in GetComponentsInChildrenObjects(go, uiLabelType))
+                    {
+                        if (ComponentTextContainsMarker(comp, RestrictionTooltipBodyMarker))
+                            return true;
+                    }
+                }
+
+                var children = GetMemberValue(c, "children", "Children") as IList;
+                if (children != null)
+                {
+                    foreach (var ch in children)
+                        q.Enqueue(ch);
+                }
+            }
+
+            return false;
+        }
+
+        private static void BumpRestrictionTooltipFadeTail()
+        {
+            try
+            {
+                restrictionTooltipTintFadeTailUntilTime = Time.time + PopupTooltipFadeTailSeconds;
+            }
+            catch
+            {
+                restrictionTooltipTintFadeTailUntilTime = float.MaxValue;
+            }
+        }
+
+        /// <summary>
+        /// Popup controller is typically a singleton; do not rely on reference identity. Extend tint while fading after content fields clear.
+        /// </summary>
+        private static bool ShouldApplyRestrictionTooltipTint(object popupInstance)
+        {
+            if (PopupShowsRestrictionMessage(popupInstance))
+                return true;
+
+            if (IsNonRestrictionTooltipReplacementShowing(popupInstance))
+                return false;
+
+            if (Time.time >= restrictionTooltipTintFadeTailUntilTime)
+                return false;
+
+            if (TryGetPopupTextAlpha(popupInstance, out var alpha))
+                return alpha > PopupTooltipTextAlphaFadeDone;
+
+            return true;
+        }
+
+        /// <summary>Another tooltip filled the binding while our restriction message may still be visible one frame.</summary>
+        private static bool IsNonRestrictionTooltipReplacementShowing(object popup)
+        {
+            var s = GetMemberValue(popup, "tooltipText", "TooltipText") as string;
+            if (!string.IsNullOrEmpty(s) && s.IndexOf(RestrictionTooltipBodyMarker, StringComparison.OrdinalIgnoreCase) < 0)
+                return true;
+
+            var immediate = GetMemberValue(popup, "immediateTip", "ImmediateTip");
+            if (immediate != null)
+            {
+                var txt = GetMemberValue(immediate, "Text", "text") as string;
+                if (!string.IsNullOrEmpty(txt) && txt.IndexOf(RestrictionTooltipBodyMarker, StringComparison.OrdinalIgnoreCase) < 0)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryGetPopupTextAlpha(object popup, out float alpha)
+        {
+            alpha = 0f;
+            if (popup == null)
+                return false;
+            try
+            {
+                var t = popup.GetType();
+                foreach (var name in new[] { "textAlphaCurrent", "TextAlphaCurrent" })
+                {
+                    var p = t.GetProperty(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (p != null && p.PropertyType == typeof(float))
+                    {
+                        alpha = (float)p.GetValue(popup, null);
+                        return true;
+                    }
+
+                    var f = t.GetField(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (f != null && f.FieldType == typeof(float))
+                    {
+                        alpha = (float)f.GetValue(popup);
+                        return true;
+                    }
+                }
+            }
+            catch
+            {
+                // ignored
+            }
+
             return false;
         }
 
         /// <summary>BFS controller tree + GameObject UILabel tree; effect colors for NGUI outline.</summary>
         private static void TintPopupTooltipHierarchy(object rootController)
         {
-            var red = TooltipRestrictionRed;
+            var red = TooltipRestrictionAmber;
             var q = new Queue<object>();
             q.Enqueue(rootController);
             while (q.Count > 0)
@@ -104,6 +280,7 @@ namespace LimitByCraftingSkillMod
             {
                 if (TryInvokeShowTooltip(player, fullText))
                 {
+                    BumpRestrictionTooltipFadeTail();
                     ScheduleApplyRestrictionTooltipLabelRed(player);
                     return;
                 }
@@ -160,10 +337,11 @@ namespace LimitByCraftingSkillMod
 
         private static IEnumerator CoApplyRestrictionTooltipRed(object player)
         {
-            for (var i = 0; i < 8; i++)
+            // Do not stop early: TryTintXUiToolTipController used to return true whenever a view existed,
+            // before body text/widgets were ready — vanilla also assigns color after our first pass.
+            for (var i = 0; i < 24; i++)
             {
-                if (TryApplyRestrictionTooltipLabelRed(player))
-                    yield break;
+                TryApplyRestrictionTooltipLabelRed(player);
                 yield return null;
             }
         }
@@ -181,7 +359,7 @@ namespace LimitByCraftingSkillMod
 
                 var asm = xui.GetType().Assembly;
                 var toolTipControllerType = asm.GetType("XUiC_ToolTip");
-                var red = TooltipRestrictionRed;
+                var red = TooltipRestrictionAmber;
                 var any = false;
 
                 var cur = GetMemberValue(xui, "currentToolTip", "CurrentToolTip");
@@ -197,6 +375,8 @@ namespace LimitByCraftingSkillMod
                     if (popup != null)
                         any |= TryTintToolTipControllersUnderPopup(popup, toolTipControllerType, red);
                 }
+
+                any |= TryGlobalRestrictionLabelScanForPlayer(player);
 
                 return any;
             }
@@ -283,6 +463,181 @@ namespace LimitByCraftingSkillMod
                     if (prop != null && prop.PropertyType == typeof(Color) && prop.CanWrite)
                     {
                         prop.SetValue(uiLabel, fx, null);
+                        break;
+                    }
+                }
+
+                foreach (var name in new[] { "applyGradient", "ApplyGradient" })
+                {
+                    var prop = t.GetProperty(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (prop != null && prop.PropertyType == typeof(bool) && prop.CanWrite)
+                    {
+                        try { prop.SetValue(uiLabel, false, null); } catch { }
+                        break;
+                    }
+                }
+
+                foreach (var name in new[] { "gradientTop", "GradientTop", "gradientBottom", "GradientBottom" })
+                {
+                    var prop = t.GetProperty(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (prop != null && prop.PropertyType == typeof(Color) && prop.CanWrite)
+                    {
+                        try { prop.SetValue(uiLabel, red, null); } catch { }
+                    }
+                }
+            }
+            catch
+            {
+                // ignored
+            }
+        }
+
+        /// <summary>
+        /// Finds UILabel / TMP instances whose text contains the restriction marker (tooltip may not live under XUi controller views).
+        /// </summary>
+        private static bool TryGlobalRestrictionLabelScanForPlayer(object player)
+        {
+            var marker = RestrictionTooltipBodyMarker;
+            var red = TooltipRestrictionAmber;
+            var asm = typeof(GameManager).Assembly;
+            var uiLabelType = asm.GetType("UILabel");
+            var any = false;
+
+            var root = TryGetLocalPlayerUiRootGo(player);
+            if (root != null && uiLabelType != null)
+            {
+                foreach (var comp in GetComponentsInChildrenObjects(root, uiLabelType))
+                {
+                    if (!ComponentTextContainsMarker(comp, marker))
+                        continue;
+                    TrySetUILabelDeniedColors(comp, red);
+                    any = true;
+                }
+
+                foreach (var tmpType in ResolveTmpTextTypes())
+                {
+                    if (tmpType == null)
+                        continue;
+                    foreach (var comp in GetComponentsInChildrenObjects(root, tmpType))
+                    {
+                        if (!ComponentTextContainsMarker(comp, marker))
+                            continue;
+                        TrySetGenericTextComponentColor(comp, red);
+                        any = true;
+                    }
+                }
+
+                var unityUiTextType = Type.GetType("UnityEngine.UI.Text, UnityEngine.UI");
+                if (unityUiTextType != null)
+                {
+                    foreach (var comp in GetComponentsInChildrenObjects(root, unityUiTextType))
+                    {
+                        if (!ComponentTextContainsMarker(comp, marker))
+                            continue;
+                        TrySetGenericTextComponentColor(comp, red);
+                        any = true;
+                    }
+                }
+            }
+
+            if (!any && uiLabelType != null)
+            {
+                foreach (var obj in FindAllObjectsOfType(uiLabelType))
+                {
+                    if (obj == null)
+                        continue;
+                    var go = GetGameObjectFromUnityEngineObject(obj);
+                    if (go != null && !IsGameObjectActiveInHierarchy(go))
+                        continue;
+                    if (!ComponentTextContainsMarker(obj, marker))
+                        continue;
+                    TrySetUILabelDeniedColors(obj, red);
+                    any = true;
+                }
+            }
+
+            return any;
+        }
+
+        private static GameObject TryGetLocalPlayerUiRootGo(object player)
+        {
+            if (player == null)
+                return null;
+            try
+            {
+                var lpui = GetMemberValue(player, "PlayerUI", "playerUI");
+                if (lpui == null)
+                    return null;
+                return GetMemberValue(lpui, "gameObject") as GameObject;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static List<object> GetComponentsInChildrenObjects(GameObject root, Type componentType)
+        {
+            var list = new List<object>();
+            if (root == null || componentType == null)
+                return list;
+            try
+            {
+                var mi = typeof(GameObject).GetMethod("GetComponentsInChildren", new[] { typeof(Type), typeof(bool) });
+                var raw = mi?.Invoke(root, new object[] { componentType, true });
+                if (raw is Array arr)
+                {
+                    foreach (var c in arr)
+                    {
+                        if (c != null)
+                            list.Add(c);
+                    }
+                }
+            }
+            catch
+            {
+                // ignored
+            }
+
+            return list;
+        }
+
+        private static bool ComponentTextContainsMarker(object component, string marker)
+        {
+            if (component == null || string.IsNullOrEmpty(marker))
+                return false;
+            try
+            {
+                var t = component.GetType();
+                foreach (var name in new[] { "text", "Text" })
+                {
+                    var prop = t.GetProperty(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (prop == null || prop.PropertyType != typeof(string))
+                        continue;
+                    var s = prop.GetValue(component, null) as string;
+                    if (!string.IsNullOrEmpty(s) && s.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0)
+                        return true;
+                }
+            }
+            catch
+            {
+                // ignored
+            }
+
+            return false;
+        }
+
+        private static void TrySetGenericTextComponentColor(object comp, Color red)
+        {
+            try
+            {
+                var t = comp.GetType();
+                foreach (var name in new[] { "color", "Color" })
+                {
+                    var prop = t.GetProperty(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (prop != null && prop.PropertyType == typeof(Color) && prop.CanWrite)
+                    {
+                        prop.SetValue(comp, red, null);
                         return;
                     }
                 }
@@ -291,6 +646,96 @@ namespace LimitByCraftingSkillMod
             {
                 // ignored
             }
+        }
+
+        private static Type[] ResolveTmpTextTypes()
+        {
+            var list = new List<Type>();
+            try
+            {
+                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    try
+                    {
+                        foreach (var name in new[] { "TMPro.TextMeshProUGUI", "TMPro.TMP_Text" })
+                        {
+                            var t = asm.GetType(name, false);
+                            if (t != null)
+                                list.Add(t);
+                        }
+                    }
+                    catch
+                    {
+                        // ignored
+                    }
+                }
+            }
+            catch
+            {
+                // ignored
+            }
+
+            return list.Count > 0 ? list.ToArray() : Array.Empty<Type>();
+        }
+
+        private static Object[] FindAllObjectsOfType(Type type)
+        {
+            if (type == null)
+                return Array.Empty<Object>();
+            foreach (var owner in new[] { typeof(Object), Type.GetType("UnityEngine.Resources, UnityEngine.CoreModule") })
+            {
+                if (owner == null)
+                    continue;
+                try
+                {
+                    var mi = owner.GetMethod("FindObjectsOfTypeAll", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic, null,
+                        new[] { typeof(Type) }, null);
+                    if (mi == null)
+                        continue;
+                    var r = mi.Invoke(null, new object[] { type }) as Object[];
+                    if (r != null)
+                        return r;
+                }
+                catch
+                {
+                    // ignored
+                }
+            }
+
+            return Array.Empty<Object>();
+        }
+
+        private static GameObject GetGameObjectFromUnityEngineObject(object unityObj)
+        {
+            if (unityObj == null)
+                return null;
+            try
+            {
+                var p = unityObj.GetType().GetProperty("gameObject", BindingFlags.Public | BindingFlags.Instance);
+                return p?.GetValue(unityObj, null) as GameObject;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static bool IsGameObjectActiveInHierarchy(GameObject go)
+        {
+            if (go == null)
+                return false;
+            try
+            {
+                var p = typeof(GameObject).GetProperty("activeInHierarchy");
+                if (p != null && p.PropertyType == typeof(bool))
+                    return (bool)p.GetValue(go);
+            }
+            catch
+            {
+                // ignored
+            }
+
+            return true;
         }
 
         private static object TryGetXUiFromLocalPlayer(object player)

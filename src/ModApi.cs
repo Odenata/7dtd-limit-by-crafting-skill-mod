@@ -33,6 +33,8 @@ namespace LimitByCraftingSkillMod
                 ApplyProgressionLevelUpPatchFromGameAssembly(harmony);
                 ApplyInventoryGridPatchesFromGameAssembly(harmony);
                 ApplyPopupToolTipDisplayTooltipPostfix(harmony);
+                ApplyPopupToolTipUpdateTintPostfix(harmony);
+                ApplyGameManagerShowTooltipTintPostfixes(harmony);
                 SafeLog("Harmony patches applied");
             }
             catch (Exception ex)
@@ -676,6 +678,112 @@ namespace LimitByCraftingSkillMod
             catch (Exception ex)
             {
                 SafeLog("[LimitByCraftingSkill] PopupToolTip DisplayTooltipText postfix failed: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Postfix XUiC_PopupToolTip.Update — keep restriction tint after vanilla refreshes widgets each frame.
+        /// </summary>
+        private static void ApplyPopupToolTipUpdateTintPostfix(Harmony harmony)
+        {
+            try
+            {
+                var gameAssembly = typeof(Equipment).Assembly;
+                var popupType = gameAssembly.GetType("XUiC_PopupToolTip");
+                if (popupType == null)
+                {
+                    SafeLog("[LimitByCraftingSkill] XUiC_PopupToolTip not found, Update tint postfix skipped.");
+                    return;
+                }
+
+                var update = popupType.GetMethod("Update", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null, new[] { typeof(float) }, null);
+                if (update == null)
+                {
+                    SafeLog("[LimitByCraftingSkill] XUiC_PopupToolTip.Update not found, tint postfix skipped.");
+                    return;
+                }
+
+                var postfix = typeof(PopupToolTipUpdateTintPatch).GetMethod("Postfix", BindingFlags.Static | BindingFlags.Public);
+                if (postfix != null)
+                {
+                    harmony.Patch(update, postfix: new HarmonyMethod(postfix));
+                    SafeLog("[LimitByCraftingSkill] XUiC_PopupToolTip.Update restriction-color Postfix applied.");
+                }
+            }
+            catch (Exception ex)
+            {
+                SafeLog("[LimitByCraftingSkill] PopupToolTip Update postfix failed: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Postfix GameManager.ShowTooltip / ShowTooltipMP — Schedule restriction label tint using the exact tooltip string.
+        /// </summary>
+        private static void ApplyGameManagerShowTooltipTintPostfixes(Harmony harmony)
+        {
+            try
+            {
+                var gmType = typeof(GameManager);
+                var gameAssembly = gmType.Assembly;
+                var eplType = gameAssembly.GetType("EntityPlayerLocal");
+                var epType = gameAssembly.GetType("EntityPlayer");
+                var toolTipEventType = gameAssembly.GetType("ToolTipEvent");
+                var postfix = typeof(GameManagerShowTooltipTintPatch).GetMethod("Postfix", BindingFlags.Static | BindingFlags.Public);
+                if (postfix == null)
+                    return;
+
+                var patched = 0;
+
+                if (eplType != null && toolTipEventType != null)
+                {
+                    var sig9 = new[] { eplType, typeof(string), typeof(string), typeof(string), toolTipEventType, typeof(bool), typeof(bool), typeof(float) };
+                    var m = gmType.GetMethod("ShowTooltip", BindingFlags.Static | BindingFlags.Public, null, sig9, null);
+                    if (m != null)
+                    {
+                        harmony.Patch(m, postfix: new HarmonyMethod(postfix));
+                        patched++;
+                    }
+
+                    var sig9Arr = new[] { eplType, typeof(string), typeof(string[]), typeof(string), toolTipEventType, typeof(bool), typeof(bool), typeof(float) };
+                    m = gmType.GetMethod("ShowTooltip", BindingFlags.Static | BindingFlags.Public, null, sig9Arr, null);
+                    if (m != null)
+                    {
+                        harmony.Patch(m, postfix: new HarmonyMethod(postfix));
+                        patched++;
+                    }
+                }
+
+                if (eplType != null)
+                {
+                    var sig5 = new[] { eplType, typeof(string), typeof(bool), typeof(bool), typeof(float) };
+                    var m5 = gmType.GetMethod("ShowTooltip", BindingFlags.Static | BindingFlags.Public, null, sig5, null);
+                    if (m5 != null)
+                    {
+                        harmony.Patch(m5, postfix: new HarmonyMethod(postfix));
+                        patched++;
+                    }
+                }
+
+                if (epType != null)
+                {
+                    var sigMp = new[] { epType, typeof(string), typeof(string) };
+                    var mMp = gmType.GetMethod("ShowTooltipMP", BindingFlags.Static | BindingFlags.Public, null, sigMp, null);
+                    if (mMp != null)
+                    {
+                        harmony.Patch(mMp, postfix: new HarmonyMethod(postfix));
+                        patched++;
+                    }
+                }
+
+                if (patched > 0)
+                    SafeLog($"[LimitByCraftingSkill] GameManager.ShowTooltip tint Postfix applied to {patched} overload(s).");
+                else
+                    SafeLog("[LimitByCraftingSkill] GameManager ShowTooltip/ShowTooltipMP overloads not found; tint postfix skipped.");
+            }
+            catch (Exception ex)
+            {
+                SafeLog("[LimitByCraftingSkill] GameManager ShowTooltip tint postfix failed: " + ex.Message);
             }
         }
 
