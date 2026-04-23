@@ -1,17 +1,26 @@
-# Bazel (nested workspace + output — avoid Windows path-length issues with git add)
-/bazel-*
+# LimitByCraftingSkillMod — build outputs and local noise (maintainer notes: docs/TODO.md §4)
+
+# Bazel (root symlinks + full nested workspaces named bazel-*)
 /bazel-bin
 /bazel-out
 /bazel-testlogs
+/bazel-*
 /.bazelrc.user
+**/bazel-out/
 
-# .NET / MSBuild
+# .NET / MSBuild (any project depth: src/, tests/, copied trees)
 **/bin/
 **/obj/
+**/TestResults/
+
 *.user
 *.suo
 *.userosscache
 *.sln.docstates
+
+# Coverage (dotnet test / VS)
+*.coverage
+*.coveragexml
 
 # IDE
 .vs/

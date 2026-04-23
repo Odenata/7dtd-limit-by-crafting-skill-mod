@@ -33,12 +33,8 @@ Tracked improvements and known gaps for **LimitByCraftingSkillMod** and related 
 
 ---
 
-## 4. Repository hygiene: `.gitignore`
+## 4. Repository hygiene: `.gitignore` — done
 
-**Problem:** Build outputs and local logs are easy to commit by mistake (`src/bin/`, `src/obj/`, `tests/bin/`, `tests/obj/`, `debug-*.log`, Bazel outputs, copied game DLLs in output folders).
+**Resolved:** Root **`.gitignore`** covers `**/bin/`, `**/obj/`, Bazel outputs (`/bazel-bin`, `/bazel-out`, `/bazel-*`, `**/bazel-out/`), logs, IDE cruft, and Python venv noise. Previously tracked build artifacts were removed from the index with **`git rm -r --cached`** (outputs stay on disk but are no longer versioned).
 
-**TODO:**
-
-- Add root **`.gitignore`** (typical .NET: `bin/`, `obj/`, `*.user`, `*.suo`, local log files).
-- If files are already tracked, run `git rm -r --cached` on those paths once (coordinate with team).
-- Align any **`bazel-*`** mirror or symlinked tree with the same ignore rules if applicable.
+**If build folders show up as untracked noise:** that is expected; do not `git add` them.
