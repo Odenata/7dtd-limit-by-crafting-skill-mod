@@ -62,10 +62,11 @@
     <Compile Include="ItemActionSpawnVehicleRestrictionPatch.cs" />
     <Compile Include="VehicleDriveRestrictionPatch.cs" />
     <Compile Include="WorkstationOpenRestrictionPatch.cs" />
-    <Compile Include="WorkstationOpenedRestrictionPatch.cs" />
-    <Compile Include="WorkstationWindowSetTileEntityRestrictionPatch.cs" />
-    <Compile Include="WorkstationWindowOnOpenRestrictionPatch.cs" />
+    <Compile Include="WorkstationRestrictionUi.cs" />
     <Compile Include="GUIWindowManagerOpenNameLogPatch.cs" />
+    <Compile Include="PopupToolTipDisplayTooltipTextPatch.cs" />
+    <Compile Include="GameManagerShowTooltipTintPatch.cs" />
+    <Compile Include="PopupToolTipUpdateTintPatch.cs" />
     <None Include="ModInfo.xml" />
     <None Include="Config.xml" CopyToOutputDirectory="PreserveNewest" />
     <None Include="ClassNameToCraftingSkillMap.xml" CopyToOutputDirectory="PreserveNewest" />

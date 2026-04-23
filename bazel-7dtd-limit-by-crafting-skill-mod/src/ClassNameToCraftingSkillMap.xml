@@ -352,6 +352,7 @@
   <Item className="chemistryStation" craftingSkillGroup="Workstations" requiredLevelOverride="50"/>
   <Item className="cntApiary" craftingSkillGroup="Workstations"/>
   <Item className="cntDewCollector" craftingSkillGroup="Workstations"/>
+  <!-- Forge/workbench: low-tier test stations — no XML floor so unmatched perk data yields 0 required (open unless progression resolves higher). Chemistry is the high-tier gate for testing. -->
   <Item className="forge" craftingSkillGroup="Workstations"/>
   <Item className="resourceLockPick" craftingSkillGroup="Workstations"/>
   <Item className="workbench" craftingSkillGroup="Workstations"/>

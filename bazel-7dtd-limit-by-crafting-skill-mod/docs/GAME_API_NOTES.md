@@ -32,9 +32,9 @@ APIs were confirmed from `7dtd-mod-dev-tools/docs/game-api/assembly-csharp/by-ty
 
 ## Workstation / block open
 
-- **Goal:** Intercept the moment the player tries to open the workstation UI (e.g. press E on placed Forge/Workbench). Block and show popup if restricted.
-- **Confirmed:** **`BlockWorkstation.OnBlockActivated(WorldBase _world, int _cIdx, Vector3i _blockPos, BlockValue _blockValue, EntityPlayerLocal _player)`** runs when the player activates the block; it then calls `_world.GetGameManager().TELockServer(...)`. Patch this method with a Prefix: when Workstations restriction applies and player level &lt; required level for the block, show popup and return false so TELockServer is not called. Required level for block: **`GameReflection.GetRequiredLevelForWorkstationBlock(BlockValue)`** using block name → ClassNameToCraftingSkillMap (Workstations) → progression with synthetic quality 1.
-- **Mod:** **WorkstationOpenRestrictionPatch** (client-side; blocks before opening UI).
+- **Goal:** Prevent using the workstation UI when under level; show popup; **do not** use Harmony Prefix+skip on block/UI methods (causes client UI lock until rejoin).
+- **Confirmed:** The client reliably runs **`XUiC_WorkstationWindowGroup.OnOpen()`** when the crafting workstation UI opens; **`GameManager.workstationOpened`** is **not** always invoked on that path. **Mod:** **Postfix on `OnOpen`** — after vanilla OnOpen, if restricted: **`GUIWindowManager.CloseIfOpen(WorkstationWindow)`** (from **`BlockWorkstation.WorkstationData`** when known), **`XUi.GetWindowsByType` for `XUiC_WorkstationWindowGroup`**, close controller, then **`RestrictionFeedback.ShowRestrictionPopup`**. **`WorkstationOpenRestrictionPatch`** remains unregistered for reference.
+- Required level for block: **`GameReflection.GetRequiredLevelForWorkstationBlock(BlockValue)`** using block name → ClassNameToCraftingSkillMap (Workstations) → progression with synthetic quality 1.
 
 ## Vehicle
 
@@ -45,7 +45,13 @@ APIs were confirmed from `7dtd-mod-dev-tools/docs/game-api/assembly-csharp/by-ty
 ## Popup / feedback
 
 - **Goal:** Show red text: "You don't know how to use [item name]" and "[Crafting Skill Name] [player level]/[required level]".
-- **Confirmed:** **`GameManager.ShowTooltip(EntityPlayerLocal _player, string _text, string _arg, string _alertSound = null, ...)`**. Use **`_alertSound = "ui_denied"`** for the red/denied style (same as vanilla e.g. ttWorkstationNotEmpty, ttRepairBeforePickup). Two lines can be passed as a single string with `\n`. Mod uses **RestrictionFeedback.ShowRestrictionPopup(localPlayer, itemDisplayName, craftingSkillDisplayName, playerLevel, requiredLevel)** which invokes ShowTooltip via reflection.
+- **Confirmed (runtime export):** **`GameManager.ShowTooltip`** static overloads include:
+  - `(EntityPlayerLocal, string, bool, bool, float)`
+  - `(EntityPlayerLocal, string, string, string, ToolTipEvent, bool, bool, float)` — use **`_alertSound = "ui_denied"`** for the red/denied style (same as vanilla e.g. ttWorkstationNotEmpty, ttRepairBeforePickup).
+  - `(EntityPlayerLocal, string, string[], string, ToolTipEvent, bool, bool, float)`
+  - **`ShowTooltipMP(EntityPlayer, string, string)`** for multiplayer-oriented paths if needed.
+  There is **no** `(EntityPlayerLocal, string, string, string)`-only overload in current exports; the handler and trailing parameters are required.
+- Two lines can be passed as a single string with `\n`. **RestrictionFeedback.ShowRestrictionPopup** invokes ShowTooltip via reflection (9-arg → string[] 9-arg → 5-arg → ShowTooltipMP). **Color:** NGUI `[hex]` in the string is unreliable. The mod **Postfix**es **`XUiC_PopupToolTip.DisplayTooltipText`**: when `tooltipText` / `immediateTip` contains the mod’s **"You don't know how to use"** prefix, it sets **UILabel** `color` / `mColor` and **effectColor** (outline) via **`RestrictionLabelColor.SetLabelColorOnEntry(..., includeEffectColors: true)`** on each controller’s view **GameObject** tree. A coroutine still runs as a fallback to catch non–PopupToolTip paths.
 
 ## Server config
 
@@ -62,11 +68,11 @@ APIs were confirmed from `7dtd-mod-dev-tools/docs/game-api/assembly-csharp/by-ty
 | Vehicle mod slots | **`XUiC_ItemPartStack.HandleStackSwap`** under **`XUiC_VehiclePartStackGrid`** | **VehiclePartHandleStackSwapPatch** (Vehicles skill items only) |
 | Vehicle deploy | **`ItemActionSpawnVehicle.ExecuteAction`** | **ItemActionSpawnVehicleRestrictionPatch** (client; server should run same mod for MP) |
 | Armor       | **`XUiM_PlayerEquipment.EquipItem(ItemStack)`** (block here); **`XUiC_EquipmentStack.HandleStackSwap()`** (block drag-drop); **`Equipment.SetSlotItem`** (observe only) | **EquipItemRestrictionPatch** blocks at EquipItem. **EquipmentStackHandleStackSwapPatch** blocks at HandleStackSwap when the dragged stack (from XUi.dragAndDrop.CurrentStack) is restricted; item stays on cursor. We do not block at SetSlotItem to avoid item loss. |
-| Workstation open UI | **`BlockWorkstation.OnBlockActivated(WorldBase, int, Vector3i, BlockValue, EntityPlayerLocal)`** | **WorkstationOpenRestrictionPatch** (client). Block name → GetRequiredLevelForWorkstationBlock. |
+| Workstation open UI | **`XUiC_WorkstationWindowGroup.OnOpen` Postfix** (close + popup if restricted) | **WorkstationWindowOnOpenRestrictionPatch**. `workstationBlock` / `workstationData.TileEntity` for level; `WorkstationData.WorkstationWindow` for **`CloseIfOpen`**. |
 | Workstation (other) | Material/input grids, TE open | Partial: tool grid only; see §4 in TODO.md. |
 | Vehicle drive       | **`EntityDriveable.EnterVehicle(EntityAlive)`** | **VehicleDriveRestrictionPatch** (client). Entity type → GetRequiredLevelForVehicleEntity. |
 | Vehicle (other)     | Fuel, **VehicleInventory**, part grid, spawn | Part grid + spawn patched; drive patched; server sync TBD. |
-| Popup       | **`GameManager.ShowTooltip(EntityPlayerLocal, string, string, string _alertSound)`** with **`"ui_denied"`** | **RestrictionFeedback.ShowRestrictionPopup** (reflection). Red style. |
+| Popup       | **`GameManager.ShowTooltip(EntityPlayerLocal, string, string, string, ToolTipEvent, bool, bool, float)`** with **`"ui_denied"`**; fallbacks above | **RestrictionFeedback.ShowRestrictionPopup** (reflection). Red style. |
 | In-inventory red label | **`XUiC_ItemStackGrid.OnOpen`**, **`XUiC_EquipmentStackGrid.OnOpen`**, grid **`Update`**, **`Progression.addProgressionCurrency`** | Red label for restricted items in **all** UIs that display items: player backpack, toolbelt, equipment, container, vehicle, workstation, etc. Any controller assignable to `XUiC_ItemStackGrid` or `XUiC_EquipmentStackGrid` is treated the same (base-type detection via `IsAssignableFrom`). Known ItemStackGrid subclasses: Backpack, Toolbelt, PartList, VehicleContainer, WorkstationGrid, PowerSourceSlots, PowerRangedAmmoSlots. Apply on grid OnOpen (Postfix), set **RestrictionColorsDirty** when crafting skill levels up, refresh in grid Update when dirty (throttled). Get slot view via **ViewComponent** → **uiTransform** → **gameObject**; set **UILabel** `color`/`mColor` on that GameObject and children (or XUiV_Label for equipment slots). |
 
 After confirming names and overloads in the runtime export (or in-game), update this table and the compat layer. Prefer a small compat helper and reflection for game-version resilience; see RUNTIME_API_MISMATCH_DEBUGGING.md.
