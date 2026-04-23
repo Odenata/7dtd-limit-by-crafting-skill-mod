@@ -33,6 +33,7 @@ namespace LimitByCraftingSkillMod
                 if (!RestrictionHelper.IsItemRestricted(stack)) return true;
 
                 __result = false;
+                RestrictionFeedback.ShowRestrictionPopupForBlockedItemStack(stack);
                 if (ModConfig.Instance != null && ModConfig.Instance.DebugMode)
                     ModApi.DebugLog("[LimitByCraftingSkill] AddItemToToolbelt BLOCKED: restricted item (equip key)");
                 return false;

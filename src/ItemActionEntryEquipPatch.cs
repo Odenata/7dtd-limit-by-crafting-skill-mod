@@ -19,6 +19,7 @@ namespace LimitByCraftingSkillMod
                 if (stack == null || stack.IsEmpty()) return true;
                 if (!RestrictionHelper.IsItemRestricted(stack)) return true;
 
+                RestrictionFeedback.ShowRestrictionPopupForBlockedItemStack(stack);
                 if (ModConfig.Instance != null && ModConfig.Instance.DebugMode)
                     ModApi.DebugLog("[LimitByCraftingSkill] ItemActionEntryEquip.OnActivated BLOCKED: restricted item (equip action)");
                 return false;
@@ -34,6 +35,14 @@ namespace LimitByCraftingSkillMod
         private static ItemStack GetItemStackFromActionEntry(object actionEntry)
         {
             if (actionEntry == null) return null;
+
+            // BaseItemActionEntry.ItemController → XUiC_ItemStack (direct link for many items; ParentItem can be null).
+            var itemController =
+                GetPropertyOrField(actionEntry, "ItemController") ?? GetPropertyOrField(actionEntry, "itemController");
+            var fromController = TryGetItemStackFromItemStackController(itemController);
+            if (fromController != null && !fromController.IsEmpty())
+                return fromController;
+
             object parentItem = GetPropertyOrField(actionEntry, "ParentItem") ?? GetPropertyOrField(actionEntry, "parentItem");
             object current = parentItem;
             for (int i = 0; i < 20 && current != null; i++)
@@ -48,9 +57,29 @@ namespace LimitByCraftingSkillMod
                         if (stack is ItemStack isVal) return isVal;
                     }
                 }
+
+                var directStack = TryGetItemStackFromItemStackController(current);
+                if (directStack != null && !directStack.IsEmpty())
+                    return directStack;
+
                 current = GetPropertyOrField(current, "Parent") ?? GetPropertyOrField(current, "parent");
             }
+
             return null;
+        }
+
+        private static ItemStack TryGetItemStackFromItemStackController(object itemStackController)
+        {
+            if (itemStackController == null) return null;
+            try
+            {
+                object stack = GetPropertyOrField(itemStackController, "ItemStack") ?? GetPropertyOrField(itemStackController, "itemStack");
+                return stack as ItemStack;
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private static object GetPropertyOrField(object obj, string name)

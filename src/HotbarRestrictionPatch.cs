@@ -42,7 +42,7 @@ namespace LimitByCraftingSkillMod
             var itemClass = itemValue.ItemClass;
             if (itemClass == null) return true;
 
-            var skillGroup = GameReflection.GetCraftingSkillGroup(itemClass);
+            var skillGroup = GameReflection.GetCraftingSkillGroup(itemClass, itemValue);
             if (string.IsNullOrWhiteSpace(skillGroup)) return true;
             var configName = GameReflection.ToProgressionOrConfigName(skillGroup);
             if (!ModConfig.Instance.IsRestrictionEnabledForSkill(configName)) return true;

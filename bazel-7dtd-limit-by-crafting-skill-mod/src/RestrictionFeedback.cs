@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Text;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -256,7 +257,7 @@ namespace LimitByCraftingSkillMod
         }
 
         /// <summary>
-        /// Shows the red restriction popup to the local player using the game's tooltip API.
+        /// Shows the restriction (amber) tooltip to the local player using the game's tooltip API.
         /// </summary>
         /// <param name="localPlayer">EntityPlayerLocal (or null to fall back to log and try GetLocalPlayer).</param>
         /// <param name="itemDisplayName">Display name for the item/block/vehicle (e.g. "Forge", "Bicycle").</param>
@@ -292,6 +293,136 @@ namespace LimitByCraftingSkillMod
             }
 
             try { Debug.Log($"[LimitByCraftingSkill] {line1} | {line2}"); } catch { }
+        }
+
+        /// <summary>
+        /// Shows the same denied tooltip as workstations when a blocked inventory/hotbar/equip drag or key action applies to this stack.
+        /// Dedupes burst calls (same item type within a short window, e.g. Equip UI + EquipItem).
+        /// </summary>
+        internal static void ShowRestrictionPopupForBlockedItemStack(ItemStack stack)
+        {
+            try
+            {
+                if (stack == null || stack.IsEmpty())
+                    return;
+                if (!RestrictionHelper.IsItemRestricted(stack))
+                    return;
+
+                var iv = RestrictionHelper.GetItemValue(stack);
+                var ic = iv?.ItemClass;
+                if (ic == null)
+                    return;
+
+                var skillGroup = GameReflection.GetCraftingSkillGroup(ic, iv);
+                if (string.IsNullOrWhiteSpace(skillGroup))
+                    return;
+
+                var mapKey = GameReflection.GetItemClassNameForMap(ic, iv) ?? "";
+                var now = GetNowForBlockedPopupDedupe();
+                if (now - s_lastBlockedInventoryPopupRealtime < BlockedInventoryPopupDedupeSeconds
+                    && string.Equals(mapKey, s_lastBlockedInventoryPopupMapKey, StringComparison.Ordinal))
+                    return;
+                s_lastBlockedInventoryPopupRealtime = now;
+                s_lastBlockedInventoryPopupMapKey = mapKey;
+
+                var player = GameReflection.GetLocalPlayer();
+                if (player == null)
+                    return;
+
+                var requiredLevel = GameReflection.GetRequiredLevelForItem(ic, iv);
+                var playerLevel = GameReflection.GetPlayerCraftingLevel(player, skillGroup);
+                var itemName = TryGetLocalizedItemDisplayName(ic);
+                var skillLabel = HumanizeSkillGroupLabel(skillGroup);
+
+                ShowRestrictionPopup(player, itemName, skillLabel, playerLevel, requiredLevel);
+            }
+            catch
+            {
+                // ignored
+            }
+        }
+
+        private static float s_lastBlockedInventoryPopupRealtime;
+        private static string s_lastBlockedInventoryPopupMapKey = "";
+        private const float BlockedInventoryPopupDedupeSeconds = 0.35f;
+
+        /// <summary>
+        /// Mock Time may omit realtimeSinceStartup; reflection keeps hermetic builds working.
+        /// </summary>
+        private static float GetNowForBlockedPopupDedupe()
+        {
+            try
+            {
+                var timeType = typeof(UnityEngine.Time);
+                var realtime = timeType.GetProperty("realtimeSinceStartup", BindingFlags.Static | BindingFlags.Public);
+                if (realtime != null && realtime.PropertyType == typeof(float))
+                    return (float)realtime.GetValue(null, null);
+                var tt = timeType.GetProperty("time", BindingFlags.Static | BindingFlags.Public);
+                if (tt != null && tt.PropertyType == typeof(float))
+                    return (float)tt.GetValue(null, null);
+            }
+            catch
+            {
+                // ignored
+            }
+
+            return 0f;
+        }
+
+        private static string TryGetLocalizedItemDisplayName(ItemClass itemClass)
+        {
+            if (itemClass == null)
+                return "this item";
+            try
+            {
+                var t = itemClass.GetType();
+                var m = t.GetMethod("GetLocalizedItemName", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
+                if (m != null)
+                {
+                    var r = m.Invoke(itemClass, null) as string;
+                    if (!string.IsNullOrWhiteSpace(r))
+                        return r.Trim();
+                }
+
+                foreach (var name in new[] { "LocalizedName", "Name" })
+                {
+                    var p = t.GetProperty(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (p != null && p.PropertyType == typeof(string))
+                    {
+                        var r = p.GetValue(itemClass, null) as string;
+                        if (!string.IsNullOrWhiteSpace(r))
+                            return r.Trim();
+                    }
+                }
+            }
+            catch
+            {
+                // ignored
+            }
+
+            return "this item";
+        }
+
+        private static string HumanizeSkillGroupLabel(string skillGroup)
+        {
+            if (string.IsNullOrWhiteSpace(skillGroup))
+                return "Skill";
+            var s = skillGroup.Trim();
+            if (s.IndexOf(' ') >= 0)
+                return s;
+            if (string.Equals(s, "Tools", StringComparison.OrdinalIgnoreCase))
+                return "Harvesting Tools";
+
+            var sb = new StringBuilder(s.Length + 4);
+            sb.Append(s[0]);
+            for (var i = 1; i < s.Length; i++)
+            {
+                if (char.IsUpper(s[i]) && char.IsLetter(s[i - 1]))
+                    sb.Append(' ');
+                sb.Append(s[i]);
+            }
+
+            return sb.ToString();
         }
 
         private static void ScheduleApplyRestrictionTooltipLabelRed(object player)

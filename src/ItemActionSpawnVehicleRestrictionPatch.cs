@@ -37,6 +37,7 @@ namespace LimitByCraftingSkillMod
                 var stack = new ItemStack(iv, 1);
                 if (!RestrictionHelper.IsItemRestricted(stack)) return true;
 
+                RestrictionFeedback.ShowRestrictionPopupForBlockedItemStack(stack);
                 if (ModConfig.Instance.DebugMode)
                     ModApi.DebugLog("[LimitByCraftingSkill] ItemActionSpawnVehicle.ExecuteAction BLOCKED (restricted vehicle item)");
                 return false;

@@ -21,7 +21,7 @@ namespace LimitByCraftingSkillMod
             var itemClass = itemValue.ItemClass;
             if (itemClass == null) return false;
 
-            var mapKey = GameReflection.GetItemClassNameForMap(itemClass);
+            var mapKey = GameReflection.GetItemClassNameForMap(itemClass, itemValue);
             var trace = AgentDebugSessionLog.IsTraceMapKey(mapKey);
             // #region agent log
             void LogAgentTrace(string sk, int req, int pl, bool rest, string detail)
@@ -38,7 +38,7 @@ namespace LimitByCraftingSkillMod
             }
             // #endregion
 
-            var skillGroup = GameReflection.GetCraftingSkillGroup(itemClass);
+            var skillGroup = GameReflection.GetCraftingSkillGroup(itemClass, itemValue);
             if (string.IsNullOrWhiteSpace(skillGroup))
             {
                 LogAgentTrace(null, 0, 0, false, "no_skill_group");

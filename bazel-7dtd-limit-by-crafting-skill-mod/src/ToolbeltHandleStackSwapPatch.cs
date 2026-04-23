@@ -21,6 +21,7 @@ namespace LimitByCraftingSkillMod
                 if (dragStack == null || dragStack.IsEmpty()) return true;
                 if (!RestrictionHelper.IsItemRestricted(dragStack)) return true;
 
+                RestrictionFeedback.ShowRestrictionPopupForBlockedItemStack(dragStack);
                 if (ModConfig.Instance != null && ModConfig.Instance.DebugMode)
                     ModApi.DebugLog("[LimitByCraftingSkill] HandleStackSwap BLOCKED: restricted item onto toolbelt");
                 return false;

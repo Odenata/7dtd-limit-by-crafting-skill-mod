@@ -17,6 +17,7 @@ namespace LimitByCraftingSkillMod
                 var drag = UiDragDropReflection.GetDragStackFromXUiChild(__instance);
                 if (drag == null || drag.IsEmpty()) return true;
                 if (!RestrictionHelper.IsItemRestricted(drag)) return true;
+                RestrictionFeedback.ShowRestrictionPopupForBlockedItemStack(drag);
                 if (ModConfig.Instance != null && ModConfig.Instance.DebugMode)
                     ModApi.DebugLog("[LimitByCraftingSkill] Workstation tool slot HandleStackSwap BLOCKED");
                 return false;
@@ -63,6 +64,7 @@ namespace LimitByCraftingSkillMod
                 var sg = GameReflection.GetCraftingSkillGroup(ic);
                 if (!string.Equals(sg, "Vehicles", StringComparison.OrdinalIgnoreCase)) return true;
                 if (!RestrictionHelper.IsItemRestricted(drag)) return true;
+                RestrictionFeedback.ShowRestrictionPopupForBlockedItemStack(drag);
                 if (ModConfig.Instance.DebugMode)
                     ModApi.DebugLog("[LimitByCraftingSkill] Vehicle part slot HandleStackSwap BLOCKED");
                 return false;

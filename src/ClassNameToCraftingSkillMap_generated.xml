@@ -191,17 +191,17 @@
   <Item className="woodenGarageDoor5x3_PoweredWhite" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
   <Item className="woodenGarageDoor5x3_PoweredYellow" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
 
-  <!-- Explosives -->
+  <!-- Explosives: requiredLevelMin mirrors vanilla progression.xml craftingExplosives unlock_level per row/slot. Floors bad name/progression matches. Rocket launcher omitted (quality tiers 50–100). mineCandyTin & molotov are not tied to this crafting skill in vanilla — requiredLevelMin 0 (no floor). -->
   <Item className="gunExplosivesT3RocketLauncher" craftingSkillGroup="Explosives"/>
-  <Item className="mineAirFilter" craftingSkillGroup="Explosives"/>
-  <Item className="mineCandyTin" craftingSkillGroup="Explosives"/>
-  <Item className="mineCookingPot" craftingSkillGroup="Explosives"/>
-  <Item className="mineHubcap" craftingSkillGroup="Explosives"/>
-  <Item className="thrownAmmoMolotovCocktail" craftingSkillGroup="Explosives"/>
-  <Item className="thrownDynamite" craftingSkillGroup="Explosives"/>
-  <Item className="thrownGrenade" craftingSkillGroup="Explosives"/>
-  <Item className="thrownGrenadeContact" craftingSkillGroup="Explosives"/>
-  <Item className="thrownTimedCharge" craftingSkillGroup="Explosives"/>
+  <Item className="mineAirFilter" craftingSkillGroup="Explosives" requiredLevelMin="25"/>
+  <Item className="mineCandyTin" craftingSkillGroup="Explosives" requiredLevelMin="0"/>
+  <Item className="mineCookingPot" craftingSkillGroup="Explosives" requiredLevelMin="10"/>
+  <Item className="mineHubcap" craftingSkillGroup="Explosives" requiredLevelMin="20"/>
+  <Item className="thrownAmmoMolotovCocktail" craftingSkillGroup="Explosives" requiredLevelMin="0"/>
+  <Item className="thrownDynamite" craftingSkillGroup="Explosives" requiredLevelMin="12"/>
+  <Item className="thrownGrenade" craftingSkillGroup="Explosives" requiredLevelMin="5"/>
+  <Item className="thrownGrenadeContact" craftingSkillGroup="Explosives" requiredLevelMin="16"/>
+  <Item className="thrownTimedCharge" craftingSkillGroup="Explosives" requiredLevelMin="35"/>
 
   <!-- Food -->
   <Item className="drinkJarBeer" craftingSkillGroup="Food"/>

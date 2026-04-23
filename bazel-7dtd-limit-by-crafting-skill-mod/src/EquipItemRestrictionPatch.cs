@@ -20,7 +20,7 @@ namespace LimitByCraftingSkillMod
                 var itemClass = itemValue.ItemClass;
                 if (itemClass == null) return true;
 
-                var skillGroup = GameReflection.GetCraftingSkillGroup(itemClass);
+                var skillGroup = GameReflection.GetCraftingSkillGroup(itemClass, itemValue);
                 if (string.IsNullOrWhiteSpace(skillGroup)) return true;
                 var configName = GameReflection.ToProgressionOrConfigName(skillGroup);
                 if (!ModConfig.Instance.IsRestrictionEnabledForSkill(configName)) return true;
@@ -32,6 +32,7 @@ namespace LimitByCraftingSkillMod
                 var playerLevel = GameReflection.GetPlayerCraftingLevel(player, skillGroup);
                 if (!LimitByCraftingSkillLogic.IsRestricted(playerLevel, requiredLevel, true)) return true;
 
+                RestrictionFeedback.ShowRestrictionPopupForBlockedItemStack(_stack);
                 if (ModConfig.Instance.DebugMode)
                     ModApi.DebugLog($"EquipItem BLOCKED: {configName} player={playerLevel} required={requiredLevel}");
                 __result = _stack;
