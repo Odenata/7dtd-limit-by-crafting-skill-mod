@@ -234,7 +234,8 @@ namespace LimitByCraftingSkillMod
         }
 
         /// <summary>Sets UILabel color on this GameObject and children. If color is null, leaves default (no change).</summary>
-        internal static void SetLabelColorOnEntry(object entryGameObject, UnityEngine.Color? color)
+        /// <param name="includeEffectColors">When true, also sets NGUI outline/effect colors (popup denied text); inventory grid uses false.</param>
+        internal static void SetLabelColorOnEntry(object entryGameObject, UnityEngine.Color? color, bool includeEffectColors = false)
         {
             if (entryGameObject == null || !color.HasValue) return;
             try
@@ -245,7 +246,7 @@ namespace LimitByCraftingSkillMod
                 {
                     var labelComponent = getComponentMethod.Invoke(entryGameObject, new object[] { "UILabel" });
                     if (labelComponent != null)
-                        TrySetLabelColor(labelComponent, color.Value);
+                        TrySetLabelColor(labelComponent, color.Value, includeEffectColors);
                 }
 
                 var transformProp = goType.GetProperty("transform", BindingFlags.Instance | BindingFlags.Public);
@@ -261,13 +262,13 @@ namespace LimitByCraftingSkillMod
                 {
                     var child = getChildMethod.Invoke(transform, new object[] { i });
                     if (child != null)
-                        SetLabelColorOnEntry(child, color);
+                        SetLabelColorOnEntry(child, color, includeEffectColors);
                 }
             }
             catch { }
         }
 
-        private static void TrySetLabelColor(object labelComponent, UnityEngine.Color color)
+        private static void TrySetLabelColor(object labelComponent, UnityEngine.Color color, bool includeEffectColors = false)
         {
             if (labelComponent == null) return;
             try
@@ -279,12 +280,31 @@ namespace LimitByCraftingSkillMod
                     if (prop != null && prop.PropertyType == typeof(UnityEngine.Color))
                     {
                         prop.SetValue(labelComponent, color, null);
-                        return;
+                        break;
                     }
                     var field = t.GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                     if (field != null && field.FieldType == typeof(UnityEngine.Color))
                     {
                         field.SetValue(labelComponent, color);
+                        break;
+                    }
+                }
+
+                if (!includeEffectColors)
+                    return;
+                var fx = new UnityEngine.Color(color.r * 0.55f, color.g * 0.55f, color.b * 0.55f, 1f);
+                foreach (var name in new[] { "effectColor", "EffectColor" })
+                {
+                    var prop = t.GetProperty(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (prop != null && prop.PropertyType == typeof(UnityEngine.Color) && prop.CanWrite)
+                    {
+                        prop.SetValue(labelComponent, fx, null);
+                        return;
+                    }
+                    var field = t.GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (field != null && field.FieldType == typeof(UnityEngine.Color))
+                    {
+                        field.SetValue(labelComponent, fx);
                         return;
                     }
                 }

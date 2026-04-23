@@ -14,8 +14,70 @@ namespace LimitByCraftingSkillMod
     /// </summary>
     internal static class RestrictionFeedback
     {
+        /// <summary>First words of restriction body; used to detect our tooltip after DisplayTooltipText runs.</summary>
+        internal const string RestrictionTooltipBodyMarker = "You don't know how to use";
+
         /// <summary>Matches inventory restriction emphasis; visible on dark HUD.</summary>
         private static readonly Color TooltipRestrictionRed = new Color(0.95f, 0.12f, 0.12f, 1f);
+
+        /// <summary>
+        /// Called from Harmony Postfix on XUiC_PopupToolTip.DisplayTooltipText after vanilla assigns text.
+        /// </summary>
+        internal static void OnPopupToolTipDisplayed(object popupInstance)
+        {
+            try
+            {
+                if (popupInstance == null || !PopupShowsRestrictionMessage(popupInstance))
+                    return;
+                TintPopupTooltipHierarchy(popupInstance);
+            }
+            catch
+            {
+                // ignored
+            }
+        }
+
+        private static bool PopupShowsRestrictionMessage(object popup)
+        {
+            var s = GetMemberValue(popup, "tooltipText", "TooltipText") as string;
+            if (!string.IsNullOrEmpty(s) && s.IndexOf(RestrictionTooltipBodyMarker, StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+
+            var immediate = GetMemberValue(popup, "immediateTip", "ImmediateTip");
+            if (immediate != null)
+            {
+                var txt = GetMemberValue(immediate, "Text", "text") as string;
+                if (!string.IsNullOrEmpty(txt) && txt.IndexOf(RestrictionTooltipBodyMarker, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>BFS controller tree + GameObject UILabel tree; effect colors for NGUI outline.</summary>
+        private static void TintPopupTooltipHierarchy(object rootController)
+        {
+            var red = TooltipRestrictionRed;
+            var q = new Queue<object>();
+            q.Enqueue(rootController);
+            while (q.Count > 0)
+            {
+                var c = q.Dequeue();
+                if (c == null)
+                    continue;
+
+                var go = RestrictionLabelColor.GetViewGameObject(c);
+                if (go != null)
+                    RestrictionLabelColor.SetLabelColorOnEntry(go, red, includeEffectColors: true);
+
+                var children = GetMemberValue(c, "children", "Children") as IList;
+                if (children != null)
+                {
+                    foreach (var ch in children)
+                        q.Enqueue(ch);
+                }
+            }
+        }
 
         /// <summary>
         /// Shows the red restriction popup to the local player using the game's tooltip API.
@@ -27,7 +89,7 @@ namespace LimitByCraftingSkillMod
         /// <param name="requiredLevel">Required level to use the item.</param>
         internal static void ShowRestrictionPopup(object localPlayer, string itemDisplayName, string craftingSkillDisplayName, int playerLevel, int requiredLevel)
         {
-            var line1 = "You don't know how to use " + (itemDisplayName ?? "this item");
+            var line1 = RestrictionTooltipBodyMarker + " " + (itemDisplayName ?? "this item");
             var line2 = $"{craftingSkillDisplayName ?? "Skill"} {playerLevel}/{requiredLevel}";
             var fullText = line1 + "\n" + line2;
 
@@ -173,32 +235,61 @@ namespace LimitByCraftingSkillMod
 
         private static bool TryTintXUiToolTipController(object toolTipCtrl, Color red)
         {
+            var go = RestrictionLabelColor.GetViewGameObject(toolTipCtrl);
+            if (go != null)
+            {
+                RestrictionLabelColor.SetLabelColorOnEntry(go, red, includeEffectColors: true);
+                return true;
+            }
+
             var label = GetMemberValue(toolTipCtrl, "label", "Label");
             if (label == null)
                 return false;
-            TrySetViewAndNgUiLabelColor(label, red);
-            return true;
-        }
-
-        private static void TrySetViewAndNgUiLabelColor(object xUiVLabel, Color red)
-        {
             foreach (var propName in new[] { "Color", "color" })
             {
-                var p = xUiVLabel.GetType().GetProperty(propName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                var p = label.GetType().GetProperty(propName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
                 if (p != null && p.PropertyType == typeof(Color) && p.CanWrite)
                 {
-                    try { p.SetValue(xUiVLabel, red, null); } catch { }
+                    try { p.SetValue(label, red, null); } catch { }
+                    break;
                 }
             }
 
-            var uiLabel = GetMemberValue(xUiVLabel, "Label", "label");
+            var uiLabel = GetMemberValue(label, "Label", "label");
             if (uiLabel != null)
+                TrySetUILabelDeniedColors(uiLabel, red);
+            return true;
+        }
+
+        private static void TrySetUILabelDeniedColors(object uiLabel, Color red)
+        {
+            try
             {
-                var cp = uiLabel.GetType().GetProperty("color", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                if (cp != null && cp.PropertyType == typeof(Color) && cp.CanWrite)
+                var t = uiLabel.GetType();
+                foreach (var name in new[] { "color", "mColor", "Color" })
                 {
-                    try { cp.SetValue(uiLabel, red, null); } catch { }
+                    var prop = t.GetProperty(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (prop != null && prop.PropertyType == typeof(Color) && prop.CanWrite)
+                    {
+                        prop.SetValue(uiLabel, red, null);
+                        break;
+                    }
                 }
+
+                var fx = new Color(red.r * 0.55f, red.g * 0.55f, red.b * 0.55f, 1f);
+                foreach (var name in new[] { "effectColor", "EffectColor" })
+                {
+                    var prop = t.GetProperty(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (prop != null && prop.PropertyType == typeof(Color) && prop.CanWrite)
+                    {
+                        prop.SetValue(uiLabel, fx, null);
+                        return;
+                    }
+                }
+            }
+            catch
+            {
+                // ignored
             }
         }
 

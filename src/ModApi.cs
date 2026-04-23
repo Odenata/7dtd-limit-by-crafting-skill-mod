@@ -32,6 +32,7 @@ namespace LimitByCraftingSkillMod
                 ApplyItemActionEntryEquipPatchFromGameAssembly(harmony);
                 ApplyProgressionLevelUpPatchFromGameAssembly(harmony);
                 ApplyInventoryGridPatchesFromGameAssembly(harmony);
+                ApplyPopupToolTipDisplayTooltipPostfix(harmony);
                 SafeLog("Harmony patches applied");
             }
             catch (Exception ex)
@@ -639,6 +640,42 @@ namespace LimitByCraftingSkillMod
                     }
                 }
                 catch (Exception ex) { SafeLog($"[LimitByCraftingSkill] Grid Update patch failed: {ex.Message}"); }
+            }
+        }
+
+        /// <summary>
+        /// Postfix XUiC_PopupToolTip.DisplayTooltipText — tint UILabel red for restriction messages after vanilla sets text.
+        /// </summary>
+        private static void ApplyPopupToolTipDisplayTooltipPostfix(Harmony harmony)
+        {
+            try
+            {
+                var gameAssembly = typeof(Equipment).Assembly;
+                var popupType = gameAssembly.GetType("XUiC_PopupToolTip");
+                if (popupType == null)
+                {
+                    SafeLog("[LimitByCraftingSkill] XUiC_PopupToolTip not found, DisplayTooltipText postfix skipped.");
+                    return;
+                }
+
+                var display = popupType.GetMethod("DisplayTooltipText", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null, Type.EmptyTypes, null);
+                if (display == null)
+                {
+                    SafeLog("[LimitByCraftingSkill] DisplayTooltipText not found, postfix skipped.");
+                    return;
+                }
+
+                var postfix = typeof(PopupToolTipDisplayTooltipTextPatch).GetMethod("Postfix", BindingFlags.Static | BindingFlags.Public);
+                if (postfix != null)
+                {
+                    harmony.Patch(display, postfix: new HarmonyMethod(postfix));
+                    SafeLog("[LimitByCraftingSkill] XUiC_PopupToolTip.DisplayTooltipText restriction-color Postfix applied.");
+                }
+            }
+            catch (Exception ex)
+            {
+                SafeLog("[LimitByCraftingSkill] PopupToolTip DisplayTooltipText postfix failed: " + ex.Message);
             }
         }
 
