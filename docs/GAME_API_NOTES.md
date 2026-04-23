@@ -51,7 +51,7 @@ APIs were confirmed from `7dtd-mod-dev-tools/docs/game-api/assembly-csharp/by-ty
   - `(EntityPlayerLocal, string, string[], string, ToolTipEvent, bool, bool, float)`
   - **`ShowTooltipMP(EntityPlayer, string, string)`** for multiplayer-oriented paths if needed.
   There is **no** `(EntityPlayerLocal, string, string, string)`-only overload in current exports; the handler and trailing parameters are required.
-- Two lines can be passed as a single string with `\n`. **RestrictionFeedback.ShowRestrictionPopup** wraps the body in **NGUI color tags** (`[ff3030]` … `[-]`) so the tooltip body renders red; still passes **`ui_denied`** when available. Invokes ShowTooltip via reflection with fallbacks (9-arg → string[] 9-arg → 5-arg → ShowTooltipMP).
+- Two lines can be passed as a single string with `\n`. **RestrictionFeedback.ShowRestrictionPopup** invokes ShowTooltip via reflection (9-arg → string[] 9-arg → 5-arg → ShowTooltipMP), then applies **UnityEngine.Color** on **`XUi.currentToolTip.label`** (and walks **`XUiC_PopupToolTip`** children for **`XUiC_ToolTip`**) over several frames via coroutine — NGUI **`[hex]`** text markup is unreliable for popup tooltips.
 
 ## Server config
 

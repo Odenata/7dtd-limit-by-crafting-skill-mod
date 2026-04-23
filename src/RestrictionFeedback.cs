@@ -1,19 +1,21 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Reflection;
+using UnityEngine;
 
 namespace LimitByCraftingSkillMod
 {
     /// <summary>
     /// Shows in-world feedback when the player is blocked from using an item (workstation, vehicle, etc.).
-    /// Message: "You don't know how to use [item name]" and "[Crafting Skill Name] [player level]/[required level]"
-    /// with NGUI hex color markup so body text renders red (same convention as localization / server browser).
-    /// Uses GameManager.ShowTooltip with "ui_denied"; see docs/GAME_API_NOTES.md.
+    /// Message: "You don't know how to use [item name]" and "[Crafting Skill Name] [player level]/[required level]".
+    /// Uses GameManager.ShowTooltip with "ui_denied"; popup text color is set on the tooltip XUiV_Label after show
+    /// (NGUI hex markup in the string is not reliable for popup tooltips). See docs/GAME_API_NOTES.md.
     /// </summary>
     internal static class RestrictionFeedback
     {
-        /// <summary>NGUI color tag (hex without #); [-] resets to default.</summary>
-        private const string TooltipRedOpen = "[ff3030]";
-        private const string TooltipColorReset = "[-]";
+        /// <summary>Matches inventory restriction emphasis; visible on dark HUD.</summary>
+        private static readonly Color TooltipRestrictionRed = new Color(0.95f, 0.12f, 0.12f, 1f);
 
         /// <summary>
         /// Shows the red restriction popup to the local player using the game's tooltip API.
@@ -27,20 +29,22 @@ namespace LimitByCraftingSkillMod
         {
             var line1 = "You don't know how to use " + (itemDisplayName ?? "this item");
             var line2 = $"{craftingSkillDisplayName ?? "Skill"} {playerLevel}/{requiredLevel}";
-            var body = line1 + "\n" + line2;
-            var fullText = TooltipRedOpen + body + TooltipColorReset;
+            var fullText = line1 + "\n" + line2;
 
             var player = localPlayer ?? GameReflection.GetLocalPlayer();
             if (player == null)
             {
-                try { UnityEngine.Debug.Log($"[LimitByCraftingSkill] {line1} | {line2}"); } catch { }
+                try { Debug.Log($"[LimitByCraftingSkill] {line1} | {line2}"); } catch { }
                 return;
             }
 
             try
             {
                 if (TryInvokeShowTooltip(player, fullText))
+                {
+                    ScheduleApplyRestrictionTooltipLabelRed(player);
                     return;
+                }
             }
             catch (Exception ex)
             {
@@ -48,7 +52,215 @@ namespace LimitByCraftingSkillMod
                     ModApi.DebugLog("[LimitByCraftingSkill] ShowRestrictionPopup: " + ex.Message);
             }
 
-            try { UnityEngine.Debug.Log($"[LimitByCraftingSkill] {line1} | {line2}"); } catch { }
+            try { Debug.Log($"[LimitByCraftingSkill] {line1} | {line2}"); } catch { }
+        }
+
+        private static void ScheduleApplyRestrictionTooltipLabelRed(object player)
+        {
+            var host = TryGetCoroutineHost();
+            if (host != null)
+            {
+                try
+                {
+                    // StartCoroutine is on UnityEngine.MonoBehaviour; use reflection so the mock compiles.
+                    var m = host.GetType().GetMethod("StartCoroutine", new[] { typeof(IEnumerator) });
+                    m?.Invoke(host, new object[] { CoApplyRestrictionTooltipRed(player) });
+                    if (m != null)
+                        return;
+                }
+                catch
+                {
+                    // fall through
+                }
+            }
+
+            TryApplyRestrictionTooltipLabelRed(player);
+        }
+
+        private static object TryGetCoroutineHost()
+        {
+            try
+            {
+                var gm = typeof(GameManager);
+                object inst = gm.GetProperty("Instance", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)?.GetValue(null);
+                if (inst == null)
+                {
+                    var f = gm.GetField("Instance", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                    inst = f?.GetValue(null);
+                }
+                return inst;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static IEnumerator CoApplyRestrictionTooltipRed(object player)
+        {
+            for (var i = 0; i < 8; i++)
+            {
+                if (TryApplyRestrictionTooltipLabelRed(player))
+                    yield break;
+                yield return null;
+            }
+        }
+
+        /// <summary>
+        /// Sets <see cref="XUiV_Label"/> / UILabel color on the active popup tooltip after ShowTooltip (text may refresh same frame).
+        /// </summary>
+        private static bool TryApplyRestrictionTooltipLabelRed(object player)
+        {
+            try
+            {
+                var xui = TryGetXUiFromLocalPlayer(player);
+                if (xui == null)
+                    return false;
+
+                var asm = xui.GetType().Assembly;
+                var toolTipControllerType = asm.GetType("XUiC_ToolTip");
+                var red = TooltipRestrictionRed;
+                var any = false;
+
+                var cur = GetMemberValue(xui, "currentToolTip", "CurrentToolTip");
+                if (cur != null && toolTipControllerType != null && toolTipControllerType.IsInstanceOfType(cur))
+                    any |= TryTintXUiToolTipController(cur, red);
+
+                var popupType = asm.GetType("XUiC_PopupToolTip");
+                if (popupType != null)
+                {
+                    var getInst = popupType.GetMethod("GetInstance", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic,
+                        null, new[] { xui.GetType() }, null);
+                    var popup = getInst?.Invoke(null, new object[] { xui });
+                    if (popup != null)
+                        any |= TryTintToolTipControllersUnderPopup(popup, toolTipControllerType, red);
+                }
+
+                return any;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool TryTintToolTipControllersUnderPopup(object popupRoot, Type toolTipControllerType, Color red)
+        {
+            if (popupRoot == null || toolTipControllerType == null)
+                return false;
+            var q = new Queue<object>();
+            q.Enqueue(popupRoot);
+            var any = false;
+            while (q.Count > 0)
+            {
+                var c = q.Dequeue();
+                if (c == null)
+                    continue;
+                var t = c.GetType();
+                if (toolTipControllerType.IsAssignableFrom(t))
+                    any |= TryTintXUiToolTipController(c, red);
+
+                var children = GetMemberValue(c, "children", "Children") as IList;
+                if (children != null)
+                {
+                    foreach (var ch in children)
+                        q.Enqueue(ch);
+                }
+            }
+
+            return any;
+        }
+
+        private static bool TryTintXUiToolTipController(object toolTipCtrl, Color red)
+        {
+            var label = GetMemberValue(toolTipCtrl, "label", "Label");
+            if (label == null)
+                return false;
+            TrySetViewAndNgUiLabelColor(label, red);
+            return true;
+        }
+
+        private static void TrySetViewAndNgUiLabelColor(object xUiVLabel, Color red)
+        {
+            foreach (var propName in new[] { "Color", "color" })
+            {
+                var p = xUiVLabel.GetType().GetProperty(propName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (p != null && p.PropertyType == typeof(Color) && p.CanWrite)
+                {
+                    try { p.SetValue(xUiVLabel, red, null); } catch { }
+                }
+            }
+
+            var uiLabel = GetMemberValue(xUiVLabel, "Label", "label");
+            if (uiLabel != null)
+            {
+                var cp = uiLabel.GetType().GetProperty("color", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (cp != null && cp.PropertyType == typeof(Color) && cp.CanWrite)
+                {
+                    try { cp.SetValue(uiLabel, red, null); } catch { }
+                }
+            }
+        }
+
+        private static object TryGetXUiFromLocalPlayer(object player)
+        {
+            if (player == null)
+                return null;
+            try
+            {
+                var t = player.GetType();
+                object lpui = null;
+                foreach (var name in new[] { "PlayerUI", "playerUI" })
+                {
+                    var p = t.GetProperty(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (p != null)
+                    {
+                        lpui = p.GetValue(player);
+                        break;
+                    }
+
+                    var f = t.GetField(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (f != null)
+                    {
+                        lpui = f.GetValue(player);
+                        break;
+                    }
+                }
+
+                if (lpui == null)
+                    return null;
+                var lpT = lpui.GetType();
+                foreach (var name in new[] { "xui", "XUi" })
+                {
+                    var p = lpT.GetProperty(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (p != null)
+                        return p.GetValue(lpui);
+                }
+            }
+            catch
+            {
+                // ignored
+            }
+
+            return null;
+        }
+
+        private static object GetMemberValue(object target, params string[] names)
+        {
+            if (target == null)
+                return null;
+            var t = target.GetType();
+            foreach (var name in names)
+            {
+                var p = t.GetProperty(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (p != null)
+                    return p.GetValue(target);
+                var f = t.GetField(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (f != null)
+                    return f.GetValue(target);
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -141,7 +353,7 @@ namespace LimitByCraftingSkillMod
             {
                 var line1 = "You don't know how to use " + (itemName ?? "this item");
                 var line2 = $"{craftingSkillName ?? "Skill"} {playerLevel}/{requiredLevel}";
-                UnityEngine.Debug.Log($"[LimitByCraftingSkillMod] {line1} | {line2}");
+                Debug.Log($"[LimitByCraftingSkillMod] {line1} | {line2}");
             }
             catch
             {
