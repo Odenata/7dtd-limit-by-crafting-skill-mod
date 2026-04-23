@@ -5,11 +5,16 @@ namespace LimitByCraftingSkillMod
 {
     /// <summary>
     /// Shows in-world feedback when the player is blocked from using an item (workstation, vehicle, etc.).
-    /// Message: "You don't know how to use [item name]" and "[Crafting Skill Name] [player level]/[required level]" in red.
-    /// Uses GameManager.ShowTooltip with "ui_denied" for the red popup style; see docs/GAME_API_NOTES.md.
+    /// Message: "You don't know how to use [item name]" and "[Crafting Skill Name] [player level]/[required level]"
+    /// with NGUI hex color markup so body text renders red (same convention as localization / server browser).
+    /// Uses GameManager.ShowTooltip with "ui_denied"; see docs/GAME_API_NOTES.md.
     /// </summary>
     internal static class RestrictionFeedback
     {
+        /// <summary>NGUI color tag (hex without #); [-] resets to default.</summary>
+        private const string TooltipRedOpen = "[ff3030]";
+        private const string TooltipColorReset = "[-]";
+
         /// <summary>
         /// Shows the red restriction popup to the local player using the game's tooltip API.
         /// </summary>
@@ -22,7 +27,8 @@ namespace LimitByCraftingSkillMod
         {
             var line1 = "You don't know how to use " + (itemDisplayName ?? "this item");
             var line2 = $"{craftingSkillDisplayName ?? "Skill"} {playerLevel}/{requiredLevel}";
-            var fullText = line1 + "\n" + line2;
+            var body = line1 + "\n" + line2;
+            var fullText = TooltipRedOpen + body + TooltipColorReset;
 
             var player = localPlayer ?? GameReflection.GetLocalPlayer();
             if (player == null)
