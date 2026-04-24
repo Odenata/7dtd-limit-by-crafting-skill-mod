@@ -452,45 +452,51 @@ namespace LimitByCraftingSkillMod
             return GetItemClassNameForMap(itemClass, null);
         }
 
-        /// <param name="itemValue">When set, uses id / BlockValue.type indices before <c>Block</c> / <c>GetBlock()</c> so Extends-style mines (hubcap vs candy tin) map correctly.</param>
+        /// <param name="itemValue">For <c>ItemClass.IsBlock()</c> placeables only: list id and <c>ToBlockValue</c> / <c>BlockValue.type</c>
+        /// disambiguate Extends-style mines. Handhelds skip those paths so <c>ToBlockValue</c> does not override <c>Name</c>.</param>
         internal static string GetItemClassNameForMap(ItemClass itemClass, ItemValue itemValue)
         {
             if (itemClass == null) return null;
             var t = itemClass.GetType();
-            // Extends (XML): prototypes may share ItemClass.Name / Block reference with the parent; inventory ItemValue
-            // still carries the concrete item/block id, and BlockValue.type indexes Block.list[] for the variant.
+            // Extends (XML): for *block* placeables, ItemClass.list[GetItemOrBlockId] can name the concrete variant while
+            // ItemClass.Name still points at the parent. For normal weapons/tools, the same id path can resolve the wrong
+            // list slot — use Name / ToBlockValue first for those.
             if (itemValue != null)
             {
-                var fromId = TryGetMapKeyFromItemOrBlockListIndex(itemValue);
-                if (!string.IsNullOrWhiteSpace(fromId))
-                    return fromId.Trim();
-
-                try
+                if (ItemClassReportsIsBlock(itemClass))
                 {
-                    var toBv = itemValue.GetType().GetMethod("ToBlockValue", Type.EmptyTypes);
-                    if (toBv != null)
-                    {
-                        var bv = toBv.Invoke(itemValue, null);
-                        if (bv != null)
-                        {
-                            var fromTypeIdx = TryGetBlockNameFromBlockValueTypeIndex(bv);
-                            if (!string.IsNullOrWhiteSpace(fromTypeIdx))
-                                return fromTypeIdx.Trim();
+                    var fromId = TryGetMapKeyFromItemOrBlockListIndex(itemValue);
+                    if (!string.IsNullOrWhiteSpace(fromId))
+                        return fromId.Trim();
 
-                            var blockProp = bv.GetType().GetProperty("Block", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                            var blk = blockProp?.GetValue(bv, null);
-                            var blockName = GetBlockNameForMap(blk);
-                            if (!string.IsNullOrWhiteSpace(blockName)) return blockName.Trim();
+                    // ToBlockValue / BlockValue.type is for placeable blocks only; handhelds still return a BlockValue
+                    // (often air / default terrain) and would win before ItemClass.Name and break map lookup.
+                    try
+                    {
+                        var toBv = itemValue.GetType().GetMethod("ToBlockValue", Type.EmptyTypes);
+                        if (toBv != null)
+                        {
+                            var bv = toBv.Invoke(itemValue, null);
+                            if (bv != null)
+                            {
+                                var fromTypeIdx = TryGetBlockNameFromBlockValueTypeIndex(bv);
+                                if (!string.IsNullOrWhiteSpace(fromTypeIdx))
+                                    return fromTypeIdx.Trim();
+
+                                var blockProp = bv.GetType().GetProperty("Block", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                                var blk = blockProp?.GetValue(bv, null);
+                                var blockName = GetBlockNameForMap(blk);
+                                if (!string.IsNullOrWhiteSpace(blockName)) return blockName.Trim();
+                            }
                         }
                     }
+                    catch { }
                 }
-                catch { }
             }
 
             try
             {
-                var isBlockMethod = t.GetMethod("IsBlock", Type.EmptyTypes);
-                if (isBlockMethod != null && isBlockMethod.Invoke(itemClass, null) is bool isBlock && isBlock)
+                if (ItemClassReportsIsBlock(itemClass))
                 {
                     var getBlockMethod = t.GetMethod("GetBlock", Type.EmptyTypes);
                     if (getBlockMethod != null)
@@ -710,7 +716,8 @@ namespace LimitByCraftingSkillMod
         }
 
         /// <summary>
-        /// Skills whose handheld/placeable items often have no ItemValue quality; use progression tier 1 for required level.
+        /// Skills that historically had no reliable ItemValue quality in some UI paths; required-level resolution now always
+        /// falls back to tier 1 when Quality is 0 — this list remains for tests and any callers that branch on the same idea.
         /// </summary>
         internal static bool UsesSyntheticQualityTierForRequiredLevel(string skillGroup)
         {
@@ -746,7 +753,7 @@ namespace LimitByCraftingSkillMod
         }
 
         /// <summary>
-        /// Gets the minimum crafting level required to use this item at its current quality (or tier 1 for Electrician / Workstations / HarvestingTools / Explosives when the item has no quality).
+        /// Gets the minimum crafting level required to use this item at its current quality tier (uses tier 1 when Quality is 0).
         /// </summary>
         internal static int GetRequiredLevelForItem(ItemClass itemClass, ItemValue itemValue)
         {
@@ -908,6 +915,21 @@ namespace LimitByCraftingSkillMod
 
             foreach (var k in list)
                 yield return k;
+        }
+
+        /// <summary>True when the game reports this item class as a block (placeables, mines, doors).</summary>
+        private static bool ItemClassReportsIsBlock(ItemClass itemClass)
+        {
+            if (itemClass == null) return false;
+            try
+            {
+                var isBlockMethod = itemClass.GetType().GetMethod("IsBlock", Type.EmptyTypes);
+                return isBlockMethod != null && isBlockMethod.Invoke(itemClass, null) is bool b && b;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         /// <summary>
@@ -1251,16 +1273,9 @@ namespace LimitByCraftingSkillMod
 
             var hasQ = HasQuality(itemValue);
             var rawQ = GetQuality(itemValue);
-            int effectiveQuality;
-            if (hasQ && rawQ > 0)
-                effectiveQuality = rawQ;
-            else if (UsesSyntheticQualityTierForRequiredLevel(skillGroup))
-                effectiveQuality = 1;
-            else
-            {
-                LogGetRequiredLevelExit0(mapKey, skillGroup, hasQ, rawQ, "no_quality");
-                return 0;
-            }
+            // Progression DisplayData is keyed by quality tier. Vanilla often leaves Quality at 0 with HasQuality false
+            // until a stack is rolled (loot/craft); use tier 1 for lookup in that case — same idea as synthetic groups.
+            var effectiveQuality = rawQ > 0 ? rawQ : 1;
 
             if (progression == null)
             {
@@ -1370,7 +1385,8 @@ namespace LimitByCraftingSkillMod
                 var tier = TryMatchUnlockTier1Based(displayData, itemClass, itemNameForMatch);
                 if (tier >= 1)
                 {
-                    var lvl = GetRequiredLevelFromDisplayData(displayData, tier);
+                    var col = ResolveDisplayDataQualityOrUnlockColumn(displayData, tier, effectiveQuality);
+                    var lvl = GetRequiredLevelFromDisplayData(displayData, col);
                     if (lvl > best) best = lvl;
                     continue;
                 }
@@ -1501,6 +1517,20 @@ namespace LimitByCraftingSkillMod
             return ReadUnlockTierForQualityStarts(unlockData, unlockIndex0Based);
         }
 
+        /// <summary>
+        /// Composite rows (several unlock children, different items) use unlock slot index for positional unlock_level.
+        /// Single-item rows use <paramref name="itemQualityFromStack"/> (ItemValue.Quality or synthetic 1) so quality bands gate correctly.
+        /// </summary>
+        private static int ResolveDisplayDataQualityOrUnlockColumn(object displayData, int unlockTier1Based, int itemQualityFromStack)
+        {
+            if (unlockTier1Based < 1) unlockTier1Based = 1;
+            var siblingCount = CountUnlockChildren(displayData);
+            if (siblingCount > 1)
+                return unlockTier1Based;
+            var q = itemQualityFromStack >= 1 ? itemQualityFromStack : 1;
+            return System.Math.Max(unlockTier1Based, q);
+        }
+
         private static int TryMatchUnlockTier1Based(object displayData, ItemClass itemClass, string itemNameForMatch)
         {
             if (displayData == null || string.IsNullOrEmpty(itemNameForMatch)) return -1;
@@ -1540,7 +1570,10 @@ namespace LimitByCraftingSkillMod
                 if (displayData == null) continue;
                 var tier = TryMatchUnlockTier1Based(displayData, itemClass, itemNameForMatch);
                 if (tier >= 1)
-                    return GetRequiredLevelFromDisplayData(displayData, tier);
+                {
+                    var col = ResolveDisplayDataQualityOrUnlockColumn(displayData, tier, effectiveQuality);
+                    return GetRequiredLevelFromDisplayData(displayData, col);
+                }
             }
             for (int i = 0; i < displayDataList.Count; i++)
             {
@@ -1853,39 +1886,42 @@ namespace LimitByCraftingSkillMod
             return -1;
         }
 
-        private static int GetRequiredLevelFromDisplayData(object displayData, int quality)
+        private static int GetRequiredLevelFromDisplayData(object displayData, int qualityOrItemQuality)
         {
-            if (displayData == null || quality <= 0) return 0;
+            if (displayData == null || qualityOrItemQuality <= 0) return 0;
             var ddType = displayData.GetType();
+
+            // Prefer inverse lookup from rolled item quality (1–600): min crafting level L with GetQualityLevel(L) >= Q.
+            // Direct QualityStarts[Q-1] only matches when Q is a small tier index (tests / rows without GetQualityLevel).
+            var getQualityLevelMethod = ddType.GetMethod("GetQualityLevel", new[] { typeof(int) });
+            if (getQualityLevelMethod != null)
+            {
+                for (int level = 1; level <= 300; level++)
+                {
+                    try
+                    {
+                        var q = getQualityLevelMethod.Invoke(displayData, new object[] { level });
+                        if (q is int qual && qual >= qualityOrItemQuality) return level;
+                    }
+                    catch { break; }
+                }
+            }
 
             var qualityStartsField = ddType.GetField("QualityStarts", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             if (qualityStartsField != null)
             {
                 var qualityStarts = qualityStartsField.GetValue(displayData) as int[];
-                if (qualityStarts != null && quality >= 1 && quality <= qualityStarts.Length)
+                if (qualityStarts != null && qualityOrItemQuality >= 1 && qualityOrItemQuality <= qualityStarts.Length)
                 {
-                    int level = qualityStarts[quality - 1];
+                    int level = qualityStarts[qualityOrItemQuality - 1];
                     // Do not return 0: Explosives/Seeds rows often use zeros here while gates live in unlock_level CSV.
                     if (level > 0) return level;
                 }
             }
 
-            var csvLevel = TryGetRequiredLevelFromUnlockLevelField(displayData, quality);
+            var csvLevel = TryGetRequiredLevelFromUnlockLevelField(displayData, qualityOrItemQuality);
             if (csvLevel >= 0) return csvLevel;
 
-            var getQualityLevelMethod = ddType.GetMethod("GetQualityLevel", new[] { typeof(int) });
-            if (getQualityLevelMethod != null)
-            {
-                for (int level = 1; level <= 100; level++)
-                {
-                    try
-                    {
-                        var q = getQualityLevelMethod.Invoke(displayData, new object[] { level });
-                        if (q is int qual && qual >= quality) return level;
-                    }
-                    catch { break; }
-                }
-            }
             return 0;
         }
 
