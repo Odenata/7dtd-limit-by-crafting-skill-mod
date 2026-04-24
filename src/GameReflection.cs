@@ -43,7 +43,30 @@ namespace LimitByCraftingSkillMod
                 }
                 var playerProp = gmT.GetProperty("myEntityPlayerLocal", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
                     ?? gmT.GetProperty("MyEntityPlayerLocal", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                return playerProp?.GetValue(gm, null) as EntityAlive;
+                var fromGm = playerProp?.GetValue(gm, null) as EntityAlive;
+                if (fromGm != null) return fromGm;
+
+                object world = null;
+                var worldField = gmT.GetField("m_World", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (worldField != null)
+                    world = worldField.GetValue(gm);
+                if (world == null)
+                {
+                    var worldProp = gmT.GetProperty("World", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    world = worldProp?.GetValue(gm, null);
+                }
+                if (world != null)
+                {
+                    var wT = world.GetType();
+                    var lpeField = wT.GetField("m_LocalPlayerEntity", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    var lpe = lpeField?.GetValue(world);
+                    if (lpe is EntityAlive eaWorld) return eaWorld;
+                    var lpListField = wT.GetField("m_LocalPlayerEntities", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (lpListField?.GetValue(world) is IList lpList && lpList.Count > 0 && lpList[0] is EntityAlive eaList)
+                        return eaList;
+                }
+
+                return null;
             }
             catch
             {
@@ -429,13 +452,41 @@ namespace LimitByCraftingSkillMod
             return GetItemClassNameForMap(itemClass, null);
         }
 
-        /// <param name="itemValue">When set, used to resolve block placeables via <c>ToBlockValue()</c> when Name follows an XML Extends base.</param>
+        /// <param name="itemValue">When set, uses id / BlockValue.type indices before <c>Block</c> / <c>GetBlock()</c> so Extends-style mines (hubcap vs candy tin) map correctly.</param>
         internal static string GetItemClassNameForMap(ItemClass itemClass, ItemValue itemValue)
         {
             if (itemClass == null) return null;
             var t = itemClass.GetType();
-            // Placeable blocks (mines, etc.) often extend another block in XML; ItemClass.Name may stay on the base
-            // (e.g. mineCandyTin) while progression/build names use the concrete block (mineHubcap).
+            // Extends (XML): prototypes may share ItemClass.Name / Block reference with the parent; inventory ItemValue
+            // still carries the concrete item/block id, and BlockValue.type indexes Block.list[] for the variant.
+            if (itemValue != null)
+            {
+                var fromId = TryGetMapKeyFromItemOrBlockListIndex(itemValue);
+                if (!string.IsNullOrWhiteSpace(fromId))
+                    return fromId.Trim();
+
+                try
+                {
+                    var toBv = itemValue.GetType().GetMethod("ToBlockValue", Type.EmptyTypes);
+                    if (toBv != null)
+                    {
+                        var bv = toBv.Invoke(itemValue, null);
+                        if (bv != null)
+                        {
+                            var fromTypeIdx = TryGetBlockNameFromBlockValueTypeIndex(bv);
+                            if (!string.IsNullOrWhiteSpace(fromTypeIdx))
+                                return fromTypeIdx.Trim();
+
+                            var blockProp = bv.GetType().GetProperty("Block", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                            var blk = blockProp?.GetValue(bv, null);
+                            var blockName = GetBlockNameForMap(blk);
+                            if (!string.IsNullOrWhiteSpace(blockName)) return blockName.Trim();
+                        }
+                    }
+                }
+                catch { }
+            }
+
             try
             {
                 var isBlockMethod = t.GetMethod("IsBlock", Type.EmptyTypes);
@@ -451,26 +502,6 @@ namespace LimitByCraftingSkillMod
                 }
             }
             catch { }
-
-            if (itemValue != null)
-            {
-                try
-                {
-                    var toBv = itemValue.GetType().GetMethod("ToBlockValue", Type.EmptyTypes);
-                    if (toBv != null)
-                    {
-                        var bv = toBv.Invoke(itemValue, null);
-                        if (bv != null)
-                        {
-                            var blockProp = bv.GetType().GetProperty("Block", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                            var blk = blockProp?.GetValue(bv, null);
-                            var blockName = GetBlockNameForMap(blk);
-                            if (!string.IsNullOrWhiteSpace(blockName)) return blockName.Trim();
-                        }
-                    }
-                }
-                catch { }
-            }
 
             var nameProp = t.GetProperty("Name", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             if (nameProp != null)
@@ -525,7 +556,67 @@ namespace LimitByCraftingSkillMod
                 if (map.TryGetValue(mapKey, out var mapped) && !string.IsNullOrWhiteSpace(mapped))
                     return mapped.Trim();
             }
+
+            var inferred = InferCraftingSkillGroupFromMapKey(mapKey);
+            if (!string.IsNullOrWhiteSpace(inferred))
+                return inferred;
+            inferred = TryInferCraftingSkillGroupFromItemTags(itemClass);
+            if (!string.IsNullOrWhiteSpace(inferred))
+                return inferred;
+
             return TrySkillGroupFromItemClassCraftingSkillGroup(itemClass);
+        }
+
+        /// <summary>When the map has no row, vanilla item ids still follow predictable prefixes (items.xml).</summary>
+        private static string InferCraftingSkillGroupFromMapKey(string mapKey)
+        {
+            if (string.IsNullOrEmpty(mapKey)) return null;
+            if (mapKey.StartsWith("planted", StringComparison.OrdinalIgnoreCase))
+                return "Seeds";
+            if (mapKey.StartsWith("thrown", StringComparison.OrdinalIgnoreCase))
+                return "Explosives";
+            if (mapKey.StartsWith("mine", StringComparison.OrdinalIgnoreCase))
+                return "Explosives";
+            if (mapKey.StartsWith("ammoRocket", StringComparison.OrdinalIgnoreCase))
+                return "Explosives";
+            if (mapKey.StartsWith("resourceRocket", StringComparison.OrdinalIgnoreCase))
+                return "Explosives";
+            if (mapKey.StartsWith("gunExplosives", StringComparison.OrdinalIgnoreCase))
+                return "Explosives";
+            return null;
+        }
+
+        private static string TryInferCraftingSkillGroupFromItemTags(ItemClass itemClass)
+        {
+            if (itemClass == null) return null;
+            try
+            {
+                var t = itemClass.GetType();
+                object ft = null;
+                var itemTagsProp = t.GetProperty("ItemTags", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (itemTagsProp != null)
+                    ft = itemTagsProp.GetValue(itemClass, null);
+                if (ft == null)
+                {
+                    var itemTagsField = t.GetField("ItemTags", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    ft = itemTagsField?.GetValue(itemClass);
+                }
+                if (ft == null) return null;
+                var s = ft.ToString();
+                if (string.IsNullOrEmpty(s)) return null;
+                if (s.IndexOf("explosivesSkill", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return "Explosives";
+                if (s.IndexOf("perkDemolitionsExpert", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return "Explosives";
+                if (s.IndexOf("plantingSkill", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    s.IndexOf("perkLivingOffTheLand", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return "Seeds";
+            }
+            catch
+            {
+                // ignored
+            }
+            return null;
         }
 
         /// <summary>
@@ -546,6 +637,8 @@ namespace LimitByCraftingSkillMod
                 return "Workstations";
             if (string.Equals(s, "Explosives", StringComparison.OrdinalIgnoreCase))
                 return "Explosives";
+            if (string.Equals(s, "Seeds", StringComparison.OrdinalIgnoreCase))
+                return "Seeds";
             return null;
         }
 
@@ -625,7 +718,8 @@ namespace LimitByCraftingSkillMod
             return string.Equals(skillGroup, "Electrician", StringComparison.OrdinalIgnoreCase)
                    || string.Equals(skillGroup, "Workstations", StringComparison.OrdinalIgnoreCase)
                    || string.Equals(skillGroup, "HarvestingTools", StringComparison.OrdinalIgnoreCase)
-                   || string.Equals(skillGroup, "Explosives", StringComparison.OrdinalIgnoreCase);
+                   || string.Equals(skillGroup, "Explosives", StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(skillGroup, "Seeds", StringComparison.OrdinalIgnoreCase);
         }
 
         private static readonly HashSet<string> _debugLoggedNoMapKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -814,6 +908,142 @@ namespace LimitByCraftingSkillMod
 
             foreach (var k in list)
                 yield return k;
+        }
+
+        /// <summary>
+        /// <see cref="ItemValue.GetItemOrBlockId"/> + <see cref="ItemClass.list"/> definition name. Extends-style items
+        /// still get distinct list slots; this avoids merged <see cref="ItemClass.Name"/> / block prototypes.
+        /// </summary>
+        private static string TryGetMapKeyFromItemOrBlockListIndex(ItemValue itemValue)
+        {
+            if (itemValue == null) return null;
+            try
+            {
+                var id = TryReadItemOrBlockId(itemValue);
+                if (id == null || id.Value < 0) return null;
+                var idx = id.Value;
+
+                var icList = TryGetStaticArrayField(typeof(ItemClass), "list") as ItemClass[];
+                if (icList != null && idx < icList.Length && icList[idx] != null)
+                {
+                    var n = GetDirectItemClassDefinitionName(icList[idx]);
+                    if (!string.IsNullOrWhiteSpace(n)) return n;
+                }
+            }
+            catch
+            {
+                // ignored
+            }
+            return null;
+        }
+
+        private static Array TryGetStaticArrayField(Type declaredType, string fieldName)
+        {
+            try
+            {
+                var f = declaredType.GetField(fieldName, BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                if (f != null)
+                {
+                    var v = f.GetValue(null);
+                    if (v is Array a) return a;
+                }
+            }
+            catch
+            {
+                // ignored
+            }
+            return null;
+        }
+
+        private static int? TryReadItemOrBlockId(ItemValue itemValue)
+        {
+            if (itemValue == null) return null;
+            try
+            {
+                var ivt = itemValue.GetType();
+                var m = ivt.GetMethod("GetItemOrBlockId", Type.EmptyTypes) ?? ivt.GetMethod("GetItemId", Type.EmptyTypes);
+                if (m == null) return null;
+                var o = m.Invoke(itemValue, null);
+                switch (o)
+                {
+                    case int i: return i;
+                    case uint ui: return (int)ui;
+                    case short s: return s;
+                    case ushort us: return us;
+                }
+            }
+            catch
+            {
+                // ignored
+            }
+            return null;
+        }
+
+        /// <summary>Name / pName / GetItemName only — no recursion into block/id paths.</summary>
+        private static string GetDirectItemClassDefinitionName(ItemClass itemClass)
+        {
+            if (itemClass == null) return null;
+            try
+            {
+                var t = itemClass.GetType();
+                var nameProp = t.GetProperty("Name", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (nameProp != null)
+                {
+                    var v = nameProp.GetValue(itemClass, null);
+                    if (v is string s && !string.IsNullOrWhiteSpace(s)) return s.Trim();
+                }
+                var nameField = t.GetField("pName", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (nameField != null)
+                {
+                    var v = nameField.GetValue(itemClass);
+                    if (v is string s2 && !string.IsNullOrWhiteSpace(s2)) return s2.Trim();
+                }
+                var getItemName = t.GetMethod("GetItemName", Type.EmptyTypes);
+                if (getItemName != null)
+                {
+                    var s3 = getItemName.Invoke(itemClass, null) as string;
+                    if (!string.IsNullOrWhiteSpace(s3)) return s3.Trim();
+                }
+            }
+            catch
+            {
+                // ignored
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// <see cref="BlockValue.type"/> indexes <see cref="Block.list"/>; <see cref="BlockValue.Block"/> may still point at an Extends parent block.
+        /// </summary>
+        private static string TryGetBlockNameFromBlockValueTypeIndex(object blockValue)
+        {
+            if (blockValue == null) return null;
+            try
+            {
+                var bt = blockValue.GetType();
+                object tv = null;
+                var tf = bt.GetField("type", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (tf != null) tv = tf.GetValue(blockValue);
+                if (tv == null)
+                {
+                    var tp = bt.GetProperty("type", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    tv = tp?.GetValue(blockValue, null);
+                }
+                if (tv == null) return null;
+                var typeIdx = tv is int i ? i : tv is uint u ? (int)u : -1;
+                if (typeIdx < 0) return null;
+
+                var blockType = typeof(ItemClass).Assembly.GetType("Block");
+                if (blockType == null) return null;
+                var arr = TryGetStaticArrayField(blockType, "list");
+                if (arr == null || typeIdx >= arr.Length) return null;
+                var blk = arr.GetValue(typeIdx);
+                return GetBlockNameForMap(blk);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         /// <summary>
@@ -1235,9 +1465,46 @@ namespace LimitByCraftingSkillMod
             return unlockIndex0Based + 1;
         }
 
+        private static int CountUnlockChildren(object displayData)
+        {
+            if (displayData == null) return 0;
+            var unlockList = GetUnlockDataListFromDisplayData(displayData);
+            if (unlockList != null && unlockList.Count > 0)
+                return unlockList.Count;
+            try
+            {
+                var mGetUd = displayData.GetType().GetMethod("GetUnlockData", new[] { typeof(int) });
+                if (mGetUd == null) return 0;
+                var n = 0;
+                for (var u = 0; u < 256; u++)
+                {
+                    object ud = null;
+                    try { ud = mGetUd.Invoke(displayData, new object[] { u }); } catch { break; }
+                    if (ud == null) break;
+                    n = u + 1;
+                }
+                return n;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Several unlock_entry children can share the same UnlockTier while <c>unlock_level</c> on the row is positional.
+        /// </summary>
+        private static int ResolveTierForUnlockChild(int siblingCount, object unlockData, int unlockIndex0Based)
+        {
+            if (siblingCount > 1)
+                return unlockIndex0Based + 1;
+            return ReadUnlockTierForQualityStarts(unlockData, unlockIndex0Based);
+        }
+
         private static int TryMatchUnlockTier1Based(object displayData, ItemClass itemClass, string itemNameForMatch)
         {
             if (displayData == null || string.IsNullOrEmpty(itemNameForMatch)) return -1;
+            var siblingCount = CountUnlockChildren(displayData);
             var unlockList = GetUnlockDataListFromDisplayData(displayData);
             var count = unlockList?.Count ?? 0;
             if (count > 0)
@@ -1246,7 +1513,7 @@ namespace LimitByCraftingSkillMod
                 {
                     var ud = unlockList[u];
                     if (!UnlockEntryMatchesCraftItem(displayData, u, ud, itemClass, itemNameForMatch)) continue;
-                    return ReadUnlockTierForQualityStarts(ud, u);
+                    return ResolveTierForUnlockChild(siblingCount, ud, u);
                 }
                 return -1;
             }
@@ -1259,7 +1526,7 @@ namespace LimitByCraftingSkillMod
                     try { ud = mGetUd.Invoke(displayData, new object[] { u }); } catch { break; }
                     if (ud == null) break;
                     if (!UnlockEntryMatchesCraftItem(displayData, u, ud, itemClass, itemNameForMatch)) continue;
-                    return ReadUnlockTierForQualityStarts(ud, u);
+                    return ResolveTierForUnlockChild(siblingCount, ud, u);
                 }
             }
             return -1;
@@ -1598,7 +1865,8 @@ namespace LimitByCraftingSkillMod
                 if (qualityStarts != null && quality >= 1 && quality <= qualityStarts.Length)
                 {
                     int level = qualityStarts[quality - 1];
-                    if (level >= 0) return level;
+                    // Do not return 0: Explosives/Seeds rows often use zeros here while gates live in unlock_level CSV.
+                    if (level > 0) return level;
                 }
             }
 
@@ -1627,6 +1895,16 @@ namespace LimitByCraftingSkillMod
             public static int TryResolveCraftingElectricianRequiredLevel(object progression, ItemClass itemClass, string mapKeyName, int effectiveQuality)
             {
                 return TryResolveRequiredLevelInTree(progression, "Electrician", itemClass, mapKeyName, effectiveQuality);
+            }
+
+            public static int TryResolveCraftingExplosivesRequiredLevel(object progression, ItemClass itemClass, string mapKeyName, int effectiveQuality)
+            {
+                return TryResolveRequiredLevelInTree(progression, "Explosives", itemClass, mapKeyName, effectiveQuality);
+            }
+
+            public static int GetRequiredLevelFromDisplayDataForTests(object displayData, int qualityOrTier)
+            {
+                return GetRequiredLevelFromDisplayData(displayData, qualityOrTier);
             }
         }
     }

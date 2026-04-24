@@ -156,5 +156,71 @@ namespace LimitByCraftingSkillMod.Tests
         {
             public ushort Quality;
         }
+
+        private sealed class FakeDisplayDataZerosPlusUnlockCsv
+        {
+            public int[] QualityStarts = new[] { 0, 0, 0 };
+            public string unlock_level = "2,5,10";
+        }
+
+        [Fact]
+        public void GetRequiredLevelFromDisplayData_QualityStartsZero_FallsBackToUnlockLevelCsv()
+        {
+            var dd = new FakeDisplayDataZerosPlusUnlockCsv();
+            Assert.Equal(2, GameReflection.TestHooks.GetRequiredLevelFromDisplayDataForTests(dd, 1));
+            Assert.Equal(5, GameReflection.TestHooks.GetRequiredLevelFromDisplayDataForTests(dd, 2));
+            Assert.Equal(10, GameReflection.TestHooks.GetRequiredLevelFromDisplayDataForTests(dd, 3));
+        }
+
+        private sealed class FakeUnlockEntry
+        {
+            public string ItemName;
+            public int UnlockTier = 1;
+        }
+
+        private sealed class FakeCompositeExplosivesDisplayData
+        {
+            public string ItemName = "craftingExplosivesCompositeRow";
+            public int[] QualityStarts = new[] { 0, 0, 0 };
+            public string unlock_level = "5,12,16";
+            public ArrayList UnlockDataList = new ArrayList
+            {
+                new FakeUnlockEntry { ItemName = "thrownGrenade", UnlockTier = 1 },
+                new FakeUnlockEntry { ItemName = "thrownDynamite", UnlockTier = 1 },
+                new FakeUnlockEntry { ItemName = "thrownGrenadeContact", UnlockTier = 1 },
+            };
+        }
+
+        private sealed class FakePcExplosivesComposite
+        {
+            public ArrayList DisplayDataList = new ArrayList
+            {
+                new FakeCompositeExplosivesDisplayData()
+            };
+        }
+
+        private sealed class FakeProgressionExplosivesComposite
+        {
+            public object GetProgressionValue(string name)
+            {
+                if (string.Equals(name, "craftingexplosives", System.StringComparison.OrdinalIgnoreCase))
+                    return new FakePv { ProgressionClass = new FakePcExplosivesComposite() };
+                return null;
+            }
+        }
+
+        [Fact]
+        public void CompositeExplosivesRow_SameUnlockTier_UsesPositionalUnlockLevelColumn()
+        {
+            var prog = new FakeProgressionExplosivesComposite();
+            var contact = new ItemClass { Name = "thrownGrenadeContact" };
+            var baseGrenade = new ItemClass { Name = "thrownGrenade" };
+
+            var lvlContact = GameReflection.TestHooks.TryResolveCraftingExplosivesRequiredLevel(prog, contact, contact.Name, 1);
+            var lvlBase = GameReflection.TestHooks.TryResolveCraftingExplosivesRequiredLevel(prog, baseGrenade, baseGrenade.Name, 1);
+
+            Assert.Equal(16, lvlContact);
+            Assert.Equal(5, lvlBase);
+        }
     }
 }

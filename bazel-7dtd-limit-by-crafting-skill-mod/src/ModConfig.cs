@@ -30,6 +30,15 @@ namespace LimitByCraftingSkillMod
             }
         }
 
+        /// <summary>Called when <see cref="ModContentRoot"/> learns the game mod path so Config.xml is re-read from disk.</summary>
+        internal static void InvalidateReloadableInstance()
+        {
+            lock (Lock)
+            {
+                _instance = null;
+            }
+        }
+
         public bool DebugMode { get; private set; }
 
         /// <summary>
@@ -89,14 +98,7 @@ namespace LimitByCraftingSkillMod
 
         private static string GetModDirectory()
         {
-            try
-            {
-                var asm = typeof(ModConfig).Assembly;
-                var loc = asm.Location;
-                if (!string.IsNullOrEmpty(loc)) return Path.GetDirectoryName(loc);
-            }
-            catch { }
-            return null;
+            return ModContentRoot.ResolveModDirectory();
         }
 
         /// <summary>

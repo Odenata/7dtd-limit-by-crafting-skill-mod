@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
 using UnityEngine;
-using Object = UnityEngine.Object;
 
 namespace LimitByCraftingSkillMod
 {
@@ -809,11 +808,15 @@ namespace LimitByCraftingSkillMod
             return list.Count > 0 ? list.ToArray() : Array.Empty<Type>();
         }
 
-        private static Object[] FindAllObjectsOfType(Type type)
+        private static object[] FindAllObjectsOfType(Type type)
         {
             if (type == null)
-                return Array.Empty<Object>();
-            foreach (var owner in new[] { typeof(Object), Type.GetType("UnityEngine.Resources, UnityEngine.CoreModule") })
+                return Array.Empty<object>();
+            foreach (var owner in new[]
+                     {
+                         Type.GetType("UnityEngine.Object, UnityEngine.CoreModule"),
+                         Type.GetType("UnityEngine.Resources, UnityEngine.CoreModule"),
+                     })
             {
                 if (owner == null)
                     continue;
@@ -823,7 +826,7 @@ namespace LimitByCraftingSkillMod
                         new[] { typeof(Type) }, null);
                     if (mi == null)
                         continue;
-                    var r = mi.Invoke(null, new object[] { type }) as Object[];
+                    var r = mi.Invoke(null, new object[] { type }) as object[];
                     if (r != null)
                         return r;
                 }
@@ -833,7 +836,7 @@ namespace LimitByCraftingSkillMod
                 }
             }
 
-            return Array.Empty<Object>();
+            return Array.Empty<object>();
         }
 
         private static GameObject GetGameObjectFromUnityEngineObject(object unityObj)

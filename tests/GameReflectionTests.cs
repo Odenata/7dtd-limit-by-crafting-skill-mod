@@ -63,6 +63,12 @@ namespace LimitByCraftingSkillMod.Tests
         }
 
         [Fact]
+        public void GetCraftingSkillGroup_UnmappedThrownPrefix_InfersExplosives()
+        {
+            Assert.Equal("Explosives", GameReflection.GetCraftingSkillGroup(new ItemClass { Name = "thrownSyntheticTestItemZz99" }));
+        }
+
+        [Fact]
         public void ToProgressionOrConfigName_WhenClothing_ReturnsArmor()
         {
             Assert.Equal("Armor", GameReflection.ToProgressionOrConfigName("Clothing"));

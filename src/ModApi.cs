@@ -8,10 +8,21 @@ namespace LimitByCraftingSkillMod
     {
         public void InitMod(Mod modInstance)
         {
+            ModContentRoot.ApplyFromModApi(modInstance);
+
             SafeLog("Loading LimitByCraftingSkillMod");
+            SafeLog("Mod folder (Config + ClassName map): " + (ModContentRoot.ResolveModDirectory() ?? "(unknown — map may be empty)"));
 
             var config = ModConfig.Instance;
             SafeLog($"Config loaded: DebugMode={config.DebugMode}");
+            try
+            {
+                SafeLog("[LimitByCraftingSkill] ClassName map entries: " + ClassNameToCraftingSkillMapLoader.GetMap().Count);
+            }
+            catch
+            {
+                // ignored
+            }
 
             try
             {
@@ -28,6 +39,7 @@ namespace LimitByCraftingSkillMod
                 ApplyGUIWindowManagerOpenNameLoggingPatchFromGameAssembly(harmony);
                 ApplyVehicleDrivePatchFromGameAssembly(harmony);
                 ApplyItemActionSpawnVehiclePatchFromGameAssembly(harmony);
+                ApplyItemActionExecuteRestrictionPatchesFromGameAssembly(harmony);
                 ApplyAddItemToToolbeltPatchFromGameAssembly(harmony);
                 ApplyItemActionEntryEquipPatchFromGameAssembly(harmony);
                 ApplyProgressionLevelUpPatchFromGameAssembly(harmony);
@@ -528,6 +540,75 @@ namespace LimitByCraftingSkillMod
             catch (Exception ex)
             {
                 SafeLog($"[LimitByCraftingSkill] ItemActionSpawnVehicle patch failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Throws, seed placement, rockets — <see cref="ItemAction.ExecuteAction"/> on concrete game types.
+        /// </summary>
+        private static void ApplyItemActionExecuteRestrictionPatchesFromGameAssembly(Harmony harmony)
+        {
+            try
+            {
+                var gameAssembly = typeof(Equipment).Assembly;
+                var itemActionDataType = gameAssembly.GetType("ItemActionData");
+                if (itemActionDataType == null)
+                {
+                    SafeLog("[LimitByCraftingSkill] ItemActionData not found — throw/use patches skipped.");
+                    return;
+                }
+
+                var patched = 0;
+
+                void TryPatch(string gameTypeName, string prefixMethodName)
+                {
+                    var t = gameAssembly.GetType(gameTypeName);
+                    if (t == null) return;
+
+                    MethodInfo execute = null;
+                    foreach (var m in t.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+                    {
+                        if (m.Name != "ExecuteAction") continue;
+                        var p = m.GetParameters();
+                        if (p.Length != 2) continue;
+                        if (!itemActionDataType.IsAssignableFrom(p[0].ParameterType)) continue;
+                        var p1 = p[1].ParameterType;
+                        if (p1 == typeof(bool) || p1.IsByRef && p1.GetElementType() == typeof(bool))
+                        {
+                            execute = m;
+                            break;
+                        }
+                    }
+
+                    if (execute == null)
+                    {
+                        SafeLog($"[LimitByCraftingSkill] {gameTypeName}.ExecuteAction(ItemActionData, bool) not found.");
+                        return;
+                    }
+
+                    var prefix = typeof(ItemActionExecuteRestrictionPatch).GetMethod(prefixMethodName, BindingFlags.Static | BindingFlags.NonPublic);
+                    if (prefix == null)
+                    {
+                        SafeLog($"[LimitByCraftingSkill] Prefix {prefixMethodName} missing.");
+                        return;
+                    }
+
+                    harmony.Patch(execute, prefix: new HarmonyMethod(prefix));
+                    patched++;
+                    SafeLog($"[LimitByCraftingSkill] {gameTypeName}.ExecuteAction restriction prefix applied.");
+                }
+
+                TryPatch("ItemActionThrowAway", nameof(ItemActionExecuteRestrictionPatch.PrefixThrowAway));
+                TryPatch("ItemActionThrownWeapon", nameof(ItemActionExecuteRestrictionPatch.PrefixThrownWeapon));
+                TryPatch("ItemActionPlaceAsBlock", nameof(ItemActionExecuteRestrictionPatch.PrefixPlaceAsBlock));
+                TryPatch("ItemActionProjectile", nameof(ItemActionExecuteRestrictionPatch.PrefixProjectile));
+
+                if (patched == 0)
+                    SafeLog("[LimitByCraftingSkill] No ItemAction ExecuteAction restriction patches applied.");
+            }
+            catch (Exception ex)
+            {
+                SafeLog($"[LimitByCraftingSkill] ItemAction execute restriction patches failed: {ex.Message}");
             }
         }
 
