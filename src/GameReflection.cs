@@ -1287,8 +1287,8 @@ namespace LimitByCraftingSkillMod
                     if (wsLevel > resolvedLevel)
                     {
                         resolvedLevel = wsLevel;
-                        if (AgentDebugSessionLog.IsTraceMapKey(mapKeyName))
-                            AgentDebugSessionLog.WriteWorkstationFallback(mapKeyName, resolvedLevel);
+                        if (ModConfig.Instance != null && ModConfig.Instance.DebugMode)
+                            ModApi.DebugLog($"Electrician item used Workstations progression for mapKey={mapKeyName} requiredLevel={resolvedLevel}");
                     }
                 }
                 // Override applies when progression gives no positive gate (including matched row at tier 0).
@@ -1300,14 +1300,14 @@ namespace LimitByCraftingSkillMod
                 if (resolvedLevel >= 0)
                     return resolvedLevel;
 
-                if (AgentDebugSessionLog.IsTraceMapKey(mapKeyName))
+                if (ModConfig.Instance != null && ModConfig.Instance.DebugMode)
                 {
                     var pc = GetProgressionClassForCraftingSkill(progression, skillGroup);
                     IList ddl = pc != null ? GetDisplayDataListFromProgressionClass(pc) : null;
                     var samples = ddl != null ? CollectSampleProgressionItemNames(ddl, 24) : new List<string>();
                     var candidates = BuildProgressionMatchCandidates(mapKeyName);
-                    var hasXml = ClassNameToCraftingSkillMapLoader.TryGetProgressionMatchOverride(mapKeyName, out _);
-                    AgentDebugSessionLog.WriteProgressionProbe(mapKeyName, ToProgressionLookupName(skillGroup) + "|tried_ws", string.Join("|", candidates), hasXml, string.Join("|", samples));
+                    ModApi.DebugLog("no_progression_match mapKey=" + mapKeyName + " lookup=" + ToProgressionLookupName(skillGroup)
+                        + " candidates=" + string.Join("|", candidates) + " samples=" + string.Join("|", samples));
                 }
 
                 LogGetRequiredLevelExit0(mapKey, skillGroup, hasQ, rawQ, "no_progression_match");

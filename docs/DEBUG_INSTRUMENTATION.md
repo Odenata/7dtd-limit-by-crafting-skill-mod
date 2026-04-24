@@ -2,23 +2,26 @@
 
 ## Built-in: game log (`DebugMode`)
 
-When **`Config.xml`** has `<DebugMode>true</DebugMode>`, **`GetRequiredLevelForItem`** writes to the **game output log** lines like:
+When **`Config.xml`** has `<DebugMode>true</DebugMode>`, **`ModApi.DebugLog`** and **`GameReflection`** diagnostics write to the **game output log** (`output_log*.txt`). Examples:
 
 `[LimitByCraftingSkill] GetRequiredLevelForItem exit=0 reason=no_progression_match mapKey=forge skillGroup=Workstations hasQuality=False rawQuality=0`
 
 **Reason values:** `no_map` (unmapped item; first occurrence per `mapKey` only), `no_quality` (mapped but not Electrician/Workstations/HarvestingTools and no quality), `no_player`, `no_lookup`, `no_progression`, `no_progression_class`, `no_display_data`, `no_progression_match`, `exception`.
 
+There is **no** automatic NDJSON session file or repo-root `debug-*.log` from the mod DLL. For structured traces, use the optional appendix below (manual helpers pasted into `GameReflection.cs` during a debug session).
+
 ---
 
-Use the NDJSON file approach below when you need **structured** logs or every return value (not only zeros).
+## Optional: NDJSON file (manual instrumentation)
 
-## Log file
+Use this only when you need **structured** logs or every return value (not only zeros). Copy the helpers from the appendix into `GameReflection.cs` temporarily; remove them before shipping.
 
-- **Path:** `%AppData%\7DaysToDie\logs\debug-limit-mod-required-level.log` (pick any fixed name; avoid clashing with other mods’ logs).
+### Log file
+
+- **Path:** `%AppData%\7DaysToDie\logs\debug-limit-mod-required-level.log` (or another fixed name under that folder).
 - **Format:** NDJSON (one JSON object per line). Append only; delete or rename the file before each test run for a clean capture.
-- **Requires:** `using System.IO;` and `using System.Text;` in `GameReflection.cs`.
 
-## What to log (three layers)
+### What to log (three layers)
 
 | Layer | `hypothesisId` / purpose | When |
 |-------|-------------------------|------|
@@ -31,7 +34,7 @@ Interpretation:
 - If **A** shows `returnedLevel: 0` for an item that should gate crafting, check **B**: empty `displayDataItemNames` ⇒ matching must use **unlocks** (`UnlockDataList`, `GetUnlockData`, `GetUnlockItem`, `RecipeList`)—see `DESIGN.md`.
 - **C** is legacy-oriented; in 2.5+ `Progression.ProgressionClasses` may be unavailable, so probes that scan all classes often yield `-1` for E/F.
 
-## Hook points in `GetRequiredLevelForItem`
+### Hook points in `GetRequiredLevelForItem`
 
 After `displayDataList` is resolved and non-empty:
 
@@ -42,7 +45,7 @@ After `displayDataList` is resolved and non-empty:
 
 Wrap calls in `try { ... } catch { }` so logging never breaks gameplay.
 
-## Grep examples (after a session)
+### Grep examples (after a session)
 
 ```text
 grep return_value debug-limit-mod-required-level.log
@@ -50,7 +53,7 @@ grep craftingarmor debug-limit-mod-required-level.log
 grep display_data_names debug-limit-mod-required-level.log
 ```
 
-## Appendix A — Minimal helpers (copy-paste)
+### Appendix A — Minimal helpers (copy-paste)
 
 Use a **constant log file name** you recognize; change `DebugLogFileName` if multiple debug sessions run.
 
@@ -115,7 +118,7 @@ private static void LogDisplayDataItemNamesOnce(string lookupName, string itemNa
 }
 ```
 
-## Appendix B — Optional compact probe (per call)
+### Appendix B — Optional compact probe (per call)
 
 Logs one line per `GetRequiredLevelForItem` call with **progression-class-local** facts (no `ProgressionClasses` dictionary required):
 
@@ -155,10 +158,6 @@ private static void LogRequiredLevelProbe(string lookupName, object progressionC
     catch { }
 }
 ```
-
-## Historical note (March 2026 session)
-
-Earlier iterations used a fixed filename `debug-4a55c6.log` and a **`sessionId` field** for an external NDJSON ingest. That ingest is optional; the snippets above omit `sessionId` so logs stay self-contained on disk.
 
 ## Related docs
 

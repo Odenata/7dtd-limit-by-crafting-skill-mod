@@ -229,12 +229,10 @@ namespace LimitByCraftingSkillMod
             try
             {
                 SafeLog("[LimitByCraftingSkill] OnBlockActivated workstation prefixes not applied (avoid UI lock). Restriction uses WorkstationWindowGroup.OnOpen Postfix.");
-                try { InWorldRestrictionDebugLog.Write("H1", "ModApi:ApplyWorkstationOpenPatch", "disabled_on_block_activated", "{}", null); } catch { }
             }
             catch (Exception ex)
             {
                 SafeLog($"[LimitByCraftingSkill] Workstation open patch hook failed: {ex.Message}");
-                try { InWorldRestrictionDebugLog.Write("H1", "ModApi:ApplyWorkstationOpenPatch", "patch_failed", "{\"error\":\"" + (ex.Message ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"}", null); } catch { }
             }
         }
 
@@ -251,7 +249,6 @@ namespace LimitByCraftingSkillMod
                 if (windowType == null || teType == null)
                 {
                     SafeLog("[LimitByCraftingSkill] XUiC_WorkstationWindowGroup or TileEntityWorkstation not found, SetTileEntity postfix skipped.");
-                    try { InWorldRestrictionDebugLog.Write("H_SET", "ModApi:SetTileEntityPatch", "skip", "{\"reason\":\"types_not_found\"}", null); } catch { }
                     return;
                 }
 
@@ -265,7 +262,6 @@ namespace LimitByCraftingSkillMod
                 {
                     harmony.Patch(method, postfix: new HarmonyMethod(postfixSt));
                     SafeLog("[LimitByCraftingSkill] XUiC_WorkstationWindowGroup.SetTileEntity Postfix patch applied.");
-                    try { InWorldRestrictionDebugLog.Write("H_SET", "ModApi:SetTileEntityPatch", "patch_applied", "{}", null); } catch { }
                 }
 
                 foreach (var subType in gameAssembly.GetTypes())
@@ -290,7 +286,6 @@ namespace LimitByCraftingSkillMod
             catch (Exception ex)
             {
                 SafeLog($"[LimitByCraftingSkill] Workstation SetTileEntity postfix failed: {ex.Message}");
-                try { InWorldRestrictionDebugLog.Write("H_SET", "ModApi:SetTileEntityPatch", "patch_failed", "{\"error\":\"" + (ex.Message ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"}", null); } catch { }
             }
         }
 
@@ -309,7 +304,6 @@ namespace LimitByCraftingSkillMod
                 if (wsType == null)
                 {
                     SafeLog("[LimitByCraftingSkill] XUiC_WorkstationWindowGroup not found, OnOpen postfix skipped.");
-                    try { InWorldRestrictionDebugLog.Write("H_UIOPEN", "ModApi:ApplyWorkstationWindowOnOpen", "skip", "{\"reason\":\"WS_not_found\"}", null); } catch { }
                     return;
                 }
 
@@ -325,7 +319,6 @@ namespace LimitByCraftingSkillMod
                     {
                         harmony.Patch(craftOnOpen, postfix: new HarmonyMethod(postfixFiltered));
                         SafeLog("[LimitByCraftingSkill] XUiC_CraftingWindowGroup.OnOpen Postfix (filtered to workstation) applied.");
-                        try { InWorldRestrictionDebugLog.Write("H_UIOPEN", "ModApi:ApplyWorkstationWindowOnOpen", "patch_applied_crafting_base", "{}", null); } catch { }
                     }
 
                     for (var midType = wsType.BaseType; midType != null && midType != craftType; midType = midType.BaseType)
@@ -417,7 +410,6 @@ namespace LimitByCraftingSkillMod
                 if (entityVehicleType == null)
                 {
                     SafeLog("[LimitByCraftingSkill] EntityVehicle not found, vehicle drive patch skipped.");
-                    try { InWorldRestrictionDebugLog.Write("H6", "ModApi:ApplyVehicleDrivePatch", "skip", "{\"reason\":\"EntityVehicle_not_found\"}", null); } catch { }
                     return;
                 }
                 var entityAliveType = gameAssembly.GetType("EntityAlive");
@@ -431,22 +423,15 @@ namespace LimitByCraftingSkillMod
                 if (enterVehicle == null)
                 {
                     SafeLog("[LimitByCraftingSkill] EntityVehicle.EnterVehicle(EntityAlive) not found.");
-                    try { InWorldRestrictionDebugLog.Write("H6", "ModApi:ApplyVehicleDrivePatch", "skip", "{\"reason\":\"EnterVehicle_not_found\"}", null); } catch { }
                     return;
                 }
                 var prefix = typeof(VehicleDriveRestrictionPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.Public);
                 harmony.Patch(enterVehicle, prefix: new HarmonyMethod(prefix));
                 SafeLog("[LimitByCraftingSkill] EntityVehicle.EnterVehicle (vehicle drive) patch applied.");
-                // #region agent log
-                try { InWorldRestrictionDebugLog.Write("H6", "ModApi:ApplyVehicleDrivePatch", "patch_applied", "{\"applied\":true,\"entityVehicleFound\":true,\"enterVehicleFound\":true}", null); } catch { }
-                // #endregion
             }
             catch (Exception ex)
             {
                 SafeLog($"[LimitByCraftingSkill] Vehicle drive patch failed: {ex.Message}");
-                // #region agent log
-                try { InWorldRestrictionDebugLog.Write("H6", "ModApi:ApplyVehicleDrivePatch", "patch_failed", "{\"error\":\"" + (ex.Message ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"}", null); } catch { }
-                // #endregion
             }
         }
 

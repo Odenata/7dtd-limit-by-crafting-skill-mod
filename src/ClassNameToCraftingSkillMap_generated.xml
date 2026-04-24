@@ -191,7 +191,12 @@
   <Item className="woodenGarageDoor5x3_PoweredWhite" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
   <Item className="woodenGarageDoor5x3_PoweredYellow" craftingSkillGroup="Electrician" requiredLevelOverride="30"/>
 
-  <!-- Explosives: requiredLevelMin mirrors vanilla progression.xml craftingExplosives unlock_level per row/slot. Floors bad name/progression matches. Rocket launcher omitted (quality tiers 50–100). mineCandyTin & molotov are not tied to this crafting skill in vanilla — requiredLevelMin 0 (no floor). -->
+  <!-- Explosives -->
+  <!--
+    requiredLevelMin mirrors vanilla progression.xml craftingExplosives unlock_level per row/slot.
+    Floors bad name/progression matches. Rocket launcher omitted (quality tiers 50–100).
+    mineCandyTin & molotov are not tied to this crafting skill in vanilla — requiredLevelMin 0 (no floor).
+  -->
   <Item className="gunExplosivesT3RocketLauncher" craftingSkillGroup="Explosives"/>
   <Item className="mineAirFilter" craftingSkillGroup="Explosives" requiredLevelMin="25"/>
   <Item className="mineCandyTin" craftingSkillGroup="Explosives" requiredLevelMin="0"/>

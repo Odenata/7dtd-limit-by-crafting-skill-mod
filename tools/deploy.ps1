@@ -1,15 +1,24 @@
 param(
   [string]$Configuration = "Release",
-  [string]$GameInstallDir = $(if ($env:7_DAYS_TO_DIE_GAME_PATH) { $env:7_DAYS_TO_DIE_GAME_PATH } else { "C:\Program Files (x86)\Steam\steamapps\common\7 Days To Die" })
+  # Optional explicit game directory; when empty, uses SEVENDTD_GAME_PATH, then 7_DAYS_TO_DIE_GAME_PATH, then Steam default.
+  [string]$GameInstallDir = "",
+  [switch]$SkipBuild,
+  # Optional path to LimitByCraftingSkillMod.dll (e.g. after bazel build //src:LimitByCraftingSkillMod).
+  [string]$DllPath = ""
 )
 
 $ErrorActionPreference = "Stop"
 
-$modRepoRoot = Join-Path $PSScriptRoot ".."
-$dllPath = "src\bin\$Configuration\net472\LimitByCraftingSkillMod.dll"
+if ([string]::IsNullOrWhiteSpace($GameInstallDir)) {
+  $GameInstallDir = if (-not [string]::IsNullOrWhiteSpace($env:SEVENDTD_GAME_PATH)) { $env:SEVENDTD_GAME_PATH }
+    elseif (-not [string]::IsNullOrWhiteSpace($env:7_DAYS_TO_DIE_GAME_PATH)) { $env:7_DAYS_TO_DIE_GAME_PATH }
+    else { "C:\Program Files (x86)\Steam\steamapps\common\7 Days To Die" }
+}
 
-# Build first with our csproj so dev-tools deploy does not run its default build (GameApiExporter.csproj).
-if (-not (Test-Path $dllPath)) {
+$modRepoRoot = Join-Path $PSScriptRoot ".."
+$prepareScript = Join-Path $PSScriptRoot "prepare_mod.ps1"
+
+if (-not $SkipBuild) {
   $buildScript = Join-Path $PSScriptRoot "build.ps1"
   if (-not (Test-Path $buildScript)) {
     Write-Host "ERROR: build.ps1 not found at $buildScript" -ForegroundColor Red
@@ -22,27 +31,43 @@ if (-not (Test-Path $dllPath)) {
   }
 }
 
-$devTools = Join-Path $PSScriptRoot "..\..\7dtd-mod-dev-tools\tools\build-deploy\deploy.ps1"
-$params = @{
-  ModRepoPath = $modRepoRoot
-  ModName = "LimitByCraftingSkillMod"
-  Configuration = $Configuration
-  DllPath = (Join-Path $modRepoRoot $dllPath)
+if (-not (Test-Path $prepareScript)) {
+  Write-Host "ERROR: prepare_mod.ps1 not found at $prepareScript" -ForegroundColor Red
+  exit 1
 }
-if (-not [string]::IsNullOrWhiteSpace($GameInstallDir)) {
-  $params["GameInstallDir"] = $GameInstallDir
+
+$prepArgs = @{ ModRepoRoot = $modRepoRoot; Configuration = $Configuration }
+if (-not [string]::IsNullOrWhiteSpace($DllPath)) {
+  $prepArgs["DllPath"] = $DllPath
 }
-& $devTools @params
-$exitAfterDevTools = $LASTEXITCODE
-# Only exit on explicit non-zero; $LASTEXITCODE can be $null after & script (treated as success)
-if ($null -ne $exitAfterDevTools -and $exitAfterDevTools -ne 0) { exit $exitAfterDevTools }
+& $prepareScript @prepArgs
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+$preparedDir = Join-Path $modRepoRoot "prepared_mod_files"
+if (-not (Test-Path $preparedDir)) {
+  Write-Host "ERROR: prepared_mod_files not found after prepare." -ForegroundColor Red
+  exit 1
+}
 
 $modPath = Join-Path $GameInstallDir "Mods\LimitByCraftingSkillMod"
-$mapSrc = Join-Path $modRepoRoot "src\ClassNameToCraftingSkillMap.xml"
-if (Test-Path $mapSrc) {
-  Copy-Item $mapSrc -Destination $modPath -Force -ErrorAction Stop
-  Write-Host "Copied ClassNameToCraftingSkillMap.xml to $modPath" -ForegroundColor Green
-} else {
-  Write-Host "WARNING: ClassNameToCraftingSkillMap.xml not found at $mapSrc" -ForegroundColor Yellow
+if (-not (Test-Path $modPath)) {
+  New-Item -ItemType Directory -Path $modPath -Force | Out-Null
+  Write-Host "Created $modPath" -ForegroundColor Green
 }
+
+$copied = $false
+Get-ChildItem -Path $preparedDir -File | Where-Object { $_.Name -ne "README.md" } | ForEach-Object {
+  Copy-Item -Path $_.FullName -Destination (Join-Path $modPath $_.Name) -Force -ErrorAction Stop
+  Write-Host "Copied $($_.Name) -> $modPath" -ForegroundColor Green
+  $copied = $true
+}
+
+if (-not $copied) {
+  Write-Host "ERROR: No deployable files in prepared_mod_files (run prepare_mod.ps1?)." -ForegroundColor Red
+  exit 1
+}
+
+Write-Host "`nDeployment complete." -ForegroundColor Cyan
+Write-Host "Mod folder: $modPath" -ForegroundColor Yellow
+Write-Host "Restart 7 Days to Die to load the mod." -ForegroundColor Cyan
 exit 0

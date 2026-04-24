@@ -37,7 +37,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="AgentDebugSessionLog.cs" />
     <Compile Include="BlockActivateRestrictionPatch.cs" />
     <Compile Include="AddItemToToolbeltRestrictionPatch.cs" />
     <Compile Include="AssemblyInfo.cs" />
@@ -46,7 +45,6 @@
     <Compile Include="EquipmentRestrictionPatch.cs" />
     <Compile Include="EquipmentStackHandleStackSwapPatch.cs" />
     <Compile Include="GameReflection.cs" />
-    <Compile Include="InWorldRestrictionDebugLog.cs" />
     <Compile Include="HotbarRestrictionPatch.cs" />
     <Compile Include="InventoryGridRestrictionColorPatches.cs" />
     <Compile Include="ItemActionEntryEquipPatch.cs" />

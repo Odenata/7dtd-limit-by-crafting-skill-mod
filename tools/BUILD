@@ -18,12 +18,19 @@ py_binary(
 exports_files([
     "build.ps1",
     "deploy.ps1",
+    "prepare_mod.ps1",
     "test-integration.ps1",
 ])
 
 filegroup(
     name = "build_run_script",
     srcs = ["build_run.ps1"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "prepare_run_script",
+    srcs = ["prepare_run.ps1"],
     visibility = ["//visibility:private"],
 )
 
@@ -36,6 +43,13 @@ filegroup(
 powershell_binary(
     name = "build",
     script = ":build_run_script",
+    tags = ["local", "manual", "no-remote", "requires-mod-repo"],
+    visibility = ["//visibility:public"],
+)
+
+powershell_binary(
+    name = "prepare_mod",
+    script = ":prepare_run_script",
     tags = ["local", "manual", "no-remote", "requires-mod-repo"],
     visibility = ["//visibility:public"],
 )

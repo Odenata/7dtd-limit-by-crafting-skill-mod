@@ -1,12 +1,13 @@
-# Wrapper that invokes tools\deploy.ps1 from repo root.
+# Wrapper that invokes tools\deploy.ps1 from repo root (build + prepare_mod_files + copy to game).
 param(
   [string]$Configuration = "Release",
-  [string]$GameInstallDir = $(if ($env:7_DAYS_TO_DIE_GAME_PATH) { $env:7_DAYS_TO_DIE_GAME_PATH } else { "C:\Program Files (x86)\Steam\steamapps\common\7 Days To Die" })
+  [string]$GameInstallDir = "",
+  [switch]$SkipBuild,
+  [string]$DllPath = ""
 )
 
 $ErrorActionPreference = "Stop"
 
-# Prefer Bazel/IDE workspace; else current dir if it looks like this repo; else script location.
 $repoRoot = if ($env:BUILD_WORKSPACE_DIRECTORY) { $env:BUILD_WORKSPACE_DIRECTORY }
   elseif ((Get-Location).Path -and (Test-Path (Join-Path (Get-Location).Path "src\LimitByCraftingSkillMod.csproj"))) { (Get-Location).Path }
   else { Split-Path $PSScriptRoot -Parent }
@@ -18,7 +19,11 @@ if (-not (Test-Path $deployScript)) {
 
 Push-Location $repoRoot
 try {
-  & $deployScript -Configuration $Configuration -GameInstallDir $GameInstallDir
+  $args = @{ Configuration = $Configuration }
+  if (-not [string]::IsNullOrWhiteSpace($GameInstallDir)) { $args["GameInstallDir"] = $GameInstallDir }
+  if ($SkipBuild) { $args["SkipBuild"] = $true }
+  if (-not [string]::IsNullOrWhiteSpace($DllPath)) { $args["DllPath"] = $DllPath }
+  & $deployScript @args
   exit $LASTEXITCODE
 } finally {
   Pop-Location

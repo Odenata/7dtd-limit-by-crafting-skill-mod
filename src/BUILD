@@ -5,7 +5,6 @@ net_library(
     out = "LimitByCraftingSkillMod.dll",
     srcs = [
         "AddItemToToolbeltRestrictionPatch.cs",
-        "AgentDebugSessionLog.cs",
         "AssemblyInfo.cs",
         "BlockActivateRestrictionPatch.cs",
         "ClassNameToCraftingSkillMapLoader.cs",
@@ -17,7 +16,6 @@ net_library(
         "GUIWindowManagerOpenNameLogPatch.cs",
         "HotbarRestrictionPatch.cs",
         "InventoryGridRestrictionColorPatches.cs",
-        "InWorldRestrictionDebugLog.cs",
         "ItemActionEntryEquipPatch.cs",
         "ItemActionExecuteRestrictionPatch.cs",
         "ItemActionSpawnVehicleRestrictionPatch.cs",
