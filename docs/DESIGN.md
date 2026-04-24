@@ -66,9 +66,10 @@ The exact API for this popup is to be identified in the game API investigation.
 - **Per–crafting-skill toggles:** One toggle per crafting skill (e.g. Armor, HarvestingTools, Workstations, Vehicles). When enabled, restriction applies for that skill; when disabled, items for that skill are not restricted.
 - **Server vs client:** In multiplayer, restrictions must respect the **server's** config, not the client's. Where config is read (server vs client process) and how server authority is enforced is documented here and implemented when the game API for that is clear. Initial implementation can be client-only with a note to add server path later.
 
-## Out of scope (by design)
+## Food and Medicine (optional toggles)
 
-- **Food and Medicine:** Not implemented. Those items are typically used from **any** inventory slot; blocking would need new hooks on consume/use, not just hotbar/equip.
+- **Release default:** Keep **Food** and **Medical** set to **false** in `Config.xml` so consumables match vanilla unless the player opts in.
+- **When true:** **`ItemActionEat`** is patched on **`ExecuteAction`** (validate on mouse release, like throw) and **`ExecuteInstantAction`** (inventory / UI instant use). Required level is resolved from vanilla **`craftingFood`** / **`craftingMedical`** progression — composite **`display_entry`** rows with **`unlock_level`** per item slot (same style as **Seeds**), not stack **Quality**.
 
 ## Roadmap / known gaps
 

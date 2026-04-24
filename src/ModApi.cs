@@ -587,6 +587,32 @@ namespace LimitByCraftingSkillMod
                 TryPatch("ItemActionThrownWeapon", nameof(ItemActionExecuteRestrictionPatch.PrefixThrownWeapon));
                 TryPatch("ItemActionPlaceAsBlock", nameof(ItemActionExecuteRestrictionPatch.PrefixPlaceAsBlock));
                 TryPatch("ItemActionProjectile", nameof(ItemActionExecuteRestrictionPatch.PrefixProjectile));
+                TryPatch("ItemActionEat", nameof(ItemActionExecuteRestrictionPatch.PrefixEat));
+
+                try
+                {
+                    var eatType = gameAssembly.GetType("ItemActionEat");
+                    var xUiItemStackType = gameAssembly.GetType("XUiC_ItemStack");
+                    if (eatType != null && xUiItemStackType != null)
+                    {
+                        var instant = eatType.GetMethod("ExecuteInstantAction", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                            null, new[] { typeof(EntityAlive), typeof(ItemStack), typeof(bool), xUiItemStackType }, null);
+                        if (instant != null)
+                        {
+                            var prefixInstant = typeof(ItemActionExecuteRestrictionPatch).GetMethod(nameof(ItemActionExecuteRestrictionPatch.PrefixEatExecuteInstant), BindingFlags.Static | BindingFlags.Public);
+                            if (prefixInstant != null)
+                            {
+                                harmony.Patch(instant, prefix: new HarmonyMethod(prefixInstant));
+                                patched++;
+                                SafeLog("[LimitByCraftingSkill] ItemActionEat.ExecuteInstantAction restriction prefix applied.");
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex2)
+                {
+                    SafeLog($"[LimitByCraftingSkill] ItemActionEat.ExecuteInstantAction patch failed: {ex2.Message}");
+                }
 
                 if (patched == 0)
                     SafeLog("[LimitByCraftingSkill] No ItemAction ExecuteAction restriction patches applied.");

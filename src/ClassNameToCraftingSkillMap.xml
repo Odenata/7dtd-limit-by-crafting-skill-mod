@@ -209,9 +209,9 @@
   <!-- Food -->
   <Item className="drinkJarBeer" craftingSkillGroup="Food"/>
   <Item className="drinkJarCoffee" craftingSkillGroup="Food"/>
-  <Item className="drinkJarGoldenrodTea" craftingSkillGroup="Food"/>
+  <Item className="drinkJarGoldenRodTea" craftingSkillGroup="Food"/>
   <Item className="drinkJarGrandpasAwesomeSauce" craftingSkillGroup="Food"/>
-  <Item className="drinkJarGrandpasLearningElixer" craftingSkillGroup="Food"/>
+  <Item className="drinkJarGrandpasLearningElixir" craftingSkillGroup="Food"/>
   <Item className="drinkJarGrandpasMoonshine" craftingSkillGroup="Food"/>
   <Item className="drinkJarHoneyTea" craftingSkillGroup="Food"/>
   <Item className="drinkJarRedTea" craftingSkillGroup="Food"/>

@@ -726,7 +726,9 @@ namespace LimitByCraftingSkillMod
                    || string.Equals(skillGroup, "Workstations", StringComparison.OrdinalIgnoreCase)
                    || string.Equals(skillGroup, "HarvestingTools", StringComparison.OrdinalIgnoreCase)
                    || string.Equals(skillGroup, "Explosives", StringComparison.OrdinalIgnoreCase)
-                   || string.Equals(skillGroup, "Seeds", StringComparison.OrdinalIgnoreCase);
+                   || string.Equals(skillGroup, "Seeds", StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(skillGroup, "Food", StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(skillGroup, "Medical", StringComparison.OrdinalIgnoreCase);
         }
 
         private static readonly HashSet<string> _debugLoggedNoMapKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

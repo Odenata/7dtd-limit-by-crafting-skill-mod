@@ -119,6 +119,10 @@ namespace LimitByCraftingSkillMod.Tests
             Assert.True(GameReflection.UsesSyntheticQualityTierForRequiredLevel("Electrician"));
             Assert.True(GameReflection.UsesSyntheticQualityTierForRequiredLevel("Workstations"));
             Assert.True(GameReflection.UsesSyntheticQualityTierForRequiredLevel("HarvestingTools"));
+            Assert.True(GameReflection.UsesSyntheticQualityTierForRequiredLevel("Explosives"));
+            Assert.True(GameReflection.UsesSyntheticQualityTierForRequiredLevel("Seeds"));
+            Assert.True(GameReflection.UsesSyntheticQualityTierForRequiredLevel("Food"));
+            Assert.True(GameReflection.UsesSyntheticQualityTierForRequiredLevel("Medical"));
         }
 
         [Fact]

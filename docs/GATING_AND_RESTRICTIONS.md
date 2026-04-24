@@ -57,7 +57,7 @@ Rough categories of data inside a `DisplayData` row:
    Vanilla **`ProgressionFromXml`** stores **`unlock_tier` from XML minus one** on each **`UnlockData.UnlockTier`** (a **0-based** column index into that row’s **`QualityStarts`** / `unlock_level` list). When the resolver takes the **single-child** branch (`ResolveTierForUnlockChild` with `siblingCount == 1`), **`ReadUnlockTierForQualityStarts`** maps that field to a **1-based** column for `QualityStarts` lookup (`UnlockTier + 1`). Mis-handling `0`-based `4` as if it were already 1-based made **plantedAloe1** (fifth column, skill **10**) resolve as column **4** (skill **8**) or worse after falling through to **`GetQualityLevel`** heuristics.
 
 5. **Synthetic tier for “no quality” skills**  
-   Placeables and some skills (`Electrician`, `Workstations`, `HarvestingTools`, `Explosives`, `Seeds` in `UsesSyntheticQualityTierForRequiredLevel`) often have stacks with **no meaningful `ItemValue.Quality`**. The mod still runs the progression lookup using **minimum tier `1`** so forges, mines, etc. get a non-zero gate when the row matches.
+   Placeables and some skills (`Electrician`, `Workstations`, `HarvestingTools`, `Explosives`, `Seeds`, `Food`, `Medical` in `UsesSyntheticQualityTierForRequiredLevel`) often have stacks with **no meaningful `ItemValue.Quality`**. The mod still runs the progression lookup using **minimum tier `1`** so forges, mines, etc. get a non-zero gate when the row matches.
 
 ### 2.3 Map key resolution (`GetItemClassNameForMap`)
 

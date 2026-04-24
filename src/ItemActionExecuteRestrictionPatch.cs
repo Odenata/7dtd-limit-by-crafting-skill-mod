@@ -3,10 +3,37 @@ using System;
 namespace LimitByCraftingSkillMod
 {
     /// <summary>
-    /// Blocks primary item use (throw, place block, rocket fire) when the held item is crafting-restricted.
+    /// Blocks primary item use (throw, place block, rocket fire, eat/drink/meds) when the held item is crafting-restricted.
     /// </summary>
     internal static class ItemActionExecuteRestrictionPatch
     {
+        /// <summary>Food, drinks, and most medical items use <c>ItemActionEat</c>; validate on mouse release like throw (avoids spamming checks every hold tick).</summary>
+        internal static bool PrefixEat(object __instance, object _actionData, bool _bReleased)
+        {
+            return PrefixCore(_actionData, _bReleased, requireRelease: true);
+        }
+
+        /// <summary>Inventory / UI instant use path (e.g. context action) that bypasses <see cref="PrefixEat"/>.</summary>
+        internal static bool PrefixEatExecuteInstant(object __instance, EntityAlive ent, ItemStack stack, bool isHeldItem, XUiC_ItemStack stackController)
+        {
+            try
+            {
+                if (ModConfig.Instance == null) return true;
+                if (stack == null || stack.IsEmpty()) return true;
+                if (!RestrictionHelper.IsItemRestricted(stack)) return true;
+                RestrictionFeedback.ShowRestrictionPopupForBlockedItemStack(stack);
+                if (ModConfig.Instance.DebugMode)
+                    ModApi.DebugLog("[LimitByCraftingSkill] ItemActionEat.ExecuteInstantAction BLOCKED");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                if (ModConfig.Instance != null && ModConfig.Instance.DebugMode)
+                    ModApi.DebugLog("[LimitByCraftingSkill] ItemActionEat.ExecuteInstantAction restriction error: " + ex.Message);
+                return true;
+            }
+        }
+
         internal static bool PrefixThrowAway(object __instance, object _actionData, bool _bReleased)
         {
             return PrefixCore(_actionData, _bReleased, requireRelease: true);
