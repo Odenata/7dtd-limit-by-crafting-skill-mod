@@ -1,4 +1,10 @@
-load("@rules_dotnet_framework//dotnet:defs.bzl", "net_library")
+load("@rules_dotnet_framework//dotnet:defs.bzl", "net_library", "net_resource")
+
+net_resource(
+    name = "classname_map_embedded",
+    src = "ClassNameToCraftingSkillMap.xml",
+    dotnet_context_data = "@rules_dotnet_framework//:net_context_data_net472",
+)
 
 net_library(
     name = "LimitByCraftingSkillMod",
@@ -37,6 +43,7 @@ net_library(
     ],
     target_framework = "net472",
     dotnet_context_data = "@rules_dotnet_framework//:net_context_data_net472",
+    resources = [":classname_map_embedded"],
     visibility = ["//visibility:public"],
     deps = [
         "@rules_dotnet_framework//dotnet/stdlib.net/net472:system.xml.dll",

@@ -18,9 +18,9 @@
     <HarvestingTools>true</HarvestingTools>
     <RepairTools>true</RepairTools>
     <SalvageTools>true</SalvageTools>
-    <!-- Ship default: false for Food and Medical. Set true to test consumable restrictions (ItemActionEat + progression per item). -->
-    <Medical>true</Medical>
-    <Food>true</Food>
+    <!-- Release default: false — opt in to consumable restrictions (ItemActionEat + craftingFood / craftingMedical progression). -->
+    <Medical>false</Medical>
+    <Food>false</Food>
     <Seeds>true</Seeds>
     <Traps>true</Traps>
     <Robotics>true</Robotics>
@@ -29,5 +29,5 @@
     <Electrician>true</Electrician>
   </CraftingSkills>
   <!-- If true, writes extra info to the game log (for troubleshooting). Values: true, false -->
-  <DebugMode>true</DebugMode>
+  <DebugMode>false</DebugMode>
 </LimitByCraftingSkillModConfig>

@@ -200,9 +200,9 @@ namespace LimitByCraftingSkillMod.Tests
             public string unlock_level = "5,12,16";
             public ArrayList UnlockDataList = new ArrayList
             {
-                new FakeUnlockEntry { ItemName = "thrownGrenade", UnlockTier = 1 },
+                new FakeUnlockEntry { ItemName = "thrownGrenade", UnlockTier = 0 },
                 new FakeUnlockEntry { ItemName = "thrownDynamite", UnlockTier = 1 },
-                new FakeUnlockEntry { ItemName = "thrownGrenadeContact", UnlockTier = 1 },
+                new FakeUnlockEntry { ItemName = "thrownGrenadeContact", UnlockTier = 2 },
             };
         }
 
@@ -225,7 +225,7 @@ namespace LimitByCraftingSkillMod.Tests
         }
 
         [Fact]
-        public void CompositeExplosivesRow_SameUnlockTier_UsesPositionalUnlockLevelColumn()
+        public void CompositeExplosivesRow_ThreeUnlockTiers_UsesUnlockLevelCsvByStoredTier()
         {
             var prog = new FakeProgressionExplosivesComposite();
             var contact = new ItemClass { Name = "thrownGrenadeContact" };
@@ -292,11 +292,142 @@ namespace LimitByCraftingSkillMod.Tests
             Assert.Equal(1, GameReflection.TestHooks.ResolveTierForUnlockChildForTests(1, cottonUd, 0));
         }
 
-        [Fact]
-        public void ResolveTierForUnlockChild_MultiSibling_UsesPositionalIndexNotUnlockTierField()
+        /// <summary>Same stored <c>UnlockTier</c> on every child → positional columns (explosives-style tests).</summary>
+        private sealed class FakeDisplayThreeDuplicateTiers
         {
-            var ud = new FakeUnlockEntryGameTier { UnlockTier = 99 };
-            Assert.Equal(2, GameReflection.TestHooks.ResolveTierForUnlockChildForTests(3, ud, 1));
+            public ArrayList UnlockDataList = new ArrayList
+            {
+                new FakeUnlockEntryGameTier { UnlockTier = 1 },
+                new FakeUnlockEntryGameTier { UnlockTier = 1 },
+                new FakeUnlockEntryGameTier { UnlockTier = 1 },
+            };
+        }
+
+        [Fact]
+        public void ResolveTierForUnlockChild_MultiSiblingSameUnlockTier_UsesStoredColumnForEachIndex()
+        {
+            var dd = new FakeDisplayThreeDuplicateTiers();
+            var a = (FakeUnlockEntryGameTier)dd.UnlockDataList[0];
+            var b = (FakeUnlockEntryGameTier)dd.UnlockDataList[1];
+            var c = (FakeUnlockEntryGameTier)dd.UnlockDataList[2];
+            // 0-based UnlockTier 1 => column 2; matches vanilla rows where the engine stores the same band for
+            // expanded siblings, not 1,2,3 from list order.
+            Assert.Equal(2, GameReflection.TestHooks.ResolveTierForUnlockChildForTests(dd, 3, a, 0));
+            Assert.Equal(2, GameReflection.TestHooks.ResolveTierForUnlockChildForTests(dd, 3, b, 1));
+            Assert.Equal(2, GameReflection.TestHooks.ResolveTierForUnlockChildForTests(dd, 3, c, 2));
+        }
+
+        /// <summary>Simulates game list order differing from <c>unlock_level</c> column order while <c>UnlockTier</c> stays correct.</summary>
+        private sealed class FakeDisplayFoodTier1DistinctShuffled
+        {
+            public int[] QualityStarts = new[] { 2, 4, 6, 8, 10 };
+            public ArrayList UnlockDataList = new ArrayList
+            {
+                new FakeUnlockEntryGameTier { ItemName = "foodCornOnTheCob", UnlockTier = 0 },
+                new FakeUnlockEntryGameTier { ItemName = "foodGrilledMeat", UnlockTier = 2 },
+                new FakeUnlockEntryGameTier { ItemName = "foodCornBread", UnlockTier = 1 },
+                new FakeUnlockEntryGameTier { ItemName = "foodBoiledMeat", UnlockTier = 3 },
+                new FakeUnlockEntryGameTier { ItemName = "foodBaconAndEggs", UnlockTier = 4 },
+            };
+        }
+
+        [Fact]
+        public void ResolveTierForUnlockChild_MultiSiblingDistinctShuffledTiers_UsesStoredUnlockTier()
+        {
+            var dd = new FakeDisplayFoodTier1DistinctShuffled();
+            var cornUd = (FakeUnlockEntryGameTier)dd.UnlockDataList[2];
+            Assert.Equal(2, GameReflection.TestHooks.ResolveTierForUnlockChildForTests(dd, 5, cornUd, 2));
+        }
+
+        /// <summary>Game reflection often boxes <c>UnlockTier</c> as <c>short</c>/<c>byte</c>, not <c>int</c>.</summary>
+        private sealed class FakeUnlockEntryShortGameTier
+        {
+            public string ItemName;
+            public short UnlockTier;
+        }
+
+        private sealed class FakeDisplayFoodShortShuffled
+        {
+            public int[] QualityStarts = new[] { 2, 4, 6, 8, 10 };
+            public ArrayList UnlockDataList = new ArrayList
+            {
+                new FakeUnlockEntryShortGameTier { ItemName = "foodCornOnTheCob", UnlockTier = 0 },
+                new FakeUnlockEntryShortGameTier { ItemName = "foodGrilledMeat", UnlockTier = 2 },
+                new FakeUnlockEntryShortGameTier { ItemName = "foodCornBread", UnlockTier = 1 },
+                new FakeUnlockEntryShortGameTier { ItemName = "foodBoiledMeat", UnlockTier = 3 },
+                new FakeUnlockEntryShortGameTier { ItemName = "foodBaconAndEggs", UnlockTier = 4 },
+            };
+        }
+
+        [Fact]
+        public void ResolveTierForUnlockChild_MultiSiblingDistinctShuffledShortTiers_CoercesToStoredColumn()
+        {
+            var dd = new FakeDisplayFoodShortShuffled();
+            var cornUd = (FakeUnlockEntryShortGameTier)dd.UnlockDataList[2];
+            Assert.Equal(2, GameReflection.TestHooks.ResolveTierForUnlockChildForTests(dd, 5, cornUd, 2));
+        }
+
+        private sealed class FakePcFoodShuffle
+        {
+            public ArrayList DisplayDataList = new ArrayList { new FakeDisplayFoodTier1DistinctShuffled() };
+        }
+
+        private sealed class FakeProgressionFoodShuffle
+        {
+            public object GetProgressionValue(string name)
+            {
+                if (string.Equals(name, "craftingfood", StringComparison.OrdinalIgnoreCase))
+                    return new FakePv { ProgressionClass = new FakePcFoodShuffle() };
+                return null;
+            }
+        }
+
+        [Fact]
+        public void Food_ShuffledUnlockList_ResolvesRequiredLevelFromUnlockTierNotListIndex()
+        {
+            var prog = new FakeProgressionFoodShuffle();
+            var cornBread = new ItemClass { Name = "foodCornBread" };
+            var iv = new ItemValue { ItemClass = cornBread };
+            Assert.Equal(4, GameReflection.GetRequiredLevelForItemForUnitTest(cornBread, iv, prog));
+        }
+
+        /// <summary>Vanilla T1-1 <c>progression.xml</c>: one <c>unlock_entry</c> with <c>item="foodCornBread,drinkJarGoldenRodTea"</c>.</summary>
+        private sealed class FakeDisplayFoodVanillaCommaInOneEntry
+        {
+            public int[] QualityStarts = new[] { 2, 4, 6, 8, 10 };
+            public ArrayList UnlockDataList = new ArrayList
+            {
+                new FakeUnlockEntryGameTier { ItemName = "foodCornOnTheCob,foodBakedPotato", UnlockTier = 0 },
+                new FakeUnlockEntryGameTier { ItemName = "foodCornBread,drinkJarGoldenRodTea", UnlockTier = 1 },
+                new FakeUnlockEntryGameTier { ItemName = "foodGrilledMeat,drinkJarRedTea", UnlockTier = 2 },
+            };
+        }
+
+        private sealed class FakePcFoodVanillaComma
+        {
+            public ArrayList DisplayDataList = new ArrayList { new FakeDisplayFoodVanillaCommaInOneEntry() };
+        }
+
+        private sealed class FakeProgressionFoodVanillaComma
+        {
+            public object GetProgressionValue(string name)
+            {
+                if (string.Equals(name, "craftingfood", StringComparison.OrdinalIgnoreCase))
+                    return new FakePv { ProgressionClass = new FakePcFoodVanillaComma() };
+                return null;
+            }
+        }
+
+        [Fact]
+        public void Food_CommaSeparatedItemInSingleUnlock_EntryMatchesByToken_ResolvesBand4()
+        {
+            var prog = new FakeProgressionFoodVanillaComma();
+            var cornBread = new ItemClass { Name = "foodCornBread" };
+            var tea = new ItemClass { Name = "drinkJarGoldenRodTea" };
+            var iv1 = new ItemValue { ItemClass = cornBread };
+            var iv2 = new ItemValue { ItemClass = tea };
+            Assert.Equal(4, GameReflection.GetRequiredLevelForItemForUnitTest(cornBread, iv1, prog));
+            Assert.Equal(4, GameReflection.GetRequiredLevelForItemForUnitTest(tea, iv2, prog));
         }
     }
 }

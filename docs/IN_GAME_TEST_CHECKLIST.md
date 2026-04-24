@@ -39,9 +39,15 @@ After deploying the mod (`tools\deploy.ps1`), start 7 Days to Die and verify the
 - [ ] Line 1: "You don't know how to use [item name]".
 - [ ] Line 2: "[Crafting Skill Name] [player level]/[required level]".
 
+## Food and Medical (opt-in; default off in `Config.xml`)
+
+- [ ] Set **`<Food>true</Food>`** and/or **`<Medical>true</Medical>`**, restart, verify eat/drink/meds above your **craftingFood** / **craftingMedical** level are blocked with popup; at-level or below → allowed.
+- [ ] With both **false** (default), consumables behave like **vanilla** (no gating from this mod).
+
 ## Config
 
 - [ ] Disable a skill (e.g. Vehicles) in Config.xml → restart game, verify that skill is no longer restricted.
+- [ ] Confirm **Food** / **Medical** default **false** unless you intend to test consumable gates.
 - [ ] In multiplayer (if applicable), server config is used for restrictions, not client config.
 
 ## Debug

@@ -8,7 +8,7 @@ The player may not equip or use an item if the item's **required level** (for it
 
 - **Source:** Each item has `ItemClass.CraftingSkillGroup` (string) and optionally a quality tier. Quality is exposed as `ItemValue.Quality` (e.g. 1–5). Items without quality are treated as requiring a single tier (e.g. required level 0 or 1 — no restriction, or a minimal level to be validated against the game's progression data).
 - **Derivation:** Required level comes from `ProgressionValue` → `ProgressionClass` → `DisplayDataList`. For each matched `DisplayData` row, the mod reads gates in order: positional **`unlock_level`** CSV (and similar), then **`QualityStarts`**, then inverse **`GetQualityLevel`** for rolled item quality—see [`GATING_AND_RESTRICTIONS.md`](GATING_AND_RESTRICTIONS.md). Matching the item to a row: direct `DisplayData.item` / `ItemName` when set; otherwise scan `UnlockDataList` (or `GetUnlockData(i)` when the list is empty), matching via unlock `item`/`ItemName`, `DisplayData.GetUnlockItem(i)`, or `UnlockData.RecipeList` strings. Armor and some other skills use empty top-level `ItemName` and populate unlocks instead.
-- **No quality tier:** For **Electrician**, **Workstations**, and **HarvestingTools**, inventory items often have no `ItemValue` quality (or quality 0). Those skills use **synthetic tier 1** for progression lookup so placeables (generator, forge) and stone tools still get a non-zero required level when progression matches. Other skills still require real quality.
+- **No quality tier:** For **Electrician**, **Workstations**, **HarvestingTools**, and (when **Food** / **Medical** restrictions are enabled) most consumables, inventory items often have no meaningful `ItemValue` quality. Those skills use **synthetic tier 1** for progression lookup so placeables, tools, and consumable rows still resolve a band from vanilla **DisplayData** when progression matches. Rolled quality still applies where vanilla uses it (e.g. weapons, armor).
 - **Debug:** With `Config.xml` → `DebugMode` true, `GetRequiredLevelForItem` logs `exit=0` with **reason** (`no_map`, `no_quality`, `no_progression_match`, etc.). `no_map` is logged at most once per item name. Optional NDJSON file logging: **`docs/DEBUG_INSTRUMENTATION.md`**.
 
 ## Restriction points
@@ -66,10 +66,15 @@ The exact API for this popup is to be identified in the game API investigation.
 - **Per–crafting-skill toggles:** One toggle per crafting skill (e.g. Armor, HarvestingTools, Workstations, Vehicles). When enabled, restriction applies for that skill; when disabled, items for that skill are not restricted.
 - **Server vs client:** In multiplayer, restrictions must respect the **server's** config, not the client's. Where config is read (server vs client process) and how server authority is enforced is documented here and implemented when the game API for that is clear. Initial implementation can be client-only with a note to add server path later.
 
-## Food and Medicine (optional toggles)
+## Food and Medicine (optional toggles) — **implemented**
 
-- **Release default:** Keep **Food** and **Medical** set to **false** in `Config.xml` so consumables match vanilla unless the player opts in.
-- **When true:** **`ItemActionEat`** is patched on **`ExecuteAction`** (validate on mouse release, like throw) and **`ExecuteInstantAction`** (inventory / UI instant use). Required level is resolved from vanilla **`craftingFood`** / **`craftingMedical`** progression — composite **`display_entry`** rows with **`unlock_level`** per item slot (same style as **Seeds**), not stack **Quality**.
+- **Release default:** **Food** and **Medical** are **false** in `Config.xml` so eat/drink/meds match vanilla use unless the player opts in. Set both to **true** (or only one) to enforce skill gates for mapped consumables in [`ClassNameToCraftingSkillMap.xml`](../src/ClassNameToCraftingSkillMap.xml).
+
+- **Categorization:** Drinks, meals, and similar are mapped to **`Food`**; bandages, kits, drugs, etc. to **`Medical`**. The map drives **`GetCraftingSkillGroup`** and the **`Config.xml`** flag via `ToProgressionOrConfigName` (no rename).
+
+- **Enforcement surface:** When enabled, the mod patches **`ItemActionEat.ExecuteAction`** (check on **mouse release** so hold-to-eat does not spam) and **`ItemActionEat.ExecuteInstantAction`** (context / UI instant use). The same path covers most food, drinks, and medical consumables. Shared check: **`RestrictionHelper.IsItemRestricted`**; popup: **`RestrictionFeedback`**.
+
+- **Required level (progression):** Not stack **quality** — vanilla uses **`craftingFood`** / **`craftingMedical`** with **`display_entry` / `unlock_entry`** and comma-separated `unlock_level` band lists. Important details: XML often has **`item="a,b"`** in one `unlock_entry`; the mod must match **comma tokens** in `UnlockData.ItemName` and resolve the **`UnlockTier` → `QualityStarts` / `unlock_level` column** per **matched** child, not by list index alone. Reflection may box **`UnlockTier`** as `byte`/`short`/etc. Full maintenance notes: **[`GATING_AND_RESTRICTIONS.md`](GATING_AND_RESTRICTIONS.md)** §2.2.4 and §3.6.
 
 ## Roadmap / known gaps
 

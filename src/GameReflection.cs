@@ -1241,6 +1241,23 @@ namespace LimitByCraftingSkillMod
             return false;
         }
 
+        /// <summary>
+        /// Vanilla <c>progression.xml</c> often uses <c>item="a,b,c"</c> in one <c>unlock_entry</c>, stored as a single
+        /// <c>UnlockData</c> with a comma-separated <c>ItemName</c> (not three list entries).
+        /// </summary>
+        private static bool UnlockDataItemNameTokenListContains(string commaSeparatedItemList, string itemName)
+        {
+            if (string.IsNullOrEmpty(itemName) || string.IsNullOrEmpty(commaSeparatedItemList)) return false;
+            if (commaSeparatedItemList.IndexOf(',') < 0) return false;
+            foreach (var p in commaSeparatedItemList.Split(','))
+            {
+                var t = p.Trim();
+                if (t.Length == 0) continue;
+                if (string.Equals(t, itemName, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+
         private static bool UnlockEntryMatchesMapKey(object unlockData, string mapKeyName)
         {
             if (unlockData == null || string.IsNullOrEmpty(mapKeyName)) return false;
@@ -1250,6 +1267,7 @@ namespace LimitByCraftingSkillMod
             {
                 var name = itemNameField.GetValue(unlockData) as string;
                 if (string.Equals(name, mapKeyName, StringComparison.OrdinalIgnoreCase)) return true;
+                if (name != null && UnlockDataItemNameTokenListContains(name, mapKeyName)) return true;
             }
             var itemField = t.GetField("item", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             var item = itemField?.GetValue(unlockData);
@@ -1465,9 +1483,56 @@ namespace LimitByCraftingSkillMod
         }
 
         /// <summary>
-        /// Composite crafting_skill display_entry rows (e.g. explosives T2/T3) store multiple unlock_entry children.
-        /// Tier index (1-based) must match the child's slot so QualityStarts/unlock_level maps to the correct gate.
+        /// Reflection often boxes <see cref="UnlockData.UnlockTier"/> as <c>byte</c>/<c>short</c>/<c>uint</c>, not <c>int</c>.
+        /// Treat any reasonable non-negative integral value as the stored 0-based column index.
         /// </summary>
+        private static bool TryCoerceNonNegativeInt32(object v, out int n)
+        {
+            n = 0;
+            if (v == null) return false;
+            try
+            {
+                switch (v)
+                {
+                    case int i:
+                        n = i;
+                        break;
+                    case uint ui:
+                        if (ui > int.MaxValue) return false;
+                        n = (int)ui;
+                        break;
+                    case long l:
+                        if (l < 0 || l > int.MaxValue) return false;
+                        n = (int)l;
+                        break;
+                    case ulong ul:
+                        if (ul > int.MaxValue) return false;
+                        n = (int)ul;
+                        break;
+                    case byte b:
+                        n = b;
+                        break;
+                    case sbyte sb:
+                        n = sb;
+                        break;
+                    case short s:
+                        n = s;
+                        break;
+                    case ushort us:
+                        n = us;
+                        break;
+                    default:
+                        n = Convert.ToInt32(v, CultureInfo.InvariantCulture);
+                        break;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+            return n >= 0;
+        }
+
         /// <summary>
         /// Vanilla <c>ProgressionFromXml</c> passes <c>unlock_tier</c> from XML minus one into <c>AddUnlockData</c>, so
         /// <c>UnlockData.UnlockTier</c> is a <b>0-based</b> column index into the row's <c>QualityStarts</c> / <c>unlock_level</c>
@@ -1489,12 +1554,34 @@ namespace LimitByCraftingSkillMod
                         var tp = t.GetProperty("UnlockTier", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                         if (tp != null) v = tp.GetValue(unlockData, null);
                     }
-                    if (v is int ut && ut >= 0)
+                    if (TryCoerceNonNegativeInt32(v, out var ut))
                         return ut + 1;
                 }
                 catch { }
             }
             return unlockIndex0Based + 1;
+        }
+
+        /// <summary>Raw <c>UnlockTier</c> from unlock data (XML <c>unlock_tier</c> minus one), or -1 if missing.</summary>
+        private static int TryGetStoredUnlockTierZeroBased(object unlockData)
+        {
+            if (unlockData == null) return -1;
+            try
+            {
+                var t = unlockData.GetType();
+                object v = null;
+                var tf = t.GetField("UnlockTier", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (tf != null) v = tf.GetValue(unlockData);
+                if (v == null)
+                {
+                    var tp = t.GetProperty("UnlockTier", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (tp != null) v = tp.GetValue(unlockData, null);
+                }
+                if (TryCoerceNonNegativeInt32(v, out var ut))
+                    return ut;
+            }
+            catch { }
+            return -1;
         }
 
         private static int CountUnlockChildren(object displayData)
@@ -1524,18 +1611,22 @@ namespace LimitByCraftingSkillMod
         }
 
         /// <summary>
-        /// Several unlock_entry children can share the same UnlockTier while <c>unlock_level</c> on the row is positional.
+        /// Resolves the 1-based <c>unlock_level</c> / <c>QualityStarts</c> column for a matched unlock child.
+        /// Multi-child: use the matched child's stored <c>UnlockTier</c> whenever it is readable (one XML <c>unlock_entry</c>
+        /// with <c>item="a,b"</c> expands to multiple in-memory children that <b>share</b> a tier; list index would misalign).
+        /// If <c>UnlockTier</c> is missing, fall back to 1-based list position. Single-child: <see cref="ReadUnlockTierForQualityStarts"/>.
         /// </summary>
-        private static int ResolveTierForUnlockChild(int siblingCount, object unlockData, int unlockIndex0Based)
+        private static int ResolveTierForUnlockChild(object displayData, int siblingCount, object unlockData, int unlockIndex0Based)
         {
-            if (siblingCount > 1)
-                return unlockIndex0Based + 1;
-            return ReadUnlockTierForQualityStarts(unlockData, unlockIndex0Based);
+            if (siblingCount <= 1)
+                return ReadUnlockTierForQualityStarts(unlockData, unlockIndex0Based);
+            if (TryGetStoredUnlockTierZeroBased(unlockData) >= 0)
+                return ReadUnlockTierForQualityStarts(unlockData, unlockIndex0Based);
+            return unlockIndex0Based + 1;
         }
 
         /// <summary>
-        /// Composite rows (several unlock children, different items) use unlock slot index for positional unlock_level.
-        /// Single-item rows use <paramref name="itemQualityFromStack"/> (ItemValue.Quality or synthetic 1) so quality bands gate correctly.
+        /// Composite rows (several unlock children) use the resolved unlock column; single-item rows blend with stack quality.
         /// </summary>
         private static int ResolveDisplayDataQualityOrUnlockColumn(object displayData, int unlockTier1Based, int itemQualityFromStack)
         {
@@ -1559,7 +1650,7 @@ namespace LimitByCraftingSkillMod
                 {
                     var ud = unlockList[u];
                     if (!UnlockEntryMatchesCraftItem(displayData, u, ud, itemClass, itemNameForMatch)) continue;
-                    return ResolveTierForUnlockChild(siblingCount, ud, u);
+                    return ResolveTierForUnlockChild(displayData, siblingCount, ud, u);
                 }
                 return -1;
             }
@@ -1572,7 +1663,7 @@ namespace LimitByCraftingSkillMod
                     try { ud = mGetUd.Invoke(displayData, new object[] { u }); } catch { break; }
                     if (ud == null) break;
                     if (!UnlockEntryMatchesCraftItem(displayData, u, ud, itemClass, itemNameForMatch)) continue;
-                    return ResolveTierForUnlockChild(siblingCount, ud, u);
+                    return ResolveTierForUnlockChild(displayData, siblingCount, ud, u);
                 }
             }
             return -1;
@@ -1835,6 +1926,7 @@ namespace LimitByCraftingSkillMod
             {
                 var name = itemNameField.GetValue(unlockData) as string;
                 if (string.Equals(name, itemNameForMatch, StringComparison.OrdinalIgnoreCase)) return true;
+                if (name != null && UnlockDataItemNameTokenListContains(name, itemNameForMatch)) return true;
             }
             if (!string.IsNullOrEmpty(itemNameForMatch))
             {
@@ -1961,10 +2053,16 @@ namespace LimitByCraftingSkillMod
                 return GetRequiredLevelFromDisplayData(displayData, qualityOrTier);
             }
 
-            /// <summary>Exposes <see cref="ResolveTierForUnlockChild"/> for unit tests (vanilla UnlockTier is 0-based).</summary>
+            /// <summary>Exposes <see cref="ResolveTierForUnlockChild"/> with no <paramref name="displayData"/> (positional multi-child only).</summary>
             public static int ResolveTierForUnlockChildForTests(int siblingCount, object unlockData, int unlockIndex0Based)
             {
-                return ResolveTierForUnlockChild(siblingCount, unlockData, unlockIndex0Based);
+                return ResolveTierForUnlockChild(null, siblingCount, unlockData, unlockIndex0Based);
+            }
+
+            /// <summary>Exposes <see cref="ResolveTierForUnlockChild"/> with full <paramref name="displayData"/> for distinct-tier tests.</summary>
+            public static int ResolveTierForUnlockChildForTests(object displayData, int siblingCount, object unlockData, int unlockIndex0Based)
+            {
+                return ResolveTierForUnlockChild(displayData, siblingCount, unlockData, unlockIndex0Based);
             }
         }
     }

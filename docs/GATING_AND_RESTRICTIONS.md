@@ -53,8 +53,8 @@ Rough categories of data inside a `DisplayData` row:
    For weapons, tools, and armor, the mod finds the smallest crafting level `L` such that **`GetQualityLevel(L) >=`** stack quality (inverse lookup). When `Quality` is `0` / unrated, the lookup uses **tier `1`** as a minimum so progression still resolves.
 
 4. **Composite rows with several unlock children**  
-   One `DisplayData` row can list **multiple different items** (e.g. explosives bundles) via **`UnlockDataList`** / `GetUnlockData(i)`. Each child has an implicit **slot index** used with positional `unlock_level` CSV. Here the important index is the **unlock slot / composite column**, not the stack’s quality. The resolver uses **child count** to decide whether to treat the argument as “composite unlock column” vs “stack quality tier” (see `ResolveDisplayDataQualityOrUnlockColumn` in `GameReflection.cs`).  
-   Vanilla **`ProgressionFromXml`** stores **`unlock_tier` from XML minus one** on each **`UnlockData.UnlockTier`** (a **0-based** column index into that row’s **`QualityStarts`** / `unlock_level` list). When the resolver takes the **single-child** branch (`ResolveTierForUnlockChild` with `siblingCount == 1`), **`ReadUnlockTierForQualityStarts`** maps that field to a **1-based** column for `QualityStarts` lookup (`UnlockTier + 1`). Mis-handling `0`-based `4` as if it were already 1-based made **plantedAloe1** (fifth column, skill **10**) resolve as column **4** (skill **8**) or worse after falling through to **`GetQualityLevel`** heuristics.
+   One `DisplayData` row can list **multiple different items** (e.g. **craftingFood** bands) via **`UnlockDataList`** / `GetUnlockData(i)`. The **unlock_level** column is **1-based** into **`QualityStarts`**. The resolver uses **child count** to decide whether to treat the argument as “composite unlock column” vs “stack quality tier” (see `ResolveDisplayDataQualityOrUnlockColumn` in `GameReflection.cs`).  
+   Vanilla **`progression.xml`** often uses **one** `<unlock_entry item="a,b" unlock_tier="N"/>` (comma-separated **item** list). The game may still represent that as a **single** `UnlockData` with a **comma-separated `ItemName`**, or expand it into **several** children that **share** the same **`UnlockTier`**. The mod **matches** map keys against **each comma token** in `ItemName`, and for **multi-child** rows **`ResolveTierForUnlockChild`** uses the **matched** child’s stored **`UnlockTier`** (plus the usual **0-based → 1-based** column mapping) whenever that value is readable — **not** list index **`u + 1`**, which would mis-gate when the in-memory list order and column order disagree. If **`UnlockTier`** is missing, the mod falls back to **1-based** list position. **`UnlockTier`** may be boxed as **`byte`/`short`/`uint`**; the reader coerces any non-negative integral. Single-child rows use **`ReadUnlockTierForQualityStarts`** as for **plantedAloe1**.
 
 5. **Synthetic tier for “no quality” skills**  
    Placeables and some skills (`Electrician`, `Workstations`, `HarvestingTools`, `Explosives`, `Seeds`, `Food`, `Medical` in `UsesSyntheticQualityTierForRequiredLevel`) often have stacks with **no meaningful `ItemValue.Quality`**. The mod still runs the progression lookup using **minimum tier `1`** so forges, mines, etc. get a non-zero gate when the row matches.
@@ -121,13 +121,22 @@ Older **prefix-on-activate** workstation approaches are **not** used (they cause
 
 Inventory / hotbar restrictions still apply to vehicle **items** in bags; driving is a separate gate.
 
-### 3.6 Throw, place block, rockets (held item actions)
+### 3.6 Food and Medical (consumables, optional in `Config.xml`)
+
+| Player action | What we hook | Implementation |
+|----------------|--------------|----------------|
+| **Eat / drink / use med** (held, primary) | `ItemActionEat.ExecuteAction` | [`ItemActionExecuteRestrictionPatch`](../src/ItemActionExecuteRestrictionPatch.cs) — validate on **mouse release** (same idea as throw). |
+| **Instant use** (inventory / UI) | `ItemActionEat.ExecuteInstantAction` | Same class — **prefix**; blocks when `RestrictionHelper.IsItemRestricted` and shows popup. |
+
+**Off by default:** `Config.xml` → **`<Food>false</Food>`** and **`<Medical>false</Medical>`** in shipped defaults. When enabled, items in [`ClassNameToCraftingSkillMap.xml`](../src/ClassNameToCraftingSkillMap.xml) for those skills use **required level** from **`craftingFood`** / **`craftingMedical`** (see **§2.2.4** for composite `unlock_entry` / comma `item=` / per-child `UnlockTier`). In-inventory **red label** still uses `RestrictionHelper` when the toggles are on.
+
+### 3.7 Throw, place block, rockets (held item actions)
 
 | Player action | What we hook | Implementation |
 |----------------|--------------|----------------|
 | **Throw away / thrown weapon / place as block / projectile** | `ItemAction*.Execute` on concrete game types | [`ItemActionExecuteRestrictionPatch`](../src/ItemActionExecuteRestrictionPatch.cs) (several prefixes; see `ModApi.ApplyItemActionExecuteRestrictionPatchesFromGameAssembly`). |
 
-### 3.7 Visual feedback (not a hard block)
+### 3.8 Visual feedback (not a hard block)
 
 | Surface | Behavior | Implementation |
 |---------|----------|----------------|
@@ -135,7 +144,7 @@ Inventory / hotbar restrictions still apply to vehicle **items** in bags; drivin
 | **Tooltips** | Tint / text hints | [`PopupToolTipDisplayTooltipTextPatch`](../src/PopupToolTipDisplayTooltipTextPatch.cs), [`GameManagerShowTooltipTintPatch`](../src/GameManagerShowTooltipTintPatch.cs), etc. |
 | **Popups when blocked** | “You don’t know how to use …” style | [`RestrictionFeedback`](../src/RestrictionFeedback.cs). |
 
-### 3.8 Other patches
+### 3.9 Other patches
 
 - [`ProgressionLevelUpPatch`](../src/ProgressionLevelUpPatch.cs): marks restriction UI dirty after crafting skill changes.  
 - [`PatchAll`](../src/ModApi.cs) also picks up `[HarmonyPatch]` types in the mod assembly (e.g. `HotbarRestrictionPatch`, `EquipmentRestrictionPatch`) in addition to the **explicit** `Apply*` game-assembly patches.
