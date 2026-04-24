@@ -1466,15 +1466,29 @@ namespace LimitByCraftingSkillMod
         /// Composite crafting_skill display_entry rows (e.g. explosives T2/T3) store multiple unlock_entry children.
         /// Tier index (1-based) must match the child's slot so QualityStarts/unlock_level maps to the correct gate.
         /// </summary>
+        /// <summary>
+        /// Vanilla <c>ProgressionFromXml</c> passes <c>unlock_tier</c> from XML minus one into <c>AddUnlockData</c>, so
+        /// <c>UnlockData.UnlockTier</c> is a <b>0-based</b> column index into the row's <c>QualityStarts</c> / <c>unlock_level</c>
+        /// list. The mod's progression lookup uses <b>1-based</b> column indices elsewhere — convert with <c>+ 1</c>.
+        /// When the field is absent or unreadable, fall back to unlock list position (1-based).
+        /// </summary>
         private static int ReadUnlockTierForQualityStarts(object unlockData, int unlockIndex0Based)
         {
             if (unlockData != null)
             {
                 try
                 {
-                    var tf = unlockData.GetType().GetField("UnlockTier", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                    if (tf != null && tf.GetValue(unlockData) is int ut && ut >= 1)
-                        return ut;
+                    var t = unlockData.GetType();
+                    object v = null;
+                    var tf = t.GetField("UnlockTier", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (tf != null) v = tf.GetValue(unlockData);
+                    if (v == null)
+                    {
+                        var tp = t.GetProperty("UnlockTier", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                        if (tp != null) v = tp.GetValue(unlockData, null);
+                    }
+                    if (v is int ut && ut >= 0)
+                        return ut + 1;
                 }
                 catch { }
             }
@@ -1891,21 +1905,11 @@ namespace LimitByCraftingSkillMod
             if (displayData == null || qualityOrItemQuality <= 0) return 0;
             var ddType = displayData.GetType();
 
-            // Prefer inverse lookup from rolled item quality (1–600): min crafting level L with GetQualityLevel(L) >= Q.
-            // Direct QualityStarts[Q-1] only matches when Q is a small tier index (tests / rows without GetQualityLevel).
-            var getQualityLevelMethod = ddType.GetMethod("GetQualityLevel", new[] { typeof(int) });
-            if (getQualityLevelMethod != null)
-            {
-                for (int level = 1; level <= 300; level++)
-                {
-                    try
-                    {
-                        var q = getQualityLevelMethod.Invoke(displayData, new object[] { level });
-                        if (q is int qual && qual >= qualityOrItemQuality) return level;
-                    }
-                    catch { break; }
-                }
-            }
+            // 1) Positional unlock_level / UnlockLevel columns (composite Seeds, explosives rows, etc.). The argument is
+            // often a 1-based unlock slot index, not rolled item quality — do this before GetQualityLevel or small values
+            // like tier 5 wrongly match GetQualityLevel(L) >= 5 at low L.
+            var csvLevel = TryGetRequiredLevelFromUnlockLevelField(displayData, qualityOrItemQuality);
+            if (csvLevel >= 0) return csvLevel;
 
             var qualityStartsField = ddType.GetField("QualityStarts", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             if (qualityStartsField != null)
@@ -1919,8 +1923,20 @@ namespace LimitByCraftingSkillMod
                 }
             }
 
-            var csvLevel = TryGetRequiredLevelFromUnlockLevelField(displayData, qualityOrItemQuality);
-            if (csvLevel >= 0) return csvLevel;
+            // 2) Rolled item quality (1–600): min crafting level L with GetQualityLevel(L) >= Q.
+            var getQualityLevelMethod = ddType.GetMethod("GetQualityLevel", new[] { typeof(int) });
+            if (getQualityLevelMethod != null)
+            {
+                for (int level = 1; level <= 300; level++)
+                {
+                    try
+                    {
+                        var q = getQualityLevelMethod.Invoke(displayData, new object[] { level });
+                        if (q is int qual && qual >= qualityOrItemQuality) return level;
+                    }
+                    catch { break; }
+                }
+            }
 
             return 0;
         }
@@ -1941,6 +1957,12 @@ namespace LimitByCraftingSkillMod
             public static int GetRequiredLevelFromDisplayDataForTests(object displayData, int qualityOrTier)
             {
                 return GetRequiredLevelFromDisplayData(displayData, qualityOrTier);
+            }
+
+            /// <summary>Exposes <see cref="ResolveTierForUnlockChild"/> for unit tests (vanilla UnlockTier is 0-based).</summary>
+            public static int ResolveTierForUnlockChildForTests(int siblingCount, object unlockData, int unlockIndex0Based)
+            {
+                return ResolveTierForUnlockChild(siblingCount, unlockData, unlockIndex0Based);
             }
         }
     }

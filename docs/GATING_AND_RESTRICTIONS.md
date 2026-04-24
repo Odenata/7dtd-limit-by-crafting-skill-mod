@@ -43,17 +43,20 @@ For a mapped skill group, [`GameReflection.GetRequiredLevelForItem`](../src/Game
 
 Rough categories of data inside a `DisplayData` row:
 
-1. **Rolled item quality (`ItemValue.Quality`)**  
-   Many weapons, tools, and armor use the numeric **quality** on the stack (wide range in vanilla). The mod prefers **`DisplayData.GetQualityLevel(int craftingSkillLevel)`**: smallest crafting level `L` such that the returned quality is **≥** the stack’s quality. That matches the idea “you need at least this skill level to **have** this quality tier.”  
-   When `Quality` is still `0` / unrated on the client, the lookup uses **tier `1`** as a minimum so progression still returns a row instead of bailing out.
+1. **Positional `unlock_level` CSV (parsed into `QualityStarts`)**  
+   Many `display_entry` rows (including **craftingSeeds** tier bands) use a comma-separated **`unlock_level`** in **progression.xml**; vanilla loads it into **`DisplayData.QualityStarts`**. Unit tests may use a fake **`unlock_level`** string field. **`GetRequiredLevelFromDisplayData`** reads those gates **before** `GetQualityLevel`, because composite rows pass a **small slot index** (1–5) that must not be interpreted as rolled item quality (`GetQualityLevel(L) >= 5` would otherwise return a far too low level).
 
-2. **Per-tier columns (`QualityStarts`, `unlock_level`)**  
-   Some rows store an array **`QualityStarts`** and/or a comma-separated **`unlock_level`** string. Those columns are indexed by **tier index** (1-based slot in that row), not by raw 1–600 quality. The code only uses direct `QualityStarts[tier-1]` indexing when **`GetQualityLevel` is not available** (e.g. tests) or as a fallback—see [`GAME_API_NOTES.md`](GAME_API_NOTES.md).
+2. **`QualityStarts` array index**  
+   Used when the argument is a 1-based tier index and the array has a positive gate at that index (tests and some rows).
 
-3. **Composite rows with several unlock children**  
-   One `DisplayData` row can list **multiple different items** (e.g. explosives bundles) via **`UnlockDataList`** / `GetUnlockData(i)`. Each child has an implicit **slot index** used with positional `unlock_level` CSV. Here the important index is the **unlock slot / composite column**, not the stack’s quality. The resolver uses **child count** to decide whether to treat the argument as “composite unlock column” vs “stack quality tier” (see `ResolveDisplayDataQualityOrUnlockColumn` in `GameReflection.cs`).
+3. **Rolled item quality (`ItemValue.Quality`) via `GetQualityLevel`**  
+   For weapons, tools, and armor, the mod finds the smallest crafting level `L` such that **`GetQualityLevel(L) >=`** stack quality (inverse lookup). When `Quality` is `0` / unrated, the lookup uses **tier `1`** as a minimum so progression still resolves.
 
-4. **Synthetic tier for “no quality” skills**  
+4. **Composite rows with several unlock children**  
+   One `DisplayData` row can list **multiple different items** (e.g. explosives bundles) via **`UnlockDataList`** / `GetUnlockData(i)`. Each child has an implicit **slot index** used with positional `unlock_level` CSV. Here the important index is the **unlock slot / composite column**, not the stack’s quality. The resolver uses **child count** to decide whether to treat the argument as “composite unlock column” vs “stack quality tier” (see `ResolveDisplayDataQualityOrUnlockColumn` in `GameReflection.cs`).  
+   Vanilla **`ProgressionFromXml`** stores **`unlock_tier` from XML minus one** on each **`UnlockData.UnlockTier`** (a **0-based** column index into that row’s **`QualityStarts`** / `unlock_level` list). When the resolver takes the **single-child** branch (`ResolveTierForUnlockChild` with `siblingCount == 1`), **`ReadUnlockTierForQualityStarts`** maps that field to a **1-based** column for `QualityStarts` lookup (`UnlockTier + 1`). Mis-handling `0`-based `4` as if it were already 1-based made **plantedAloe1** (fifth column, skill **10**) resolve as column **4** (skill **8**) or worse after falling through to **`GetQualityLevel`** heuristics.
+
+5. **Synthetic tier for “no quality” skills**  
    Placeables and some skills (`Electrician`, `Workstations`, `HarvestingTools`, `Explosives`, `Seeds` in `UsesSyntheticQualityTierForRequiredLevel`) often have stacks with **no meaningful `ItemValue.Quality`**. The mod still runs the progression lookup using **minimum tier `1`** so forges, mines, etc. get a non-zero gate when the row matches.
 
 ### 2.3 Map key resolution (`GetItemClassNameForMap`)

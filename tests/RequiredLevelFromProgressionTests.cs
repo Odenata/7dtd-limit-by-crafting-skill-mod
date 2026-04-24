@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using Xunit;
 
@@ -172,6 +173,20 @@ namespace LimitByCraftingSkillMod.Tests
             Assert.Equal(10, GameReflection.TestHooks.GetRequiredLevelFromDisplayDataForTests(dd, 3));
         }
 
+        /// <summary>Matches vanilla <c>craftingSeeds</c> tier-1 <c>display_entry</c> unlock_level shape.</summary>
+        private sealed class FakeDisplayDataVanillaSeedsTier1
+        {
+            public string unlock_level = "2,4,6,8,10";
+        }
+
+        [Fact]
+        public void GetRequiredLevelFromDisplayData_VanillaSeedsUnlockCsv_UsesUnlockColumnNotSmallQualityHeuristic()
+        {
+            var dd = new FakeDisplayDataVanillaSeedsTier1();
+            Assert.Equal(2, GameReflection.TestHooks.GetRequiredLevelFromDisplayDataForTests(dd, 1));
+            Assert.Equal(10, GameReflection.TestHooks.GetRequiredLevelFromDisplayDataForTests(dd, 5));
+        }
+
         private sealed class FakeUnlockEntry
         {
             public string ItemName;
@@ -221,6 +236,67 @@ namespace LimitByCraftingSkillMod.Tests
 
             Assert.Equal(16, lvlContact);
             Assert.Equal(5, lvlBase);
+        }
+
+        /// <summary>Matches in-game <c>UnlockData.UnlockTier</c> after XML <c>unlock_tier</c> minus one.</summary>
+        private sealed class FakeUnlockEntryGameTier
+        {
+            public string ItemName;
+            public int UnlockTier;
+        }
+
+        /// <summary>
+        /// Shape where <c>UnlockDataList.Count</c> is 1 but <c>QualityStarts</c> still has the full vanilla row — forces
+        /// <see cref="GameReflection"/> through the single-child branch (same bug class as mis-counted lists).
+        /// </summary>
+        private sealed class FakeDisplayDataSeedsSingleChildList
+        {
+            public int[] QualityStarts = new[] { 2, 4, 6, 8, 10 };
+            public ArrayList UnlockDataList = new ArrayList
+            {
+                new FakeUnlockEntryGameTier { ItemName = "plantedAloe1", UnlockTier = 4 },
+            };
+        }
+
+        private sealed class FakePcSeedsSingleChildList
+        {
+            public ArrayList DisplayDataList = new ArrayList { new FakeDisplayDataSeedsSingleChildList() };
+        }
+
+        private sealed class FakeProgressionSeedsSingleChildList
+        {
+            public object GetProgressionValue(string name)
+            {
+                if (string.Equals(name, "craftingseeds", StringComparison.OrdinalIgnoreCase))
+                    return new FakePv { ProgressionClass = new FakePcSeedsSingleChildList() };
+                return null;
+            }
+        }
+
+        [Fact]
+        public void Seeds_SingleUnlockListEntry_GameStyleZeroBasedUnlockTier_UsesFifthQualityStartsBand()
+        {
+            var prog = new FakeProgressionSeedsSingleChildList();
+            var aloe = new ItemClass { Name = "plantedAloe1" };
+            var iv = new ItemValue { ItemClass = aloe };
+            var level = GameReflection.GetRequiredLevelForItemForUnitTest(aloe, iv, prog);
+            Assert.Equal(10, level);
+        }
+
+        [Fact]
+        public void ResolveTierForUnlockChild_SiblingCountOne_MapsGameZeroBasedUnlockTierToOneBasedColumn()
+        {
+            var aloeUd = new FakeUnlockEntryGameTier { UnlockTier = 4 };
+            Assert.Equal(5, GameReflection.TestHooks.ResolveTierForUnlockChildForTests(1, aloeUd, 0));
+            var cottonUd = new FakeUnlockEntryGameTier { UnlockTier = 0 };
+            Assert.Equal(1, GameReflection.TestHooks.ResolveTierForUnlockChildForTests(1, cottonUd, 0));
+        }
+
+        [Fact]
+        public void ResolveTierForUnlockChild_MultiSibling_UsesPositionalIndexNotUnlockTierField()
+        {
+            var ud = new FakeUnlockEntryGameTier { UnlockTier = 99 };
+            Assert.Equal(2, GameReflection.TestHooks.ResolveTierForUnlockChildForTests(3, ud, 1));
         }
     }
 }
