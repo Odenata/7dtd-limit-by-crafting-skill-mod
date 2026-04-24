@@ -1,4 +1,4 @@
-# LimitByCraftingSkillMod — build outputs and local noise (maintainer notes: docs/TODO.md §4)
+# LimitByCraftingSkillMod — build outputs and local noise (maintainer roadmap: docs/DESIGN.md)
 
 # Bazel (root symlinks + full nested workspaces named bazel-*)
 /bazel-bin

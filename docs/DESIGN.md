@@ -68,11 +68,11 @@ The exact API for this popup is to be identified in the game API investigation.
 
 ## Out of scope (by design)
 
-- **Food and Medicine:** Not implemented. Those items are typically used from **any** inventory slot; blocking would need new hooks on consume/use, not just hotbar/equip. See **`docs/TODO.md`** for maintainer notes.
+- **Food and Medicine:** Not implemented. Those items are typically used from **any** inventory slot; blocking would need new hooks on consume/use, not just hotbar/equip.
 
 ## Roadmap / known gaps
 
-See **`docs/TODO.md`** (shift-click containers, vehicle/workstation non-inventory paths, name extraction, `.gitignore`, etc.).
+Shift-click containers, vehicle/workstation non-inventory paths, name extraction, `.gitignore` hygiene, and related gaps; API/hook table in **`docs/GAME_API_NOTES.md`**.
 
 ## Optional (document only, no implementation)
 

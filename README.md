@@ -1,6 +1,6 @@
 # Limit by Crafting Skill Mod
 
-Restricts equipping and using items to the player's crafting skill level for that item type. See [LootProgressionByCraftingSkillModIdea.md](LootProgressionByCraftingSkillModIdea.md) and [docs/DESIGN.md](docs/DESIGN.md) for design. **Open work:** [docs/TODO.md](docs/TODO.md). **Map maintenance:** [tools/README_MAP_GENERATOR.md](tools/README_MAP_GENERATOR.md).
+Restricts equipping and using items to the player's crafting skill level for that item type. See [LootProgressionByCraftingSkillModIdea.md](LootProgressionByCraftingSkillModIdea.md) and [docs/DESIGN.md](docs/DESIGN.md) for design. **Open work / roadmap:** [docs/DESIGN.md](docs/DESIGN.md#roadmap--known-gaps) · [docs/TODO.md](docs/TODO.md). **Map maintenance:** [tools/README_MAP_GENERATOR.md](tools/README_MAP_GENERATOR.md).
 
 ## Build
 
