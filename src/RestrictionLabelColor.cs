@@ -26,6 +26,9 @@ namespace LimitByCraftingSkillMod
 
         private static readonly UnityEngine.Color RedColor = new UnityEngine.Color(1f, 0f, 0f, 1f);
 
+        /// <summary>Restore item name labels when a slot is empty or no longer restricted (swap/move leaves stale red).</summary>
+        private static readonly UnityEngine.Color InventoryLabelDefaultColor = UnityEngine.Color.white;
+
         /// <summary>
         /// Applies restriction coloring to a grid: for each slot with an item, if restricted set label red.
         /// Detects grid by base type (XUiC_ItemStackGrid / XUiC_EquipmentStackGrid) so all subclasses (Backpack, Toolbelt, PartList, VehicleContainer, WorkstationGrid, etc.) are covered.
@@ -56,12 +59,18 @@ namespace LimitByCraftingSkillMod
                         foreach (var ctrl in controllers)
                         {
                             if (ctrl == null) continue;
-                            var stack = GetItemStackFromController(ctrl);
-                            if (stack == null || stack.IsEmpty()) continue;
-                            if (!RestrictionHelper.IsItemRestricted(stack)) continue;
                             var go = GetViewGameObject(ctrl);
-                            if (go != null)
-                                SetLabelColorOnEntry(go, (UnityEngine.Color?)RedColor);
+                            if (go == null) continue;
+                            var stack = GetItemStackFromController(ctrl);
+                            if (stack == null || stack.IsEmpty())
+                            {
+                                SetLabelColorOnEntry(go, InventoryLabelDefaultColor);
+                                continue;
+                            }
+                            if (RestrictionHelper.IsItemRestricted(stack))
+                                SetLabelColorOnEntry(go, RedColor);
+                            else
+                                SetLabelColorOnEntry(go, InventoryLabelDefaultColor);
                         }
                     }
                     return;
@@ -129,13 +138,29 @@ namespace LimitByCraftingSkillMod
                                     }
                                 }
                             }
-                            if (stack == null || stack.IsEmpty()) continue;
-                            if (!RestrictionHelper.IsItemRestricted(stack)) continue;
-                            if (TrySetColorOnLabelView(ctrl, RedColor))
+                            if (stack == null || stack.IsEmpty())
+                            {
+                                TrySetColorOnLabelView(ctrl, InventoryLabelDefaultColor);
+                                var goEmpty = GetViewGameObject(ctrl);
+                                if (goEmpty != null)
+                                    SetLabelColorOnEntry(goEmpty, InventoryLabelDefaultColor);
                                 continue;
-                            var go = GetViewGameObject(ctrl);
-                            if (go != null)
-                                SetLabelColorOnEntry(go, (UnityEngine.Color?)RedColor);
+                            }
+                            if (RestrictionHelper.IsItemRestricted(stack))
+                            {
+                                if (TrySetColorOnLabelView(ctrl, RedColor))
+                                    continue;
+                                var go = GetViewGameObject(ctrl);
+                                if (go != null)
+                                    SetLabelColorOnEntry(go, RedColor);
+                            }
+                            else
+                            {
+                                TrySetColorOnLabelView(ctrl, InventoryLabelDefaultColor);
+                                var go = GetViewGameObject(ctrl);
+                                if (go != null)
+                                    SetLabelColorOnEntry(go, InventoryLabelDefaultColor);
+                            }
                         }
                     }
                 }
