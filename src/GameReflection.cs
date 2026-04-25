@@ -272,8 +272,8 @@ namespace LimitByCraftingSkillMod
             if (string.IsNullOrWhiteSpace(canonical)) return null;
             try
             {
-                var quickListField = progression.GetType().GetField("ProgressionValueQuickList", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                var list = quickListField?.GetValue(progression) as IList;
+                var listObj = TryGetInstanceFieldOrProperty(progression, "ProgressionValueQuickList");
+                var list = listObj as IList;
                 if (list == null) return null;
                 for (var i = 0; i < list.Count; i++)
                 {
@@ -301,8 +301,8 @@ namespace LimitByCraftingSkillMod
             if (string.IsNullOrWhiteSpace(canonical)) return null;
             try
             {
-                var dictField = progression.GetType().GetField("ProgressionClasses", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                var dict = dictField?.GetValue(progression) as IDictionary;
+                var dictObj = TryGetInstanceFieldOrProperty(progression, "ProgressionClasses");
+                var dict = dictObj as IDictionary;
                 if (dict == null) return null;
                 foreach (DictionaryEntry e in dict)
                 {
@@ -329,17 +329,45 @@ namespace LimitByCraftingSkillMod
             catch { return null; }
         }
 
+        private const BindingFlags InstanceMemberFlags =
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+
+        /// <summary>
+        /// Vanilla progression types use auto-properties; <see cref="Type.GetField(string)"/> for <c>ItemName</c> / <c>QualityStarts</c>
+        /// returns null. Try field first (tests / older builds), then property.
+        /// </summary>
+        private static object TryGetInstanceFieldOrProperty(object instance, string name)
+        {
+            if (instance == null || string.IsNullOrWhiteSpace(name)) return null;
+            var t = instance.GetType();
+            try
+            {
+                var f = t.GetField(name, InstanceMemberFlags);
+                if (f != null) return f.GetValue(instance);
+            }
+            catch
+            {
+                // ignored
+            }
+            try
+            {
+                var p = t.GetProperty(name, InstanceMemberFlags);
+                if (p != null && p.GetIndexParameters().Length == 0)
+                    return p.GetValue(instance, null);
+            }
+            catch
+            {
+                // ignored
+            }
+            return null;
+        }
+
         private static IList GetUnlockDataListFromDisplayData(object displayData)
         {
             if (displayData == null) return null;
             try
             {
-                var t = displayData.GetType();
-                var f = t.GetField("UnlockDataList", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                var list = f?.GetValue(displayData) as IList;
-                if (list != null) return list;
-                var p = t.GetProperty("UnlockDataList", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                return p?.GetValue(displayData, null) as IList;
+                return TryGetInstanceFieldOrProperty(displayData, "UnlockDataList") as IList;
             }
             catch { return null; }
         }
@@ -400,8 +428,8 @@ namespace LimitByCraftingSkillMod
             {
                 var lookupName = ToProgressionLookupName(craftingSkillGroup);
                 var configName = ToProgressionOrConfigName(craftingSkillGroup);
-                var quickListField = progression.GetType().GetField("ProgressionValueQuickList", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                var list = quickListField?.GetValue(progression) as IList;
+                var listObj = TryGetInstanceFieldOrProperty(progression, "ProgressionValueQuickList");
+                var list = listObj as IList;
                 if (list == null) return 0;
                 var namesToMatch = new[] { lookupName, craftingSkillGroup, configName };
                 foreach (var names in namesToMatch)
@@ -787,25 +815,40 @@ namespace LimitByCraftingSkillMod
             var block = GetBlockFromBlockValue(blockValue);
             if (block == null) return 0;
             var map = ClassNameToCraftingSkillMapLoader.GetMap();
-            var mapKey = GetBlockNameForMap(block);
-            if (string.IsNullOrWhiteSpace(mapKey) || !map.TryGetValue(mapKey, out var skillGroup) || !string.Equals(skillGroup, "Workstations", StringComparison.OrdinalIgnoreCase))
+            var rawBlockName = GetBlockNameForMap(block);
+            if (string.IsNullOrWhiteSpace(rawBlockName))
             {
-                mapKey = GetWorkstationBlockMapKeyFromTypeName(block.GetType().Name, map);
-                if (string.IsNullOrWhiteSpace(mapKey) || !map.TryGetValue(mapKey, out skillGroup) || !string.Equals(skillGroup, "Workstations", StringComparison.OrdinalIgnoreCase))
-                    return 0;
+                var fromIdx = TryGetBlockNameFromBlockValueTypeIndex(blockValue);
+                if (!string.IsNullOrWhiteSpace(fromIdx))
+                    rawBlockName = fromIdx;
             }
+            if (string.IsNullOrWhiteSpace(rawBlockName) || !TryResolveWorkstationCanonicalMapKey(map, block, rawBlockName, out var mapKey, out _))
+                return 0;
+            return GetWorkstationsGatedLevelForMapKey(mapKey);
+        }
+
+        /// <summary>
+        /// Workstations gating for a <see cref="ClassNameToCraftingSkillMap.xml"/> <c>className</c> (progression + <c>requiredLevelOverride</c> / <c>requiredLevelMin</c>).
+        /// Does not need a <see cref="BlockValue"/>; used from GUI <c>workstation_*</c> window ids and from block-based paths.
+        /// </summary>
+        internal static int GetWorkstationsGatedLevelForMapKey(string mapKey)
+        {
+            if (string.IsNullOrWhiteSpace(mapKey)) return 0;
+            mapKey = CanonicalizeWorkstationClassNameMapKey(mapKey.Trim());
+            var map = ClassNameToCraftingSkillMapLoader.GetMap();
+            if (!map.TryGetValue(mapKey, out var skillGroup) || !string.Equals(skillGroup, "Workstations", StringComparison.OrdinalIgnoreCase))
+                return 0;
             var entity = GetLocalPlayer();
-            if (entity == null) return 0;
-            var progression = GetProgression(entity);
-            if (progression == null) return 0;
-            var lookupName = ToProgressionLookupName(skillGroup);
-            if (string.IsNullOrWhiteSpace(lookupName)) return 0;
             var resolved = -1;
-            foreach (var progressionMapKey in EnumerateWorkstationProgressionMapKeys(mapKey))
+            var progression = entity != null ? GetProgression(entity) : null;
+            if (progression != null && !string.IsNullOrWhiteSpace(ToProgressionLookupName(skillGroup)))
             {
-                resolved = TryResolveRequiredLevelByMapKeyOnly(progression, skillGroup, progressionMapKey, effectiveQuality: 1);
-                if (resolved >= 0)
-                    break;
+                foreach (var progressionMapKey in EnumerateWorkstationProgressionMapKeys(mapKey))
+                {
+                    resolved = TryResolveRequiredLevelByMapKeyOnly(progression, skillGroup, progressionMapKey, effectiveQuality: 1);
+                    if (resolved >= 0)
+                        break;
+                }
             }
             if (resolved >= 0 && ClassNameToCraftingSkillMapLoader.TryGetRequiredLevelOverride(mapKey, out var ovLevel))
                 resolved = Math.Max(resolved, ovLevel);
@@ -823,12 +866,52 @@ namespace LimitByCraftingSkillMod
             if (blockValue == null) return null;
             try
             {
-                var prop = blockValue.GetType().GetProperty("Block", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (prop != null) return prop.GetValue(blockValue, null);
-                var field = blockValue.GetType().GetField("Block", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                return field?.GetValue(blockValue);
+                var t = blockValue.GetType();
+                var prop = t.GetProperty("Block", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (prop != null)
+                {
+                    var b = prop.GetValue(blockValue, null);
+                    if (b != null) return b;
+                }
+                var field = t.GetField("Block", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (field != null)
+                {
+                    var b = field.GetValue(blockValue);
+                    if (b != null) return b;
+                }
+                // Block can be null for Extends/variant tiles while type indexes the real entry in Block.list.
+                return TryGetBlockListEntryByTypeIndex(blockValue);
             }
             catch { return null; }
+        }
+
+        private static object TryGetBlockListEntryByTypeIndex(object blockValue)
+        {
+            if (blockValue == null) return null;
+            try
+            {
+                var bt = blockValue.GetType();
+                object tv = null;
+                var tf = bt.GetField("type", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (tf != null) tv = tf.GetValue(blockValue);
+                if (tv == null)
+                {
+                    var tp = bt.GetProperty("type", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    tv = tp?.GetValue(blockValue, null);
+                }
+                if (tv == null) return null;
+                var typeIdx = tv is int i ? i : tv is uint u ? (int)u : -1;
+                if (typeIdx < 0) return null;
+                var blockType = typeof(ItemClass).Assembly.GetType("Block");
+                if (blockType == null) return null;
+                var arr = TryGetStaticArrayField(blockType, "list");
+                if (arr == null || typeIdx >= arr.Length) return null;
+                return arr.GetValue(typeIdx);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         /// <summary>
@@ -858,9 +941,105 @@ namespace LimitByCraftingSkillMod
             var suffix = typeName.Substring(5);
             if (suffix.Length == 0) return null;
             var candidate = char.ToLowerInvariant(suffix[0]) + suffix.Substring(1);
-            if (map.TryGetValue(candidate, out var group) && string.Equals(group, "Workstations", StringComparison.OrdinalIgnoreCase))
-                return candidate;
+            var canon = CanonicalizeWorkstationClassNameMapKey(candidate);
+            if (map.TryGetValue(canon, out var group) && string.Equals(group, "Workstations", StringComparison.OrdinalIgnoreCase))
+                return canon;
+            var normalized = NormalizeVanillaWorkstationBlockNameToCanonicalMapKey(candidate);
+            if (!string.IsNullOrWhiteSpace(normalized) &&
+                map.TryGetValue(normalized, out group) &&
+                string.Equals(group, "Workstations", StringComparison.OrdinalIgnoreCase))
+                return normalized;
             return null;
+        }
+
+        /// <summary>
+        /// Maps GUI window suffixes and block names that differ from <see cref="ClassNameToCraftingSkillMap.xml"/> keys
+        /// (e.g. <c>workstation_dewCollector</c> → <c>cntDewCollector</c>, <c>workstation_apiary</c> → <c>cntApiary</c>).
+        /// </summary>
+        private static string CanonicalizeWorkstationClassNameMapKey(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key)) return key;
+            var t = key.Trim();
+            switch (t.ToLowerInvariant())
+            {
+                case "dewcollector":
+                case "terrdewcollector":
+                case "cntdewcollector":
+                    return "cntDewCollector";
+                case "apiary":
+                case "terrapiary":
+                case "cntapiary":
+                    return "cntApiary";
+                default:
+                    return t;
+            }
+        }
+
+        /// <summary>
+        /// Vanilla placed workstations use <c>cnt*</c> / <c>terr*</c> block names while ClassNameToCraftingSkillMap uses short craft ids (<c>workbench</c>, <c>forge</c>, …).
+        /// </summary>
+        private static string NormalizeVanillaWorkstationBlockNameToCanonicalMapKey(string blockOrCandidateName)
+        {
+            if (string.IsNullOrWhiteSpace(blockOrCandidateName)) return null;
+            switch (blockOrCandidateName.Trim().ToLowerInvariant())
+            {
+                case "cntworkbench":
+                case "terrworkbench":
+                    return "workbench";
+                case "cntforge":
+                case "terrforge":
+                    return "forge";
+                case "cntcementmixer":
+                case "terrcementmixer":
+                    return "cementMixer";
+                case "cntchemistrystation":
+                case "terrchemistrystation":
+                    return "chemistryStation";
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>
+        /// Resolves the mod map key for a world <see cref="Block"/> (name or <c>Block*</c> type) to a Workstations entry.
+        /// </summary>
+        private static bool TryResolveWorkstationCanonicalMapKey(
+            System.Collections.Generic.IReadOnlyDictionary<string, string> map,
+            object block,
+            string rawBlockName,
+            out string mapKey,
+            out string skillGroup)
+        {
+            mapKey = null;
+            skillGroup = null;
+            if (map == null) return false;
+
+            if (TryWorkstationsMapLookup(map, rawBlockName, out mapKey, out skillGroup))
+                return true;
+
+            var normalized = NormalizeVanillaWorkstationBlockNameToCanonicalMapKey(rawBlockName);
+            if (!string.IsNullOrWhiteSpace(normalized) && TryWorkstationsMapLookup(map, normalized, out mapKey, out skillGroup))
+                return true;
+
+            var fromType = GetWorkstationBlockMapKeyFromTypeName(block?.GetType().Name, map);
+            return !string.IsNullOrWhiteSpace(fromType) && TryWorkstationsMapLookup(map, fromType, out mapKey, out skillGroup);
+        }
+
+        private static bool TryWorkstationsMapLookup(
+            System.Collections.Generic.IReadOnlyDictionary<string, string> map,
+            string key,
+            out string resolvedKey,
+            out string skillGroup)
+        {
+            resolvedKey = null;
+            skillGroup = null;
+            if (string.IsNullOrWhiteSpace(key)) return false;
+            var k = CanonicalizeWorkstationClassNameMapKey(key.Trim());
+            if (!map.TryGetValue(k, out var sg) || !string.Equals(sg, "Workstations", StringComparison.OrdinalIgnoreCase))
+                return false;
+            resolvedKey = k;
+            skillGroup = sg;
+            return true;
         }
 
         /// <summary>
@@ -1137,12 +1316,10 @@ namespace LimitByCraftingSkillMod
             if (!map.TryGetValue(mapKey, out var skillGroup) || !string.Equals(skillGroup, "Vehicles", StringComparison.OrdinalIgnoreCase))
                 return 0;
             var entity = GetLocalPlayer();
-            if (entity == null) return 0;
-            var progression = GetProgression(entity);
-            if (progression == null) return 0;
-            var lookupName = ToProgressionLookupName(skillGroup);
-            if (string.IsNullOrWhiteSpace(lookupName)) return 0;
-            var resolved = TryResolveRequiredLevelByMapKeyOnly(progression, skillGroup, mapKey, effectiveQuality: 1);
+            var resolved = -1;
+            var progression = entity != null ? GetProgression(entity) : null;
+            if (progression != null && !string.IsNullOrWhiteSpace(ToProgressionLookupName(skillGroup)))
+                resolved = TryResolveRequiredLevelByMapKeyOnly(progression, skillGroup, mapKey, effectiveQuality: 1);
             if (resolved >= 0 && ClassNameToCraftingSkillMapLoader.TryGetRequiredLevelOverride(mapKey, out var ovLevel))
                 resolved = Math.Max(resolved, ovLevel);
             if (resolved >= 0 && ClassNameToCraftingSkillMapLoader.TryGetRequiredLevelMin(mapKey, out var minLv))
@@ -1186,45 +1363,95 @@ namespace LimitByCraftingSkillMod
             var candidates = BuildProgressionMatchCandidates(mapKeyName);
             foreach (var itemNameForMatch in candidates)
             {
+                // 1) Unlock children: use each match's UnlockTier column into unlock_level / QualityStarts (vanilla Workstations).
                 for (int i = 0; i < displayDataList.Count; i++)
                 {
                     object displayData = displayDataList[i];
                     if (displayData == null) continue;
-                    if (!DisplayDataMatchesMapKey(displayData, itemNameForMatch)) continue;
+                    var lvlUnlock = TryResolveRequiredLevelFromDisplayDataUnlocks(displayData, itemNameForMatch, effectiveQuality);
+                    if (lvlUnlock > 0) return lvlUnlock;
+                }
+
+                // 2) Display row ItemName (simple rows). Workstations: stable rows often use tool ids (toolForge) vs block forge.
+                for (int i = 0; i < displayDataList.Count; i++)
+                {
+                    object displayData = displayDataList[i];
+                    if (displayData == null) continue;
+                    var rowNameMatch = string.Equals(craftingSkillGroup, "Workstations", StringComparison.OrdinalIgnoreCase)
+                        ? DisplayDataMatchesMapKeyLoose(displayData, itemNameForMatch)
+                        : DisplayDataMatchesMapKey(displayData, itemNameForMatch);
+                    if (!rowNameMatch) continue;
                     var lvl = GetRequiredLevelFromDisplayData(displayData, effectiveQuality);
-                    if (lvl >= 0) return lvl;
+                    if (lvl > 0) return lvl;
                 }
-                for (int i = 0; i < displayDataList.Count; i++)
+
+                // 2b) Workstations: display row root <c>Item</c> / <c>item</c> (placeable ItemClass) vs map key.
+                if (string.Equals(craftingSkillGroup, "Workstations", StringComparison.OrdinalIgnoreCase))
                 {
-                    object displayData = displayDataList[i];
-                    if (displayData == null) continue;
-                    var unlockList = GetUnlockDataListFromDisplayData(displayData);
-                    var count = unlockList?.Count ?? 0;
-                    if (count == 0)
+                    for (int i = 0; i < displayDataList.Count; i++)
                     {
-                        var mGetUd = displayData.GetType().GetMethod("GetUnlockData", new[] { typeof(int) });
-                        if (mGetUd != null)
-                        {
-                            for (var u = 0; u < 256; u++)
-                            {
-                                object ud = null;
-                                try { ud = mGetUd.Invoke(displayData, new object[] { u }); } catch { break; }
-                                if (ud == null) break;
-                                if (!UnlockEntryMatchesMapKey(ud, itemNameForMatch)) continue;
-                                var lvl = GetRequiredLevelFromDisplayData(displayData, effectiveQuality);
-                                if (lvl >= 0) return lvl;
-                            }
-                        }
-                        continue;
-                    }
-                    for (var u = 0; u < count; u++)
-                    {
-                        var ud = unlockList[u];
-                        if (!UnlockEntryMatchesMapKey(ud, itemNameForMatch)) continue;
-                        var lvl = GetRequiredLevelFromDisplayData(displayData, effectiveQuality);
-                        if (lvl >= 0) return lvl;
+                        object displayData = displayDataList[i];
+                        if (displayData == null) continue;
+                        if (!DisplayDataRowRootItemMatchesMapKey(displayData, itemNameForMatch)) continue;
+                        var lvlItem = GetRequiredLevelFromDisplayData(displayData, effectiveQuality);
+                        if (lvlItem > 0) return lvlItem;
                     }
                 }
+
+                // 3) Vehicles / Workstations: vanilla often puts the placeable id on Icon / CustomIcon[] while unlock_entry lists
+                // multiple part rows (minibike chassis + wheels, forge tools, etc.). Requiring exactly one unlock child skipped
+                // those rows and left map-key-only resolution at 0 except XML overrides (e.g. truck 70, chemistry 50).
+                if (string.Equals(craftingSkillGroup, "Vehicles", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(craftingSkillGroup, "Workstations", StringComparison.OrdinalIgnoreCase))
+                {
+                    for (int i = 0; i < displayDataList.Count; i++)
+                    {
+                        object displayData = displayDataList[i];
+                        if (displayData == null) continue;
+                        if (!DisplayDataIconMatchesMapKey(displayData, itemNameForMatch)) continue;
+                        var col = ResolveDisplayDataQualityOrUnlockColumn(displayData, 1, effectiveQuality);
+                        var lvlIcon = GetRequiredLevelFromDisplayData(displayData, col);
+                        if (lvlIcon > 0) return lvlIcon;
+                    }
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>
+        /// Scans unlock children for a map-key match and returns the required level for that child's tier column.
+        /// </summary>
+        private static int TryResolveRequiredLevelFromDisplayDataUnlocks(object displayData, string itemNameForMatch, int effectiveQuality)
+        {
+            if (displayData == null || string.IsNullOrEmpty(itemNameForMatch)) return -1;
+            var siblingCount = CountUnlockChildren(displayData);
+            var unlockList = GetUnlockDataListFromDisplayData(displayData);
+            var count = unlockList?.Count ?? 0;
+            if (count > 0)
+            {
+                for (var u = 0; u < count; u++)
+                {
+                    var ud = unlockList[u];
+                    if (!UnlockEntryMatchesBlockMapKey(displayData, u, ud, itemNameForMatch)) continue;
+                    var tier1 = ResolveTierForUnlockChild(displayData, siblingCount, ud, u);
+                    var col = ResolveDisplayDataQualityOrUnlockColumn(displayData, tier1, effectiveQuality);
+                    var lvl = GetRequiredLevelFromDisplayData(displayData, col);
+                    if (lvl > 0) return lvl;
+                }
+                return -1;
+            }
+            var mGetUd = displayData.GetType().GetMethod("GetUnlockData", new[] { typeof(int) });
+            if (mGetUd == null) return -1;
+            for (var u = 0; u < 256; u++)
+            {
+                object ud = null;
+                try { ud = mGetUd.Invoke(displayData, new object[] { u }); } catch { break; }
+                if (ud == null) break;
+                if (!UnlockEntryMatchesBlockMapKey(displayData, u, ud, itemNameForMatch)) continue;
+                var tier1 = ResolveTierForUnlockChild(displayData, siblingCount, ud, u);
+                var col = ResolveDisplayDataQualityOrUnlockColumn(displayData, tier1, effectiveQuality);
+                var lvl = GetRequiredLevelFromDisplayData(displayData, col);
+                if (lvl > 0) return lvl;
             }
             return -1;
         }
@@ -1232,11 +1459,77 @@ namespace LimitByCraftingSkillMod
         private static bool DisplayDataMatchesMapKey(object displayData, string mapKeyName)
         {
             if (displayData == null || string.IsNullOrEmpty(mapKeyName)) return false;
-            var itemNameField = displayData.GetType().GetField("ItemName", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (itemNameField != null)
+            var name = TryGetInstanceFieldOrProperty(displayData, "ItemName") as string;
+            return string.Equals(name, mapKeyName, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool DisplayDataMatchesMapKeyLoose(object displayData, string mapKeyName)
+        {
+            if (DisplayDataMatchesMapKey(displayData, mapKeyName)) return true;
+            if (displayData == null || string.IsNullOrEmpty(mapKeyName)) return false;
+            var name = TryGetInstanceFieldOrProperty(displayData, "ItemName") as string;
+            if (string.IsNullOrEmpty(name)) return false;
+            return LooseProgressionNamePairMatch(name, mapKeyName) || LooseProgressionNamePairMatch(mapKeyName, name);
+        }
+
+        private static bool DisplayDataRowRootItemMatchesMapKey(object displayData, string mapKeyName)
+        {
+            if (displayData == null || string.IsNullOrEmpty(mapKeyName)) return false;
+            var item = TryGetInstanceFieldOrProperty(displayData, "item") ?? TryGetInstanceFieldOrProperty(displayData, "Item");
+            if (!(item is ItemClass ic)) return false;
+            var icName = GetItemClassNameForMap(ic);
+            if (string.IsNullOrEmpty(icName)) return false;
+            if (string.Equals(icName, mapKeyName, StringComparison.OrdinalIgnoreCase)) return true;
+            return LooseProgressionNamePairMatch(icName, mapKeyName) || LooseProgressionNamePairMatch(mapKeyName, icName);
+        }
+
+        /// <summary>Reads progression display_entry icon / CustomIcon / GetIcon for placeable id matching (Vehicles, some Workstations).</summary>
+        private static bool DisplayDataIconMatchesMapKey(object displayData, string mapKeyName)
+        {
+            if (displayData == null || string.IsNullOrEmpty(mapKeyName)) return false;
+            try
             {
-                var name = itemNameField.GetValue(displayData) as string;
-                if (string.Equals(name, mapKeyName, StringComparison.OrdinalIgnoreCase)) return true;
+                var t = displayData.GetType();
+                foreach (var member in new[] { "Icon", "icon" })
+                {
+                    var f = t.GetField(member, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (f != null && f.GetValue(displayData) is string s1 && ProgressionVisualTokenMatchesMapKey(s1, mapKeyName)) return true;
+                    var p = t.GetProperty(member, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (p != null && p.GetValue(displayData, null) is string s2 && ProgressionVisualTokenMatchesMapKey(s2, mapKeyName)) return true;
+                }
+
+                foreach (var arrName in new[] { "CustomIcon", "customIcon" })
+                {
+                    var raw = TryGetInstanceFieldOrProperty(displayData, arrName);
+                    if (raw is string[] arr)
+                    {
+                        foreach (var s in arr)
+                        {
+                            if (!string.IsNullOrEmpty(s) && ProgressionVisualTokenMatchesMapKey(s, mapKeyName)) return true;
+                        }
+                    }
+                }
+
+                var getIcon = t.GetMethod("GetIcon", new[] { typeof(int) });
+                if (getIcon != null)
+                {
+                    for (var lv = 1; lv <= 8; lv++)
+                    {
+                        try
+                        {
+                            var s = getIcon.Invoke(displayData, new object[] { lv }) as string;
+                            if (!string.IsNullOrEmpty(s) && ProgressionVisualTokenMatchesMapKey(s, mapKeyName)) return true;
+                        }
+                        catch
+                        {
+                            break;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // ignored
             }
             return false;
         }
@@ -1258,25 +1551,66 @@ namespace LimitByCraftingSkillMod
             return false;
         }
 
+        /// <summary>Exact string match, or <paramref name="token"/> as one comma-separated segment of <paramref name="list"/>.</summary>
+        private static bool CommaSeparatedOrExactMatch(string list, string token)
+        {
+            if (string.IsNullOrEmpty(list) || string.IsNullOrEmpty(token)) return false;
+            if (string.Equals(list.Trim(), token, StringComparison.OrdinalIgnoreCase)) return true;
+            return UnlockDataItemNameTokenListContains(list, token);
+        }
+
+        /// <summary>
+        /// Exact / comma-token match, then <see cref="LooseProgressionNamePairMatch"/> (stable workstation/vehicle ids vs
+        /// <c>toolForge</c>, atlas paths, <c>cntWorkbench</c>, etc.).
+        /// </summary>
+        private static bool ProgressionVisualTokenMatchesMapKey(string haystack, string mapKeyName)
+        {
+            if (string.IsNullOrEmpty(haystack) || string.IsNullOrEmpty(mapKeyName)) return false;
+            if (CommaSeparatedOrExactMatch(haystack, mapKeyName)) return true;
+            return LooseProgressionNamePairMatch(haystack, mapKeyName) || LooseProgressionNamePairMatch(mapKeyName, haystack);
+        }
+
         private static bool UnlockEntryMatchesMapKey(object unlockData, string mapKeyName)
         {
             if (unlockData == null || string.IsNullOrEmpty(mapKeyName)) return false;
-            var t = unlockData.GetType();
-            var itemNameField = t.GetField("ItemName", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (itemNameField != null)
-            {
-                var name = itemNameField.GetValue(unlockData) as string;
-                if (string.Equals(name, mapKeyName, StringComparison.OrdinalIgnoreCase)) return true;
-                if (name != null && UnlockDataItemNameTokenListContains(name, mapKeyName)) return true;
-            }
-            var itemField = t.GetField("item", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            var item = itemField?.GetValue(unlockData);
+            var name = TryGetInstanceFieldOrProperty(unlockData, "ItemName") as string;
+            if (string.Equals(name, mapKeyName, StringComparison.OrdinalIgnoreCase)) return true;
+            if (name != null && UnlockDataItemNameTokenListContains(name, mapKeyName)) return true;
+            if (!string.IsNullOrEmpty(name) && name.IndexOf(',') < 0 &&
+                (LooseProgressionNamePairMatch(name, mapKeyName) || LooseProgressionNamePairMatch(mapKeyName, name)))
+                return true;
+            var item = TryGetInstanceFieldOrProperty(unlockData, "item") ?? TryGetInstanceFieldOrProperty(unlockData, "Item");
             if (item != null)
             {
                 var icName = GetItemClassNameForMap(item as ItemClass);
                 if (string.Equals(icName, mapKeyName, StringComparison.OrdinalIgnoreCase)) return true;
+                if (!string.IsNullOrEmpty(icName) &&
+                    (LooseProgressionNamePairMatch(icName, mapKeyName) || LooseProgressionNamePairMatch(mapKeyName, icName)))
+                    return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Map-key-only path has no <see cref="ItemClass"/> instance; mirror <see cref="UnlockEntryMatchesCraftItem"/> by
+        /// resolving the concrete unlock <see cref="ItemClass"/> from the parent row when strings on <see cref="UnlockData"/> are empty.
+        /// </summary>
+        private static bool UnlockEntryMatchesBlockMapKey(object displayData, int unlockIndex0Based, object unlockData, string mapKeyName)
+        {
+            if (UnlockEntryMatchesMapKey(unlockData, mapKeyName)) return true;
+            if (displayData == null || string.IsNullOrEmpty(mapKeyName)) return false;
+            try
+            {
+                var m = displayData.GetType().GetMethod("GetUnlockItem", new[] { typeof(int) });
+                if (m == null) return false;
+                var ic = m.Invoke(displayData, new object[] { unlockIndex0Based }) as ItemClass;
+                if (ic == null) return false;
+                return string.Equals(GetItemClassNameForMap(ic), mapKeyName, StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         /// <param name="missingProgressionReason">If non-null, progression is null and this is the log reason (no_player / no_progression).</param>
@@ -1326,10 +1660,21 @@ namespace LimitByCraftingSkillMod
                             ModApi.DebugLog($"Electrician item used Workstations progression for mapKey={mapKeyName} requiredLevel={resolvedLevel}");
                     }
                 }
-                // Override applies when progression gives no positive gate (including matched row at tier 0).
-                if (resolvedLevel <= 0 && ClassNameToCraftingSkillMapLoader.TryGetRequiredLevelOverride(mapKeyName, out var ovLevel))
-                    resolvedLevel = ovLevel;
-                // XML requiredLevelMin: floor when progression is missing, wrong (under-tier), or zero.
+                // Vehicles / workstation placeables: tree match uses ItemClass + unlock strings (chassis parts, etc.).
+                // Block and drive paths use map-key-only resolution (icon, GetUnlockItem). Merge so inventory matches world/vehicle.
+                if (!string.IsNullOrWhiteSpace(mapKeyName) &&
+                    (string.Equals(skillGroup, "Vehicles", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(skillGroup, "Workstations", StringComparison.OrdinalIgnoreCase)))
+                {
+                    var mapOnly = TryResolveRequiredLevelByMapKeyOnly(progression, skillGroup, mapKeyName, effectiveQuality);
+                    if (mapOnly > resolvedLevel)
+                        resolvedLevel = mapOnly;
+                }
+                // requiredLevelOverride / requiredLevelMin: both are floors via Max (same as workstation/vehicle block paths).
+                // Historically override only ran when resolvedLevel <= 0, which skipped XML gates whenever progression returned
+                // a wrong positive tier; treat override like min so one attribute is enough for "at least this level".
+                if (ClassNameToCraftingSkillMapLoader.TryGetRequiredLevelOverride(mapKeyName, out var ovLevel) && ovLevel > 0)
+                    resolvedLevel = System.Math.Max(resolvedLevel, ovLevel);
                 if (ClassNameToCraftingSkillMapLoader.TryGetRequiredLevelMin(mapKeyName, out var minLv) && minLv > 0)
                     resolvedLevel = System.Math.Max(resolvedLevel, minLv);
                 if (resolvedLevel >= 0)
@@ -1756,8 +2101,7 @@ namespace LimitByCraftingSkillMod
             if (displayData == null) return null;
             try
             {
-                var f = displayData.GetType().GetField("ItemName", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                return f?.GetValue(displayData) as string;
+                return TryGetInstanceFieldOrProperty(displayData, "ItemName") as string;
             }
             catch { return null; }
         }
@@ -1811,8 +2155,7 @@ namespace LimitByCraftingSkillMod
             {
                 var dd = displayDataList[i];
                 if (dd == null) continue;
-                var f = dd.GetType().GetField("ItemName", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                var n = f?.GetValue(dd) as string;
+                var n = TryGetInstanceFieldOrProperty(dd, "ItemName") as string;
                 if (string.IsNullOrEmpty(n) || !seen.Add(n)) continue;
                 r.Add(n);
             }
@@ -1839,16 +2182,14 @@ namespace LimitByCraftingSkillMod
                 }
                 catch { }
             }
-            var itemNameField = ddType.GetField("ItemName", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (itemNameField != null && !string.IsNullOrEmpty(itemNameForMatch))
-            {
-                var name = itemNameField.GetValue(displayData) as string;
-                if (string.Equals(name, itemNameForMatch, StringComparison.OrdinalIgnoreCase)) return true;
-            }
+            var itemNameStr = TryGetInstanceFieldOrProperty(displayData, "ItemName") as string;
+            if (!string.IsNullOrEmpty(itemNameForMatch) && string.Equals(itemNameStr, itemNameForMatch, StringComparison.OrdinalIgnoreCase))
+                return true;
             if (!string.IsNullOrEmpty(itemNameForMatch))
             {
                 object ddItem = null;
                 if (itemField != null) ddItem = itemField.GetValue(displayData);
+                if (ddItem == null) ddItem = TryGetInstanceFieldOrProperty(displayData, "item") ?? TryGetInstanceFieldOrProperty(displayData, "Item");
                 if (ddItem == null && itemProp != null) try { ddItem = itemProp.GetValue(displayData, null); } catch { }
                 if (ddItem is ItemClass ddItemClass)
                 {
@@ -1856,16 +2197,12 @@ namespace LimitByCraftingSkillMod
                     if (string.Equals(ddMapKey, itemNameForMatch, StringComparison.OrdinalIgnoreCase)) return true;
                 }
             }
-            if (itemNameField != null && !string.IsNullOrEmpty(itemNameForMatch))
+            if (!string.IsNullOrEmpty(itemNameStr) && !string.IsNullOrEmpty(itemNameForMatch))
             {
-                var name = itemNameField.GetValue(displayData) as string;
-                if (!string.IsNullOrEmpty(name))
+                const int minContainsLength = 5;
+                if (itemNameStr.Length >= minContainsLength && itemNameForMatch.Length >= minContainsLength)
                 {
-                    const int minContainsLength = 5;
-                    if (name.Length >= minContainsLength && itemNameForMatch.Length >= minContainsLength)
-                    {
-                        if (LooseProgressionNamePairMatch(name, itemNameForMatch)) return true;
-                    }
+                    if (LooseProgressionNamePairMatch(itemNameStr, itemNameForMatch)) return true;
                 }
             }
             return false;
@@ -1894,8 +2231,7 @@ namespace LimitByCraftingSkillMod
             }
             if (unlockData != null && !string.IsNullOrEmpty(itemNameForMatch))
             {
-                var recipeField = unlockData.GetType().GetField("RecipeList", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                var arr = recipeField?.GetValue(unlockData) as string[];
+                var arr = TryGetInstanceFieldOrProperty(unlockData, "RecipeList") as string[];
                 if (arr != null)
                 {
                     foreach (var r in arr)
@@ -1913,40 +2249,23 @@ namespace LimitByCraftingSkillMod
         private static bool UnlockDataMatchesItem(object unlockData, ItemClass itemClass, string itemNameForMatch)
         {
             if (unlockData == null) return false;
-            var t = unlockData.GetType();
-            var itemField = t.GetField("item", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (itemField != null && itemField.GetValue(unlockData) == itemClass) return true;
-            var itemProp = t.GetProperty("Item", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (itemProp != null)
+            var uItemRef = TryGetInstanceFieldOrProperty(unlockData, "item") ?? TryGetInstanceFieldOrProperty(unlockData, "Item");
+            if (itemClass != null && uItemRef == itemClass) return true;
+            var name = TryGetInstanceFieldOrProperty(unlockData, "ItemName") as string;
+            if (!string.IsNullOrEmpty(itemNameForMatch))
             {
-                try { if (itemProp.GetValue(unlockData, null) == itemClass) return true; } catch { }
-            }
-            var itemNameField = t.GetField("ItemName", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (itemNameField != null && !string.IsNullOrEmpty(itemNameForMatch))
-            {
-                var name = itemNameField.GetValue(unlockData) as string;
                 if (string.Equals(name, itemNameForMatch, StringComparison.OrdinalIgnoreCase)) return true;
                 if (name != null && UnlockDataItemNameTokenListContains(name, itemNameForMatch)) return true;
             }
-            if (!string.IsNullOrEmpty(itemNameForMatch))
+            if (!string.IsNullOrEmpty(itemNameForMatch) && uItemRef is ItemClass uIc)
             {
-                object uItem = null;
-                if (itemField != null) uItem = itemField.GetValue(unlockData);
-                if (uItem == null && itemProp != null) try { uItem = itemProp.GetValue(unlockData, null); } catch { }
-                if (uItem is ItemClass uIc)
-                {
-                    if (string.Equals(GetItemClassNameForMap(uIc), itemNameForMatch, StringComparison.OrdinalIgnoreCase)) return true;
-                }
+                if (string.Equals(GetItemClassNameForMap(uIc), itemNameForMatch, StringComparison.OrdinalIgnoreCase)) return true;
             }
-            if (itemNameField != null && !string.IsNullOrEmpty(itemNameForMatch))
+            if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(itemNameForMatch))
             {
-                var name = itemNameField.GetValue(unlockData) as string;
-                if (!string.IsNullOrEmpty(name))
-                {
-                    const int minLen = 5;
-                    if (name.Length >= minLen && itemNameForMatch.Length >= minLen && LooseProgressionNamePairMatch(name, itemNameForMatch))
-                        return true;
-                }
+                const int minLen = 5;
+                if (name.Length >= minLen && itemNameForMatch.Length >= minLen && LooseProgressionNamePairMatch(name, itemNameForMatch))
+                    return true;
             }
             return false;
         }
@@ -1955,28 +2274,18 @@ namespace LimitByCraftingSkillMod
         private static int TryGetRequiredLevelFromUnlockLevelField(object displayData, int tier1Based)
         {
             if (displayData == null || tier1Based < 1) return -1;
-            var t = displayData.GetType();
             foreach (var fieldName in new[] { "unlockLevel", "UnlockLevel", "unlock_level" })
             {
-                FieldInfo f;
-                try
-                {
-                    f = t.GetField(fieldName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                }
-                catch
-                {
-                    continue;
-                }
-                if (f == null) continue;
                 object raw;
                 try
                 {
-                    raw = f.GetValue(displayData);
+                    raw = TryGetInstanceFieldOrProperty(displayData, fieldName);
                 }
                 catch
                 {
                     continue;
                 }
+                if (raw == null) continue;
                 if (raw is int[] ia && tier1Based <= ia.Length)
                 {
                     var lv = ia[tier1Based - 1];
@@ -2005,16 +2314,12 @@ namespace LimitByCraftingSkillMod
             var csvLevel = TryGetRequiredLevelFromUnlockLevelField(displayData, qualityOrItemQuality);
             if (csvLevel >= 0) return csvLevel;
 
-            var qualityStartsField = ddType.GetField("QualityStarts", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (qualityStartsField != null)
+            var qualityStarts = TryGetInstanceFieldOrProperty(displayData, "QualityStarts") as int[];
+            if (qualityStarts != null && qualityOrItemQuality >= 1 && qualityOrItemQuality <= qualityStarts.Length)
             {
-                var qualityStarts = qualityStartsField.GetValue(displayData) as int[];
-                if (qualityStarts != null && qualityOrItemQuality >= 1 && qualityOrItemQuality <= qualityStarts.Length)
-                {
-                    int level = qualityStarts[qualityOrItemQuality - 1];
-                    // Do not return 0: Explosives/Seeds rows often use zeros here while gates live in unlock_level CSV.
-                    if (level > 0) return level;
-                }
+                int level = qualityStarts[qualityOrItemQuality - 1];
+                // Do not return 0: Explosives/Seeds rows often use zeros here while gates live in unlock_level CSV.
+                if (level > 0) return level;
             }
 
             // 2) Rolled item quality (1–600): min crafting level L with GetQualityLevel(L) >= Q.
@@ -2046,6 +2351,24 @@ namespace LimitByCraftingSkillMod
             public static int TryResolveCraftingExplosivesRequiredLevel(object progression, ItemClass itemClass, string mapKeyName, int effectiveQuality)
             {
                 return TryResolveRequiredLevelInTree(progression, "Explosives", itemClass, mapKeyName, effectiveQuality);
+            }
+
+            /// <summary>Map-key-only path used for placed workstations and vehicle entities (no ItemClass).</summary>
+            public static int TryResolveRequiredLevelByMapKeyOnlyForTests(object progression, string craftingSkillGroup, string mapKeyName, int effectiveQuality)
+            {
+                return TryResolveRequiredLevelByMapKeyOnly(progression, craftingSkillGroup, mapKeyName, effectiveQuality);
+            }
+
+            /// <summary>Exposes vanilla <c>cnt*</c> / <c>terr*</c> workstation block id → mod map key normalization.</summary>
+            public static string NormalizeVanillaWorkstationBlockNameToCanonicalMapKeyForTests(string blockOrCandidateName)
+            {
+                return NormalizeVanillaWorkstationBlockNameToCanonicalMapKey(blockOrCandidateName);
+            }
+
+            /// <summary>Exposes workstation GUI / block key canonicalization used before map lookup.</summary>
+            public static string CanonicalizeWorkstationClassNameMapKeyForTests(string key)
+            {
+                return CanonicalizeWorkstationClassNameMapKey(key);
             }
 
             public static int GetRequiredLevelFromDisplayDataForTests(object displayData, int qualityOrTier)

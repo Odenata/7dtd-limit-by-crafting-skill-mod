@@ -30,15 +30,20 @@ namespace LimitByCraftingSkillMod
         }
 
         /// <summary>
-        /// Postfix for XUiC_CraftingWindowGroup.OnOpen — only acts when the controller is a workstation window (includes subclasses).
-        /// Use this when the game inherits OnOpen from CraftingWindowGroup so patching WorkstationWindowGroup.OnOpen alone misses runtime calls.
+        /// Postfix for <see cref="XUiC_CraftingWindowGroup"/>.OnOpen — attempts workstation restriction for any crafting window
+        /// that can resolve a <see cref="BlockValue"/> (forge, workbench, cement mixer, etc.).
         /// </summary>
+        /// <remarks>
+        /// Do not require <c>XUiC_WorkstationWindowGroup</c>: vanilla forge UI can sit on <c>CraftingWindowGroup</c> subclasses that are
+        /// not assignable from <c>WorkstationWindowGroup</c>; <see cref="TileEntityForge"/> is not a <c>TileEntityWorkstation</c>, so
+        /// <c>SetTileEntity</c> / <c>GameManager.workstationOpened</c> hooks alone miss it. Chemistry still has an extra
+        /// <see cref="GUIWindowManagerOpenNameLogPatch"/> for its window id.
+        /// </remarks>
         public static void PostfixFilteredCraftingOnOpen(object __instance)
         {
             try
             {
-                var wsType = GetWorkstationWindowGroupType();
-                if (wsType == null || __instance == null || !wsType.IsAssignableFrom(__instance.GetType()))
+                if (__instance == null)
                     return;
 
                 TryEnforceRestrictedWorkstation(__instance, null, null, "OnOpen(CraftingFiltered)");
@@ -232,16 +237,27 @@ namespace LimitByCraftingSkillMod
             try
             {
                 var t = window.GetType();
-                var prop = t.GetProperty("workstationBlock", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (prop != null)
-                    return prop.GetValue(window, null);
-                var field = t.GetField("workstationBlock", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                return field?.GetValue(window);
+                foreach (var member in new[] { "workstationBlock", "WorkstationBlock" })
+                {
+                    var prop = t.GetProperty(member, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (prop != null)
+                    {
+                        var v = prop.GetValue(window, null);
+                        if (v != null) return v;
+                    }
+                    var field = t.GetField(member, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (field != null)
+                    {
+                        var v = field.GetValue(window);
+                        if (v != null) return v;
+                    }
+                }
             }
             catch
             {
-                return null;
+                // ignored
             }
+            return null;
         }
 
         private static string TryResolveWorkstationWindowIdFromBlock(object blockValue)

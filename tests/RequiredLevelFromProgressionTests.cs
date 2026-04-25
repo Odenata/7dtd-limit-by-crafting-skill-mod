@@ -133,7 +133,8 @@ namespace LimitByCraftingSkillMod.Tests
             Assert.Equal("Workstations", GameReflection.GetCraftingSkillGroup(itemClass));
             var prog = new FakeProgressionForRequiredLevel();
             var level = GameReflection.GetRequiredLevelForItemForUnitTest(itemClass, itemValue, prog);
-            Assert.Equal(2, level);
+            // ClassNameToCraftingSkillMap.xml requiredLevelOverride="10" for workbench must floor above fake progression tier-1 (2).
+            Assert.Equal(10, level);
         }
 
         [Fact]
@@ -428,6 +429,319 @@ namespace LimitByCraftingSkillMod.Tests
             var iv2 = new ItemValue { ItemClass = tea };
             Assert.Equal(4, GameReflection.GetRequiredLevelForItemForUnitTest(cornBread, iv1, prog));
             Assert.Equal(4, GameReflection.GetRequiredLevelForItemForUnitTest(tea, iv2, prog));
+        }
+
+        /// <summary>Vanilla craftingVehicles: icon is the placeable; unlock lists chassis parts only.</summary>
+        private sealed class FakeDisplayVehicleTruckRow
+        {
+            public string Icon = "vehicleTruck4x4Placeable";
+            public string unlock_level = "70";
+            public ArrayList UnlockDataList = new ArrayList
+            {
+                new FakeUnlockEntryGameTier { ItemName = "vehicleTruck4x4Chassis,vehicleTruck4x4Accessories", UnlockTier = 0 },
+            };
+        }
+
+        private sealed class FakePcVehiclesTruck
+        {
+            public ArrayList DisplayDataList = new ArrayList { new FakeDisplayVehicleTruckRow() };
+        }
+
+        private sealed class FakeProgressionMapKeyVehicles
+        {
+            public object GetProgressionValue(string name)
+            {
+                if (string.Equals(name, "craftingvehicles", StringComparison.OrdinalIgnoreCase))
+                    return new FakePv { ProgressionClass = new FakePcVehiclesTruck() };
+                return null;
+            }
+        }
+
+        [Fact]
+        public void MapKeyOnly_Vehicles_PlaceableIdMatchesProgressionIcon_ResolvesUnlockLevel()
+        {
+            var prog = new FakeProgressionMapKeyVehicles();
+            var lvl = GameReflection.TestHooks.TryResolveRequiredLevelByMapKeyOnlyForTests(prog, "Vehicles", "vehicleTruck4x4Placeable", 1);
+            Assert.Equal(70, lvl);
+        }
+
+        /// <summary>Stable builds: multiple unlock children under one vehicle icon row — must not skip icon-based resolution.</summary>
+        private sealed class FakeDisplayVehicleMinibikeMultiUnlock
+        {
+            public string Icon = "vehicleMinibikePlaceable";
+            public string unlock_level = "25";
+            public ArrayList UnlockDataList = new ArrayList
+            {
+                new FakeUnlockEntryGameTier { ItemName = "vehicleMinibikeChassis", UnlockTier = 0 },
+                new FakeUnlockEntryGameTier { ItemName = "vehicleMinibikeHandlebars", UnlockTier = 1 },
+                new FakeUnlockEntryGameTier { ItemName = "vehicleMinibikeAccessories", UnlockTier = 2 },
+            };
+        }
+
+        private sealed class FakePcVehiclesMinibikeMulti
+        {
+            public ArrayList DisplayDataList = new ArrayList { new FakeDisplayVehicleMinibikeMultiUnlock() };
+        }
+
+        private sealed class FakeProgressionMapKeyVehiclesMinibikeMulti
+        {
+            public object GetProgressionValue(string name)
+            {
+                if (string.Equals(name, "craftingvehicles", StringComparison.OrdinalIgnoreCase))
+                    return new FakePv { ProgressionClass = new FakePcVehiclesMinibikeMulti() };
+                return null;
+            }
+        }
+
+        [Fact]
+        public void MapKeyOnly_Vehicles_MultiPartUnlockChildren_IconRowStillResolves()
+        {
+            var prog = new FakeProgressionMapKeyVehiclesMinibikeMulti();
+            var lvl = GameReflection.TestHooks.TryResolveRequiredLevelByMapKeyOnlyForTests(prog, "Vehicles", "vehicleMinibikePlaceable", 1);
+            Assert.Equal(25, lvl);
+        }
+
+        private sealed class FakeDisplayVehicleBicycleCustomIcon
+        {
+            public string[] CustomIcon = { "vehicleBicyclePlaceable" };
+            public string unlock_level = "5";
+        }
+
+        private sealed class FakePcVehiclesBicycleCustomIcon
+        {
+            public ArrayList DisplayDataList = new ArrayList { new FakeDisplayVehicleBicycleCustomIcon() };
+        }
+
+        private sealed class FakeProgressionMapKeyVehiclesBicycleCustomIcon
+        {
+            public object GetProgressionValue(string name)
+            {
+                if (string.Equals(name, "craftingvehicles", StringComparison.OrdinalIgnoreCase))
+                    return new FakePv { ProgressionClass = new FakePcVehiclesBicycleCustomIcon() };
+                return null;
+            }
+        }
+
+        [Fact]
+        public void MapKeyOnly_Vehicles_CustomIconStringArray_ResolvesUnlockLevel()
+        {
+            var prog = new FakeProgressionMapKeyVehiclesBicycleCustomIcon();
+            var lvl = GameReflection.TestHooks.TryResolveRequiredLevelByMapKeyOnlyForTests(prog, "Vehicles", "vehicleBicyclePlaceable", 1);
+            Assert.Equal(5, lvl);
+        }
+
+        private sealed class FakeDisplayWorkstationsForgeIconOnly
+        {
+            public string Icon = "forge";
+            public string unlock_level = "4";
+        }
+
+        private sealed class FakePcWorkstationsForgeIconOnly
+        {
+            public ArrayList DisplayDataList = new ArrayList { new FakeDisplayWorkstationsForgeIconOnly() };
+        }
+
+        private sealed class FakeProgressionMapKeyWorkstationsForgeIcon
+        {
+            public object GetProgressionValue(string name)
+            {
+                if (string.Equals(name, "craftingworkstations", StringComparison.OrdinalIgnoreCase))
+                    return new FakePv { ProgressionClass = new FakePcWorkstationsForgeIconOnly() };
+                return null;
+            }
+        }
+
+        [Fact]
+        public void MapKeyOnly_Workstations_IconOnlyRow_ResolvesUnlockLevel()
+        {
+            var prog = new FakeProgressionMapKeyWorkstationsForgeIcon();
+            var lvl = GameReflection.TestHooks.TryResolveRequiredLevelByMapKeyOnlyForTests(prog, "Workstations", "forge", 1);
+            Assert.Equal(4, lvl);
+        }
+
+        /// <summary>Stable craftingWorkstations: display_entry ItemName is often a tool id (toolForge), block id is forge.</summary>
+        private sealed class FakeDisplayWorkstationsLooseForgeRow
+        {
+            public string ItemName = "toolForge";
+            public string unlock_level = "4";
+        }
+
+        private sealed class FakePcWorkstationsLooseForge
+        {
+            public ArrayList DisplayDataList = new ArrayList { new FakeDisplayWorkstationsLooseForgeRow() };
+        }
+
+        private sealed class FakeProgressionMapKeyWorkstationsLooseForge
+        {
+            public object GetProgressionValue(string name)
+            {
+                if (string.Equals(name, "craftingworkstations", StringComparison.OrdinalIgnoreCase))
+                    return new FakePv { ProgressionClass = new FakePcWorkstationsLooseForge() };
+                return null;
+            }
+        }
+
+        [Fact]
+        public void MapKeyOnly_Workstations_LooseItemName_toolForge_MatchesBlockKeyForge()
+        {
+            var prog = new FakeProgressionMapKeyWorkstationsLooseForge();
+            var lvl = GameReflection.TestHooks.TryResolveRequiredLevelByMapKeyOnlyForTests(prog, "Workstations", "forge", 1);
+            Assert.Equal(4, lvl);
+        }
+
+        private sealed class FakeDisplayWorkstationsRootItemWorkbench
+        {
+            public ItemClass item = new ItemClass { Name = "toolWorkbenchPlaceable" };
+            public string unlock_level = "10";
+        }
+
+        private sealed class FakePcWorkstationsRootWorkbench
+        {
+            public ArrayList DisplayDataList = new ArrayList { new FakeDisplayWorkstationsRootItemWorkbench() };
+        }
+
+        private sealed class FakeProgressionMapKeyWorkstationsRootWorkbench
+        {
+            public object GetProgressionValue(string name)
+            {
+                if (string.Equals(name, "craftingworkstations", StringComparison.OrdinalIgnoreCase))
+                    return new FakePv { ProgressionClass = new FakePcWorkstationsRootWorkbench() };
+                return null;
+            }
+        }
+
+        [Fact]
+        public void MapKeyOnly_Workstations_RootDisplayItem_toolWorkbenchPlaceable_MatchesWorkbench()
+        {
+            var prog = new FakeProgressionMapKeyWorkstationsRootWorkbench();
+            var lvl = GameReflection.TestHooks.TryResolveRequiredLevelByMapKeyOnlyForTests(prog, "Workstations", "workbench", 1);
+            Assert.Equal(10, lvl);
+        }
+
+        /// <summary>Vanilla craftingWorkstations T1-1 composite row (unlock_level CSV + per-child UnlockTier).</summary>
+        private sealed class FakeDisplayWorkstationsT11Composite
+        {
+            public string unlock_level = "4,8,10,12";
+            public ArrayList UnlockDataList = new ArrayList
+            {
+                new FakeUnlockEntryGameTier { ItemName = "forge", UnlockTier = 0 },
+                new FakeUnlockEntryGameTier { ItemName = "toolBellows", UnlockTier = 1 },
+                new FakeUnlockEntryGameTier { ItemName = "workbench", UnlockTier = 2 },
+                new FakeUnlockEntryGameTier { ItemName = "resourceLockPick", UnlockTier = 3 },
+            };
+        }
+
+        private sealed class FakeDisplayWorkstationsT4Composite
+        {
+            public string unlock_level = "40,44,48,50";
+            public ArrayList UnlockDataList = new ArrayList
+            {
+                new FakeUnlockEntryGameTier { ItemName = "toolApiaryExtractor", UnlockTier = 0 },
+                new FakeUnlockEntryGameTier { ItemName = "toolApiaryBroodBox", UnlockTier = 1 },
+                new FakeUnlockEntryGameTier { ItemName = "toolDewFilter", UnlockTier = 2 },
+                new FakeUnlockEntryGameTier { ItemName = "chemistryStation", UnlockTier = 3 },
+            };
+        }
+
+        private sealed class FakePcWorkstationsMapKeyComposite
+        {
+            public ArrayList DisplayDataList = new ArrayList
+            {
+                new FakeDisplayWorkstationsT11Composite(),
+                new FakeDisplayWorkstationsT4Composite(),
+            };
+        }
+
+        private sealed class FakeProgressionMapKeyWorkstations
+        {
+            public object GetProgressionValue(string name)
+            {
+                if (string.Equals(name, "craftingworkstations", StringComparison.OrdinalIgnoreCase))
+                    return new FakePv { ProgressionClass = new FakePcWorkstationsMapKeyComposite() };
+                return null;
+            }
+        }
+
+        [Fact]
+        public void MapKeyOnly_Workstations_CompositeRow_UsesMatchedUnlockTierColumn()
+        {
+            var prog = new FakeProgressionMapKeyWorkstations();
+            Assert.Equal(4, GameReflection.TestHooks.TryResolveRequiredLevelByMapKeyOnlyForTests(prog, "Workstations", "forge", 1));
+            Assert.Equal(10, GameReflection.TestHooks.TryResolveRequiredLevelByMapKeyOnlyForTests(prog, "Workstations", "workbench", 1));
+            Assert.Equal(50, GameReflection.TestHooks.TryResolveRequiredLevelByMapKeyOnlyForTests(prog, "Workstations", "chemistryStation", 1));
+        }
+
+        /// <summary>In-game <c>UnlockData</c> may leave <c>ItemName</c> empty while <c>DisplayData.GetUnlockItem</c> holds the block id.</summary>
+        private sealed class FakeDisplayWorkstationForgeUnlockItemOnly
+        {
+            public string unlock_level = "4,8,10,12";
+            public ArrayList UnlockDataList = new ArrayList
+            {
+                new FakeUnlockEntryGameTier { ItemName = null, UnlockTier = 0 },
+            };
+
+            public ItemClass GetUnlockItem(int u)
+            {
+                if (u == 0) return new ItemClass { Name = "forge" };
+                return null;
+            }
+        }
+
+        private sealed class FakePcWorkstationsUnlockItemOnly
+        {
+            public ArrayList DisplayDataList = new ArrayList { new FakeDisplayWorkstationForgeUnlockItemOnly() };
+        }
+
+        private sealed class FakeProgressionMapKeyWorkstationsUnlockItem
+        {
+            public object GetProgressionValue(string name)
+            {
+                if (string.Equals(name, "craftingworkstations", StringComparison.OrdinalIgnoreCase))
+                    return new FakePv { ProgressionClass = new FakePcWorkstationsUnlockItemOnly() };
+                return null;
+            }
+        }
+
+        [Fact]
+        public void MapKeyOnly_Workstations_MatchesBlockIdViaGetUnlockItemWhenUnlockStringsEmpty()
+        {
+            var prog = new FakeProgressionMapKeyWorkstationsUnlockItem();
+            Assert.Equal(4, GameReflection.TestHooks.TryResolveRequiredLevelByMapKeyOnlyForTests(prog, "Workstations", "forge", 1));
+        }
+
+        /// <summary>Game <c>UnlockData</c> / <c>DisplayData</c> expose <c>ItemName</c> as properties — no public field named <c>ItemName</c>.</summary>
+        private sealed class FakeUnlockPropOnly
+        {
+            public string ItemName { get; set; } = "forge";
+            public int UnlockTier { get; set; }
+        }
+
+        private sealed class FakeDisplayCompositePropUnlockOnly
+        {
+            public string unlock_level = "4,8,10,12";
+            public ArrayList UnlockDataList = new ArrayList { new FakeUnlockPropOnly() };
+        }
+
+        private sealed class FakePcWorkstationsPropUnlock
+        {
+            public ArrayList DisplayDataList = new ArrayList { new FakeDisplayCompositePropUnlockOnly() };
+        }
+
+        private sealed class FakeProgressionMapKeyWorkstationsPropUnlock
+        {
+            public object GetProgressionValue(string name)
+            {
+                if (string.Equals(name, "craftingworkstations", StringComparison.OrdinalIgnoreCase))
+                    return new FakePv { ProgressionClass = new FakePcWorkstationsPropUnlock() };
+                return null;
+            }
+        }
+
+        [Fact]
+        public void MapKeyOnly_Workstations_UnlockItemNameViaPropertyNotField()
+        {
+            var prog = new FakeProgressionMapKeyWorkstationsPropUnlock();
+            Assert.Equal(4, GameReflection.TestHooks.TryResolveRequiredLevelByMapKeyOnlyForTests(prog, "Workstations", "forge", 1));
         }
     }
 }

@@ -436,7 +436,7 @@ namespace LimitByCraftingSkillMod
         }
 
         /// <summary>
-        /// Chemistry Station: Postfix on GUIWindowManager Open / OpenIfNotOpen — close + popup if Workstations level too low.
+        /// Workstation <c>workstation_*</c> GUI: Postfix on Open / OpenIfNotOpen / SwitchVisible — close + popup if Workstations level too low.
         /// Prefix+skip caused UI lock; Postfix runs after vanilla Open.
         /// </summary>
         private static void ApplyGUIWindowManagerOpenNameLoggingPatchFromGameAssembly(Harmony harmony)
@@ -447,57 +447,45 @@ namespace LimitByCraftingSkillMod
                 var wmType = gameAssembly.GetType("GUIWindowManager");
                 if (wmType == null)
                 {
-                    SafeLog("[LimitByCraftingSkill] GUIWindowManager not found, chemistry Postfix skipped.");
+                    SafeLog("[LimitByCraftingSkill] GUIWindowManager not found, workstation window Postfix skipped.");
                     return;
                 }
 
                 var patchType = typeof(GUIWindowManagerOpenNameLogPatch);
-
-                var px1 = patchType.GetMethod("PostfixOpen_String_Bool_Bool_Bool", BindingFlags.Static | BindingFlags.Public);
-                var px2 = patchType.GetMethod("PostfixOpen_String_Int_Int_Bool_Bool", BindingFlags.Static | BindingFlags.Public);
-                var px3 = patchType.GetMethod("PostfixOpenIfNotOpen_String_Bool_Bool_Bool", BindingFlags.Static | BindingFlags.Public);
-                if (px1 == null || px2 == null || px3 == null)
+                var pxGeneric = patchType.GetMethod("PostfixAny_StringFirstArg", BindingFlags.Static | BindingFlags.Public);
+                if (pxGeneric == null)
                     return;
 
-                var open1 = wmType.GetMethod("Open", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                    null, new Type[] { typeof(string), typeof(bool), typeof(bool), typeof(bool) }, null);
-                if (open1 != null)
+                var patched = 0;
+                foreach (var method in wmType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
                 {
-                    harmony.Patch(open1, postfix: new HarmonyMethod(px1));
-                    SafeLog("[LimitByCraftingSkill] GUIWindowManager.Open(string,bool,bool,bool) chemistry Postfix applied.");
-                }
-
-                var open2 = wmType.GetMethod("Open", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                    null, new Type[] { typeof(string), typeof(int), typeof(int), typeof(bool), typeof(bool) }, null);
-                if (open2 != null)
-                {
-                    harmony.Patch(open2, postfix: new HarmonyMethod(px2));
-                    SafeLog("[LimitByCraftingSkill] GUIWindowManager.Open(string,int,int,bool,bool) chemistry Postfix applied.");
-                }
-
-                var openIfNotOpen = wmType.GetMethod("OpenIfNotOpen", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                    null, new Type[] { typeof(string), typeof(bool), typeof(bool), typeof(bool) }, null);
-                if (openIfNotOpen != null)
-                {
-                    harmony.Patch(openIfNotOpen, postfix: new HarmonyMethod(px3));
-                    SafeLog("[LimitByCraftingSkill] GUIWindowManager.OpenIfNotOpen chemistry Postfix applied.");
-                }
-
-                var px4 = patchType.GetMethod("PostfixSwitchVisible_String_Bool_Bool", BindingFlags.Static | BindingFlags.Public);
-                if (px4 != null)
-                {
-                    var switchVisible = wmType.GetMethod("SwitchVisible", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                        null, new Type[] { typeof(string), typeof(bool), typeof(bool) }, null);
-                    if (switchVisible != null)
+                    if (method == null || method.IsAbstract || method.IsGenericMethodDefinition)
+                        continue;
+                    var n = method.Name;
+                    if (!string.Equals(n, "Open", StringComparison.Ordinal) &&
+                        !string.Equals(n, "OpenIfNotOpen", StringComparison.Ordinal) &&
+                        !string.Equals(n, "SwitchVisible", StringComparison.Ordinal))
+                        continue;
+                    var ps = method.GetParameters();
+                    if (ps == null || ps.Length == 0 || ps[0].ParameterType != typeof(string))
+                        continue;
+                    try
                     {
-                        harmony.Patch(switchVisible, postfix: new HarmonyMethod(px4));
-                        SafeLog("[LimitByCraftingSkill] GUIWindowManager.SwitchVisible chemistry Postfix applied.");
+                        harmony.Patch(method, postfix: new HarmonyMethod(pxGeneric));
+                        patched++;
+                        SafeLog("[LimitByCraftingSkill] GUIWindowManager." + n + "(...) workstation Postfix applied.");
+                    }
+                    catch (Exception exMethod)
+                    {
+                        SafeLog("[LimitByCraftingSkill] GUIWindowManager." + n + " workstation Postfix skip: " + exMethod.Message);
                     }
                 }
+                if (patched == 0)
+                    SafeLog("[LimitByCraftingSkill] No GUIWindowManager workstation-compatible overloads found.");
             }
             catch (Exception ex)
             {
-                SafeLog("[LimitByCraftingSkill] GUIWindowManager chemistry Postfix failed: " + ex.Message);
+                SafeLog("[LimitByCraftingSkill] GUIWindowManager workstation Postfix failed: " + ex.Message);
             }
         }
 

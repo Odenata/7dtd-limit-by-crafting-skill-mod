@@ -76,6 +76,35 @@ namespace LimitByCraftingSkillMod.Tests
         }
 
         [Fact]
+        public void NormalizeVanillaWorkstationBlockName_cntWorkbench_ToWorkbenchMapKey()
+        {
+            Assert.Equal("workbench", GameReflection.TestHooks.NormalizeVanillaWorkstationBlockNameToCanonicalMapKeyForTests("cntWorkbench"));
+            Assert.Equal("forge", GameReflection.TestHooks.NormalizeVanillaWorkstationBlockNameToCanonicalMapKeyForTests("cntForge"));
+            Assert.Null(GameReflection.TestHooks.NormalizeVanillaWorkstationBlockNameToCanonicalMapKeyForTests("cntLootChest"));
+        }
+
+        [Fact]
+        public void CanonicalizeWorkstationClassNameMapKey_DewCollectorAndApiaryAliases_ToCntKeys()
+        {
+            Assert.Equal("cntDewCollector", GameReflection.TestHooks.CanonicalizeWorkstationClassNameMapKeyForTests("dewCollector"));
+            Assert.Equal("cntDewCollector", GameReflection.TestHooks.CanonicalizeWorkstationClassNameMapKeyForTests("cntDewCollector"));
+            Assert.Equal("cntApiary", GameReflection.TestHooks.CanonicalizeWorkstationClassNameMapKeyForTests("apiary"));
+            Assert.Equal("cntApiary", GameReflection.TestHooks.CanonicalizeWorkstationClassNameMapKeyForTests("cntApiary"));
+        }
+
+        [Fact]
+        public void GetWorkstationsGatedLevelForMapKey_AliasKeys_MatchCanonicalCntKeys()
+        {
+            var dewCanonical = GameReflection.GetWorkstationsGatedLevelForMapKey("cntDewCollector");
+            var dewAlias = GameReflection.GetWorkstationsGatedLevelForMapKey("dewCollector");
+            Assert.Equal(dewCanonical, dewAlias);
+
+            var apiaryCanonical = GameReflection.GetWorkstationsGatedLevelForMapKey("cntApiary");
+            var apiaryAlias = GameReflection.GetWorkstationsGatedLevelForMapKey("apiary");
+            Assert.Equal(apiaryCanonical, apiaryAlias);
+        }
+
+        [Fact]
         public void ToProgressionLookupName_WhenClothing_ReturnsCraftingarmor()
         {
             Assert.Equal("craftingarmor", GameReflection.ToProgressionLookupName("Clothing"));
