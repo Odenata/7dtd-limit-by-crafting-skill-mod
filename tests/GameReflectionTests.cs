@@ -105,6 +105,16 @@ namespace LimitByCraftingSkillMod.Tests
         }
 
         [Fact]
+        public void BuildProgressionMatchCandidates_StoneAxeAndShovelAliases_IncludeIronTierFallbackRows()
+        {
+            var stoneRepairAxe = GameReflection.TestHooks.BuildProgressionMatchCandidatesForTests("meleeToolRepairT0StoneAxe");
+            Assert.Contains("meleeToolAxeT1IronFireaxe", stoneRepairAxe);
+
+            var stoneShovel = GameReflection.TestHooks.BuildProgressionMatchCandidatesForTests("meleeToolShovelT0StoneShovel");
+            Assert.Contains("meleeToolShovelT1IronShovel", stoneShovel);
+        }
+
+        [Fact]
         public void ToProgressionLookupName_WhenClothing_ReturnsCraftingarmor()
         {
             Assert.Equal("craftingarmor", GameReflection.ToProgressionLookupName("Clothing"));
@@ -181,6 +191,19 @@ namespace LimitByCraftingSkillMod.Tests
             var itemValue = new ItemValue();
             var result = GameReflection.GetQuality(itemValue);
             Assert.Equal(0, result);
+        }
+
+        private sealed class TestItemValueWithByteQuality : ItemValue
+        {
+            public byte Quality;
+        }
+
+        [Fact]
+        public void GetQuality_WhenItemValueQualityIsByte_ReturnsByteValue()
+        {
+            var itemValue = new TestItemValueWithByteQuality { Quality = 3 };
+            var result = GameReflection.GetQuality(itemValue);
+            Assert.Equal(3, result);
         }
 
         [Fact]

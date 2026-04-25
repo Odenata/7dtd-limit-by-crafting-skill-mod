@@ -709,20 +709,62 @@ namespace LimitByCraftingSkillMod
         internal static int GetQuality(ItemValue itemValue)
         {
             if (itemValue == null) return 0;
+            bool TryCoerceQualityToInt(object v, out int q)
+            {
+                q = 0;
+                if (v == null) return false;
+                try
+                {
+                    switch (v)
+                    {
+                        case int i:
+                            q = i;
+                            return true;
+                        case uint ui:
+                            q = ui > int.MaxValue ? int.MaxValue : (int)ui;
+                            return true;
+                        case short s:
+                            q = s;
+                            return true;
+                        case ushort us:
+                            q = us;
+                            return true;
+                        case byte b:
+                            q = b;
+                            return true;
+                        case sbyte sb:
+                            q = sb;
+                            return true;
+                        case long l:
+                            q = l > int.MaxValue ? int.MaxValue : l < int.MinValue ? int.MinValue : (int)l;
+                            return true;
+                        case ulong ul:
+                            q = ul > int.MaxValue ? int.MaxValue : (int)ul;
+                            return true;
+                        default:
+                            q = Convert.ToInt32(v, CultureInfo.InvariantCulture);
+                            return true;
+                    }
+                }
+                catch
+                {
+                    return false;
+                }
+            }
             var t = itemValue.GetType();
             var f = t.GetField("Quality", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             if (f != null)
             {
                 var v = f.GetValue(itemValue);
-                if (v is ushort u) return u;
-                if (v is int i) return i;
+                if (TryCoerceQualityToInt(v, out var q))
+                    return q;
             }
             var p = t.GetProperty("Quality", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             if (p != null)
             {
                 var v = p.GetValue(itemValue, null);
-                if (v is ushort u) return u;
-                if (v is int i) return i;
+                if (TryCoerceQualityToInt(v, out var q))
+                    return q;
             }
             return 0;
         }
@@ -1670,6 +1712,16 @@ namespace LimitByCraftingSkillMod
                     if (mapOnly > resolvedLevel)
                         resolvedLevel = mapOnly;
                 }
+                // Stone axe/shovel can resolve through T0 rows that stay at level 1 for all qualities. For quality>1, also
+                // evaluate the corresponding iron progression row and keep the higher required level.
+                if (effectiveQuality > 1 &&
+                    string.Equals(skillGroup, "HarvestingTools", StringComparison.OrdinalIgnoreCase) &&
+                    TryGetHarvestingStoneQualityProxyMapKey(mapKeyName, out var proxyMapKey))
+                {
+                    var proxyLevel = TryResolveRequiredLevelByMapKeyOnly(progression, skillGroup, proxyMapKey, effectiveQuality);
+                    if (proxyLevel > resolvedLevel)
+                        resolvedLevel = proxyLevel;
+                }
                 // requiredLevelOverride / requiredLevelMin: both are floors via Max (same as workstation/vehicle block paths).
                 // Historically override only ran when resolvedLevel <= 0, which skipped XML gates whenever progression returned
                 // a wrong positive tier; treat override like min so one attribute is enough for "at least this level".
@@ -1775,6 +1827,16 @@ namespace LimitByCraftingSkillMod
             if (string.IsNullOrEmpty(mapKeyName)) return list;
             if (ClassNameToCraftingSkillMapLoader.TryGetProgressionMatchOverride(mapKeyName, out var ex)) Add(ex);
             Add(mapKeyName);
+            // Harvesting stone tools can arrive under several class ids (repair/axe aliases) while progression rows
+            // are anchored to iron-tier ids; include stable fallbacks so quality bands resolve consistently.
+            if (mapKeyName.IndexOf("stoneshovel", StringComparison.OrdinalIgnoreCase) >= 0)
+                Add("meleeToolShovelT1IronShovel");
+            if (mapKeyName.IndexOf("stoneaxe", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                Add("meleeToolAxeT0StoneAxe");
+                Add("meleeToolRepairT0StoneAxe");
+                Add("meleeToolAxeT1IronFireaxe");
+            }
             if (mapKeyName.StartsWith("ironGarageDoor_", StringComparison.OrdinalIgnoreCase) &&
                 !mapKeyName.StartsWith("ironGarageDoor01_", StringComparison.OrdinalIgnoreCase))
                 Add("ironGarageDoor01_" + mapKeyName.Substring("ironGarageDoor_".Length));
@@ -1782,6 +1844,23 @@ namespace LimitByCraftingSkillMod
                 mapKeyName.IndexOf("woodenGarageDoor01_3x3_", StringComparison.OrdinalIgnoreCase) < 0)
                 Add("woodenGarageDoor01_3x3_" + mapKeyName.Substring("woodenGarageDoor3x3_".Length));
             return list;
+        }
+
+        private static bool TryGetHarvestingStoneQualityProxyMapKey(string mapKeyName, out string proxyMapKey)
+        {
+            proxyMapKey = null;
+            if (string.IsNullOrWhiteSpace(mapKeyName)) return false;
+            if (mapKeyName.IndexOf("stoneaxe", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                proxyMapKey = "meleeToolAxeT1IronFireaxe";
+                return true;
+            }
+            if (mapKeyName.IndexOf("stoneshovel", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                proxyMapKey = "meleeToolShovelT1IronShovel";
+                return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -2374,6 +2453,11 @@ namespace LimitByCraftingSkillMod
             public static int GetRequiredLevelFromDisplayDataForTests(object displayData, int qualityOrTier)
             {
                 return GetRequiredLevelFromDisplayData(displayData, qualityOrTier);
+            }
+
+            public static string[] BuildProgressionMatchCandidatesForTests(string mapKeyName)
+            {
+                return BuildProgressionMatchCandidates(mapKeyName).ToArray();
             }
 
             /// <summary>Exposes <see cref="ResolveTierForUnlockChild"/> with no <paramref name="displayData"/> (positional multi-child only).</summary>

@@ -37,6 +37,70 @@ namespace LimitByCraftingSkillMod.Tests
         };
     }
 
+    public sealed class FakePcHarvestingAxeAndShovel
+    {
+        public ArrayList DisplayDataList = new ArrayList
+        {
+            new FakeDisplayData
+            {
+                ItemName = "meleeToolAxeT1IronFireaxe",
+                QualityStarts = new[] { 3, 17, 31, 55, 71, 88 }
+            },
+            new FakeDisplayData
+            {
+                ItemName = "meleeToolShovelT1IronShovel",
+                QualityStarts = new[] { 3, 17, 31, 55, 71, 88 }
+            }
+        };
+    }
+
+    public sealed class FakeProgressionForStoneHarvestingOverride
+    {
+        public object GetProgressionValue(string name)
+        {
+            if (string.Equals(name, "craftingharvestingtools", System.StringComparison.OrdinalIgnoreCase))
+                return new FakePv { ProgressionClass = new FakePcHarvestingAxeAndShovel() };
+            return null;
+        }
+    }
+
+    public sealed class FakePcHarvestingStoneRowsPlusIronRows
+    {
+        public ArrayList DisplayDataList = new ArrayList
+        {
+            new FakeDisplayData
+            {
+                ItemName = "meleeToolRepairT0StoneAxe",
+                QualityStarts = new[] { 1, 1, 1, 1, 1, 1 }
+            },
+            new FakeDisplayData
+            {
+                ItemName = "meleeToolShovelT0StoneShovel",
+                QualityStarts = new[] { 1, 1, 1, 1, 1, 1 }
+            },
+            new FakeDisplayData
+            {
+                ItemName = "meleeToolAxeT1IronFireaxe",
+                QualityStarts = new[] { 3, 17, 31, 55, 71, 88 }
+            },
+            new FakeDisplayData
+            {
+                ItemName = "meleeToolShovelT1IronShovel",
+                QualityStarts = new[] { 3, 17, 31, 55, 71, 88 }
+            }
+        };
+    }
+
+    public sealed class FakeProgressionStoneRowsPlusIronRows
+    {
+        public object GetProgressionValue(string name)
+        {
+            if (string.Equals(name, "craftingharvestingtools", System.StringComparison.OrdinalIgnoreCase))
+                return new FakePv { ProgressionClass = new FakePcHarvestingStoneRowsPlusIronRows() };
+            return null;
+        }
+    }
+
     public sealed class FakePcWorkstations
     {
         public ArrayList DisplayDataList = new ArrayList
@@ -122,6 +186,38 @@ namespace LimitByCraftingSkillMod.Tests
             var prog = new FakeProgressionForRequiredLevel();
             var level = GameReflection.GetRequiredLevelForItemForUnitTest(itemClass, itemValue, prog);
             Assert.Equal(31, level);
+        }
+
+        [Fact]
+        public void GetRequiredLevelForItemForUnitTest_StoneAxeAndShovelQuality_UseProgressionMatchOverrideBands()
+        {
+            if (GameReflection.GetCraftingSkillGroup(new ItemClass { Name = "meleeToolAxeT0StoneAxe" }) == null) return;
+
+            var prog = new FakeProgressionForStoneHarvestingOverride();
+
+            var stoneAxe = new ItemClass { Name = "meleeToolAxeT0StoneAxe" };
+            var axeValue = new TestItemValueWithQuality { ItemClass = stoneAxe, Quality = 3 };
+            Assert.Equal(31, GameReflection.GetRequiredLevelForItemForUnitTest(stoneAxe, axeValue, prog));
+
+            var stoneShovel = new ItemClass { Name = "meleeToolShovelT0StoneShovel" };
+            var shovelValue = new TestItemValueWithQuality { ItemClass = stoneShovel, Quality = 3 };
+            Assert.Equal(31, GameReflection.GetRequiredLevelForItemForUnitTest(stoneShovel, shovelValue, prog));
+        }
+
+        [Fact]
+        public void GetRequiredLevelForItemForUnitTest_StoneRowsLockedToOne_QualityUsesIronProxyBands()
+        {
+            if (GameReflection.GetCraftingSkillGroup(new ItemClass { Name = "meleeToolRepairT0StoneAxe" }) == null) return;
+
+            var prog = new FakeProgressionStoneRowsPlusIronRows();
+
+            var stoneRepairAxe = new ItemClass { Name = "meleeToolRepairT0StoneAxe" };
+            var axeValue = new TestItemValueWithQuality { ItemClass = stoneRepairAxe, Quality = 3 };
+            Assert.Equal(31, GameReflection.GetRequiredLevelForItemForUnitTest(stoneRepairAxe, axeValue, prog));
+
+            var stoneShovel = new ItemClass { Name = "meleeToolShovelT0StoneShovel" };
+            var shovelValue = new TestItemValueWithQuality { ItemClass = stoneShovel, Quality = 3 };
+            Assert.Equal(31, GameReflection.GetRequiredLevelForItemForUnitTest(stoneShovel, shovelValue, prog));
         }
 
         [Fact]

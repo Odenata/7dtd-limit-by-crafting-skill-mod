@@ -249,7 +249,7 @@
   <Item className="gunHandgunT3SMG5" craftingSkillGroup="Handguns"/>
 
   <!-- HarvestingTools -->
-  <Item className="meleeToolAxeT0StoneAxe" craftingSkillGroup="HarvestingTools"/>
+  <Item className="meleeToolAxeT0StoneAxe" craftingSkillGroup="HarvestingTools" progressionMatchName="meleeToolAxeT1IronFireaxe"/>
   <Item className="meleeToolAxeT1IronFireaxe" craftingSkillGroup="HarvestingTools"/>
   <Item className="meleeToolAxeT2SteelAxe" craftingSkillGroup="HarvestingTools" progressionMatchName="meleeToolAxeT2SteelFireaxe"/>
   <Item className="meleeToolAxeT2SteelFireaxe" craftingSkillGroup="HarvestingTools"/>
@@ -258,8 +258,8 @@
   <Item className="meleeToolPickT1IronPickaxe" craftingSkillGroup="HarvestingTools"/>
   <Item className="meleeToolPickT2SteelPickaxe" craftingSkillGroup="HarvestingTools"/>
   <Item className="meleeToolPickT3Auger" craftingSkillGroup="HarvestingTools"/>
-  <Item className="meleeToolRepairT0StoneAxe" craftingSkillGroup="HarvestingTools"/>
-  <Item className="meleeToolShovelT0StoneShovel" craftingSkillGroup="HarvestingTools"/>
+  <Item className="meleeToolRepairT0StoneAxe" craftingSkillGroup="HarvestingTools" progressionMatchName="meleeToolAxeT1IronFireaxe"/>
+  <Item className="meleeToolShovelT0StoneShovel" craftingSkillGroup="HarvestingTools" progressionMatchName="meleeToolShovelT1IronShovel"/>
   <Item className="meleeToolShovelT1IronShovel" craftingSkillGroup="HarvestingTools"/>
   <Item className="meleeToolShovelT2SteelShovel" craftingSkillGroup="HarvestingTools"/>
 
