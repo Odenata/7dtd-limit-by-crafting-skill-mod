@@ -453,7 +453,8 @@ namespace LimitByCraftingSkillMod
 
                 var patchType = typeof(GUIWindowManagerOpenNameLogPatch);
                 var pxGeneric = patchType.GetMethod("PostfixAny_StringFirstArg", BindingFlags.Static | BindingFlags.Public);
-                if (pxGeneric == null)
+                var pxUpdate = patchType.GetMethod("PostfixUpdate_Float", BindingFlags.Static | BindingFlags.Public);
+                if (pxGeneric == null || pxUpdate == null)
                     return;
 
                 var patched = 0;
@@ -478,6 +479,22 @@ namespace LimitByCraftingSkillMod
                     catch (Exception exMethod)
                     {
                         SafeLog("[LimitByCraftingSkill] GUIWindowManager." + n + " workstation Postfix skip: " + exMethod.Message);
+                    }
+                }
+
+                var update = wmType.GetMethod("Update", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null, new[] { typeof(float) }, null);
+                if (update != null)
+                {
+                    try
+                    {
+                        harmony.Patch(update, postfix: new HarmonyMethod(pxUpdate));
+                        patched++;
+                        SafeLog("[LimitByCraftingSkill] GUIWindowManager.Update(float) workstation watchdog Postfix applied.");
+                    }
+                    catch (Exception exUpdate)
+                    {
+                        SafeLog("[LimitByCraftingSkill] GUIWindowManager.Update(float) workstation watchdog Postfix skip: " + exUpdate.Message);
                     }
                 }
                 if (patched == 0)

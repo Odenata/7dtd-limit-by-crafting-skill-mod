@@ -10,6 +10,7 @@ namespace LimitByCraftingSkillMod
     internal static class GUIWindowManagerOpenNameLogPatch
     {
         private const string WorkstationWindowPrefix = "workstation_";
+        private const int WorkstationBlockedRecloseMs = 1200;
 
         /// <summary>Harmony Postfix for GUIWindowManager.Open(string, bool, bool, bool).</summary>
         public static void PostfixOpen_String_Bool_Bool_Bool(object __instance, string _windowName, bool _bModal, bool _bIsNotEscClosable, bool _bCloseAllOpenWindows)
@@ -36,6 +37,14 @@ namespace LimitByCraftingSkillMod
         }
 
         /// <summary>
+        /// GUIWindowManager.Update watchdog: briefly re-close recently blocked workstation windows to prevent interact-spam bypass.
+        /// </summary>
+        public static void PostfixUpdate_Float(object __instance, float _dt)
+        {
+            TickCloseBlockedWorkstationWindows(__instance);
+        }
+
+        /// <summary>
         /// Generic postfix for GUIWindowManager methods where first arg is window name; used for overload coverage.
         /// </summary>
         public static void PostfixAny_StringFirstArg(object __instance, object[] __args)
@@ -50,6 +59,9 @@ namespace LimitByCraftingSkillMod
         private static readonly object WorkstationGuiDedupeLock = new object();
         private static string _lastDedupeWindow;
         private static int _lastWorkstationGuiCloseTicks;
+        private static readonly object BlockedWindowsLock = new object();
+        private static readonly System.Collections.Generic.Dictionary<string, int> _blockedWorkstationWindowsUntilTicks =
+            new System.Collections.Generic.Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         private static void AfterWorkstationWindowMayHaveOpened(object guiWindowManager, string windowName)
         {
@@ -75,13 +87,14 @@ namespace LimitByCraftingSkillMod
                 if (!LimitByCraftingSkillLogic.IsRestricted(playerLevel, requiredLevel, true))
                     return;
 
+                var suppressPopup = false;
                 lock (WorkstationGuiDedupeLock)
                 {
                     var now = Environment.TickCount;
                     var dt = now - _lastWorkstationGuiCloseTicks;
                     if (string.Equals(_lastDedupeWindow, windowName, StringComparison.Ordinal) &&
                         dt >= 0 && dt < 400)
-                        return;
+                        suppressPopup = true;
                     _lastDedupeWindow = windowName;
                     _lastWorkstationGuiCloseTicks = now;
                 }
@@ -89,17 +102,78 @@ namespace LimitByCraftingSkillMod
                 var closeIfOpen = guiWindowManager.GetType().GetMethod("CloseIfOpen", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
                     null, new[] { typeof(string) }, null);
                 closeIfOpen?.Invoke(guiWindowManager, new object[] { windowName });
+                MarkBlockedWindowForReclose(windowName);
 
-                var display = WorkstationMapKeyToDisplayLabel(mapKey);
-                RestrictionFeedback.ShowRestrictionPopup(player, display, "Workstations", playerLevel, requiredLevel);
+                if (!suppressPopup)
+                {
+                    var display = WorkstationMapKeyToDisplayLabel(mapKey);
+                    RestrictionFeedback.ShowRestrictionPopup(player, display, "Workstations", playerLevel, requiredLevel);
+                }
 
                 if (ModConfig.Instance.DebugMode)
-                    ModApi.DebugLog("[LimitByCraftingSkill] Workstation GUI blocked (GUIWindowManager Postfix) " + display + " Workstations " + playerLevel + "/" + requiredLevel);
+                    ModApi.DebugLog("[LimitByCraftingSkill] Workstation GUI blocked (GUIWindowManager Postfix) " + WorkstationMapKeyToDisplayLabel(mapKey) + " Workstations " + playerLevel + "/" + requiredLevel + (suppressPopup ? " [dedupe_popup]" : ""));
             }
             catch (Exception ex)
             {
                 if (ModConfig.Instance != null && ModConfig.Instance.DebugMode)
                     ModApi.DebugLog("[LimitByCraftingSkill] GUIWindowManager workstation Postfix: " + ex.Message);
+            }
+        }
+
+        private static void MarkBlockedWindowForReclose(string windowName)
+        {
+            if (string.IsNullOrWhiteSpace(windowName))
+                return;
+            lock (BlockedWindowsLock)
+            {
+                _blockedWorkstationWindowsUntilTicks[windowName] = Environment.TickCount + WorkstationBlockedRecloseMs;
+            }
+        }
+
+        private static void TickCloseBlockedWorkstationWindows(object guiWindowManager)
+        {
+            if (guiWindowManager == null)
+                return;
+            string[] toClose;
+            lock (BlockedWindowsLock)
+            {
+                if (_blockedWorkstationWindowsUntilTicks.Count == 0)
+                    return;
+                var now = Environment.TickCount;
+                var active = new System.Collections.Generic.List<string>();
+                var expired = new System.Collections.Generic.List<string>();
+                foreach (var kv in _blockedWorkstationWindowsUntilTicks)
+                {
+                    if (now <= kv.Value)
+                        active.Add(kv.Key);
+                    else
+                        expired.Add(kv.Key);
+                }
+                foreach (var k in expired)
+                    _blockedWorkstationWindowsUntilTicks.Remove(k);
+                if (active.Count == 0)
+                    return;
+                toClose = active.ToArray();
+            }
+
+            var closeIfOpen = guiWindowManager.GetType().GetMethod(
+                "CloseIfOpen",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                null,
+                new[] { typeof(string) },
+                null);
+            if (closeIfOpen == null)
+                return;
+            foreach (var windowName in toClose)
+            {
+                try
+                {
+                    closeIfOpen.Invoke(guiWindowManager, new object[] { windowName });
+                }
+                catch
+                {
+                    // best effort
+                }
             }
         }
 

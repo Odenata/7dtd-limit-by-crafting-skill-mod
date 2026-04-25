@@ -139,6 +139,7 @@ namespace LimitByCraftingSkillMod
             if (!LimitByCraftingSkillLogic.IsRestricted(playerLevel, requiredLevel, true))
                 return;
 
+            var suppressPopup = false;
             object dedupeKey = workstationWindowInstance ?? tileEntityWorkstation;
             lock (DedupeLock)
             {
@@ -149,7 +150,7 @@ namespace LimitByCraftingSkillMod
                 {
                     var delta = now - _lastDedupeTicks;
                     if (delta >= 0 && delta < 450)
-                        return;
+                        suppressPopup = true;
                 }
 
                 _lastDedupeKey = dedupeKey != null ? new WeakReference<object>(dedupeKey) : null;
@@ -161,10 +162,13 @@ namespace LimitByCraftingSkillMod
 
             CloseWorkstationAfterUnauthorizedOpen(workstationWindowInstance, playerUi, windowId);
 
-            var block = GameReflection.GetBlockFromBlockValue(blockValue);
-            var blockNameForMap = GameReflection.GetBlockNameForMap(block);
-            var displayName = string.IsNullOrWhiteSpace(blockNameForMap) ? "workstation" : blockNameForMap;
-            RestrictionFeedback.ShowRestrictionPopup(player, displayName, "Workstations", playerLevel, requiredLevel);
+            if (!suppressPopup)
+            {
+                var block = GameReflection.GetBlockFromBlockValue(blockValue);
+                var blockNameForMap = GameReflection.GetBlockNameForMap(block);
+                var displayName = string.IsNullOrWhiteSpace(blockNameForMap) ? "workstation" : blockNameForMap;
+                RestrictionFeedback.ShowRestrictionPopup(player, displayName, "Workstations", playerLevel, requiredLevel);
+            }
 
             if (ModConfig.Instance.DebugMode)
                 ModApi.DebugLog("[LimitByCraftingSkill] Workstation restricted (" + traceTag + ") Workstations " + playerLevel + "/" + requiredLevel);
