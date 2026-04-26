@@ -68,9 +68,9 @@
   <Item className="armorRaiderGloves" craftingSkillGroup="Clothing"/>
   <Item className="armorRaiderHelmet" craftingSkillGroup="Clothing"/>
   <Item className="armorRaiderOutfit" craftingSkillGroup="Clothing"/>
-  <Item className="armorRangeBoots" craftingSkillGroup="Clothing"/>
-  <Item className="armorRangeGloves" craftingSkillGroup="Clothing"/>
-  <Item className="armorRangeOutfit" craftingSkillGroup="Clothing"/>
+  <Item className="armorRangerBoots" craftingSkillGroup="Clothing"/>
+  <Item className="armorRangerGloves" craftingSkillGroup="Clothing"/>
+  <Item className="armorRangerOutfit" craftingSkillGroup="Clothing"/>
   <Item className="armorRangerHelmet" craftingSkillGroup="Clothing"/>
   <Item className="armorRogueBoots" craftingSkillGroup="Clothing"/>
   <Item className="armorRogueGloves" craftingSkillGroup="Clothing"/>
