@@ -1,12 +1,15 @@
 using System;
 using System.Collections;
 using System.Reflection;
+using UnityEngine;
 
 namespace LimitByCraftingSkillMod
 {
     /// <summary>
     /// Shared workstation UI restriction: after vanilla UI code runs, close and show popup if Workstations level is too low.
-    /// Hooks: CraftingWindowGroup.OnOpen (filtered to workstation windows), WorkstationWindowGroup.SetTileEntity.
+    /// Hooks: CraftingWindowGroup.OnOpen (filtered to workstation windows), <c>WorkstationWindowGroup.SetTileEntity</c>, and
+    /// <c>XUiC_DewCollectorWindowGroup.SetTileEntity(TileEntityCollector)</c> (Dew/Apiary share <c>window_group</c> <c>dewcollector</c>;
+    /// <c>OnOpen</c> is too early — the tile entity is bound in <c>SetTileEntity</c>).
     /// </summary>
     internal static class WorkstationRestrictionUi
     {
@@ -74,6 +77,24 @@ namespace LimitByCraftingSkillMod
         }
 
         /// <summary>
+        /// Postfix for XUiC_DewCollectorWindowGroup.OnOpen. Collector windows can reopen without rebinding TE each time, so
+        /// keep an OnOpen gate in addition to SetTileEntity.
+        /// </summary>
+        public static void PostfixDewCollectorWindowGroupOnOpen(object __instance)
+        {
+            try
+            {
+                if (__instance == null)
+                    return;
+                TryEnforceRestrictedWorkstation(__instance, null, null, "OnOpen(DewCollectorGroup)");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[LimitByCraftingSkill] WorkstationRestrictionUi PostfixDewCollectorWindowGroupOnOpen: " + ex);
+            }
+        }
+
+        /// <summary>
         /// Postfix for XUiC_WorkstationWindowGroup.SetTileEntity(TileEntityWorkstation) — runs whenever the TE is bound (strong signal).
         /// </summary>
         public static void PostfixSetTileEntity(object __instance, object _te)
@@ -86,6 +107,7 @@ namespace LimitByCraftingSkillMod
             }
             catch (Exception ex)
             {
+                Debug.LogWarning("[LimitByCraftingSkill] WorkstationRestrictionUi PostfixSetTileEntity: " + ex);
                 if (ModConfig.Instance != null && ModConfig.Instance.DebugMode)
                     ModApi.DebugLog("[LimitByCraftingSkill] WorkstationRestrictionUi PostfixSetTileEntity: " + ex.Message);
             }
@@ -176,11 +198,17 @@ namespace LimitByCraftingSkillMod
 
         private static object ResolveWorkstationBlockValueFromWindow(object window)
         {
+            if (window == null)
+                return null;
             try
             {
                 var bv = GetWorkstationBlockFromWindow(window);
                 if (bv != null)
                     return bv;
+
+                var fromTe = TryGetBlockValueFromTileEntityFieldOnController(window);
+                if (fromTe != null)
+                    return fromTe;
 
                 var t = window.GetType();
                 foreach (var name in new[] { "workstationData", "WorkstationData" })
@@ -219,8 +247,56 @@ namespace LimitByCraftingSkillMod
             return null;
         }
 
+        /// <summary>
+        /// Dew/Apiary collector UIs hold <c>te</c> (TileEntityCollector) directly on <c>XUiC_DewCollectorWindowGroup</c>, not workstationData.
+        /// </summary>
+        private static object TryGetBlockValueFromTileEntityFieldOnController(object window)
+        {
+            if (window == null)
+                return null;
+            try
+            {
+                for (var t = window.GetType(); t != null && t != typeof(object); t = t.BaseType)
+                {
+                    foreach (var f in t.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+                    {
+                        if (f.FieldType == null || f.FieldType.Name == null) continue;
+                        if (!f.FieldType.Name.StartsWith("TileEntity", StringComparison.Ordinal)) continue;
+                        var te = f.GetValue(window);
+                        if (te == null) continue;
+                        var bv = GameReflection.GetBlockValueFromTileEntity(te);
+                        if (bv != null)
+                            return bv;
+                    }
+
+                    foreach (var p in t.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+                    {
+                        if (p.GetIndexParameters() != null && p.GetIndexParameters().Length > 0) continue;
+                        var pt = p.PropertyType;
+                        if (pt == null || !pt.Name.StartsWith("TileEntity", StringComparison.Ordinal)) continue;
+                        if (!p.CanRead) continue;
+                        object te;
+                        try { te = p.GetValue(window, null); }
+                        catch { continue; }
+                        if (te == null) continue;
+                        var bv = GameReflection.GetBlockValueFromTileEntity(te);
+                        if (bv != null)
+                            return bv;
+                    }
+                }
+            }
+            catch
+            {
+                // ignored
+            }
+
+            return null;
+        }
+
         private static object TryGetLocalPlayerUiFromController(object controller)
         {
+            if (controller == null)
+                return null;
             try
             {
                 var xuiProp = controller.GetType().GetProperty("xui", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.IgnoreCase);
@@ -393,6 +469,8 @@ namespace LimitByCraftingSkillMod
 
         private static void TryCloseXUiController(object ctrl)
         {
+            if (ctrl == null)
+                return;
             try
             {
                 var t = ctrl.GetType();

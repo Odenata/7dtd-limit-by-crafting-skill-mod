@@ -191,13 +191,25 @@ namespace LimitByCraftingSkillMod
                 return !string.IsNullOrWhiteSpace(mapKey);
             }
 
+            // XUi uses the same window_group "dewcollector" for both Dew and Apiary; a bare "dewcollector" match would
+            // always map to cntDewCollector. Collector gating uses XUiC_DewCollectorWindowGroup.OnOpen + TileEntityCollector.te.
             var compact = name.Replace("_", "").Replace("-", "").Replace(" ", "").ToLowerInvariant();
-            if (compact.Contains("dewcollector"))
+            if (compact.Contains("cntdewcollector"))
             {
                 mapKey = "cntDewCollector";
                 return true;
             }
-            if (compact.Contains("apiary"))
+            if (compact.Contains("cntapiary"))
+            {
+                mapKey = "cntApiary";
+                return true;
+            }
+            if (compact.Contains("tooldewfilter"))
+            {
+                mapKey = "cntDewCollector";
+                return true;
+            }
+            if (compact.Contains("toolapiarybroodbox") || compact.Contains("toolapiaryextractor") || compact.Contains("toolapiarysmoker"))
             {
                 mapKey = "cntApiary";
                 return true;

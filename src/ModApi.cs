@@ -33,8 +33,11 @@ namespace LimitByCraftingSkillMod
                 ApplyToolbeltHandleStackSwapPatchFromGameAssembly(harmony);
                 ApplyWorkstationVehicleStackSwapPatchesFromGameAssembly(harmony);
                 ApplyWorkstationOpenPatchFromGameAssembly(harmony);
+                ApplyCollectorOpenRestrictionPatchFromGameAssembly(harmony);
                 ApplyWorkstationWindowSetTileEntityPatchFromGameAssembly(harmony);
                 ApplyWorkstationWindowOnOpenRestrictionPatchFromGameAssembly(harmony);
+                ApplyDewCollectorWindowGroupSetTileEntityPatchFromGameAssembly(harmony);
+                ApplyDewCollectorWindowGroupOnOpenPatchFromGameAssembly(harmony);
                 ApplyGameManagerWorkstationOpenedPatchFromGameAssembly(harmony);
                 ApplyGUIWindowManagerOpenNameLoggingPatchFromGameAssembly(harmony);
                 ApplyVehicleDrivePatchFromGameAssembly(harmony);
@@ -233,6 +236,151 @@ namespace LimitByCraftingSkillMod
             catch (Exception ex)
             {
                 SafeLog($"[LimitByCraftingSkill] Workstation open patch hook failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Dew Collector and Apiary use <c>BlockCollector</c> and the <c>dewcollector</c> XUi window group, not <c>WorkstationWindowGroup</c>.
+        /// UI-only postfixes can miss some open paths. Prefixing only <c>BlockCollector.OnBlockActivated</c> applies the same Workstations
+        /// gate as <see cref="WorkstationOpenRestrictionPatch"/> without re-enabling broad <c>BlockWorkstation</c> prefixes (those correlated with UI lock).
+        /// </summary>
+        private static void ApplyCollectorOpenRestrictionPatchFromGameAssembly(Harmony harmony)
+        {
+            try
+            {
+                var gameAssembly = typeof(Equipment).Assembly;
+                var collectorType = gameAssembly.GetType("BlockCollector");
+                if (collectorType == null)
+                {
+                    SafeLog("[LimitByCraftingSkill] BlockCollector not found, collector OnBlockActivated Prefix skipped.");
+                    return;
+                }
+
+                var wb = gameAssembly.GetType("WorldBase");
+                var v3i = gameAssembly.GetType("Vector3i");
+                var bv = gameAssembly.GetType("BlockValue");
+                var epl = gameAssembly.GetType("EntityPlayerLocal");
+                if (wb == null || v3i == null || bv == null || epl == null)
+                {
+                    SafeLog("[LimitByCraftingSkill] Required game types missing for BlockCollector.OnBlockActivated patch.");
+                    return;
+                }
+
+                var prefix = typeof(WorkstationOpenRestrictionPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.Public);
+                var prefixWithCommand = typeof(WorkstationOpenRestrictionPatch).GetMethod("PrefixWithCommand", BindingFlags.Static | BindingFlags.Public);
+                if (prefix == null || prefixWithCommand == null)
+                {
+                    SafeLog("[LimitByCraftingSkill] WorkstationOpenRestrictionPatch.Prefix / PrefixWithCommand not found.");
+                    return;
+                }
+
+                var methodNoCommand = collectorType.GetMethod(
+                    "OnBlockActivated",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null,
+                    new[] { wb, typeof(int), v3i, bv, epl },
+                    null);
+                if (methodNoCommand == null || methodNoCommand.DeclaringType != collectorType)
+                {
+                    SafeLog("[LimitByCraftingSkill] BlockCollector.OnBlockActivated(WorldBase,int,Vector3i,BlockValue,EntityPlayerLocal) not found, Prefix skipped.");
+                    return;
+                }
+
+                harmony.Patch(methodNoCommand, prefix: new HarmonyMethod(prefix));
+
+                var methodWithCommand = collectorType.GetMethod(
+                    "OnBlockActivated",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null,
+                    new[] { typeof(string), wb, typeof(int), v3i, bv, epl },
+                    null);
+                if (methodWithCommand != null && methodWithCommand.DeclaringType == collectorType)
+                {
+                    harmony.Patch(methodWithCommand, prefix: new HarmonyMethod(prefixWithCommand));
+                    SafeLog("[LimitByCraftingSkill] BlockCollector.OnBlockActivated (command + no-command) Prefix (Workstations gate) applied.");
+                }
+                else
+                {
+                    SafeLog("[LimitByCraftingSkill] BlockCollector.OnBlockActivated(WorldBase,...) Prefix applied (no String overload on BlockCollector).");
+                }
+            }
+            catch (Exception ex)
+            {
+                SafeLog("[LimitByCraftingSkill] BlockCollector OnBlockActivated Prefix failed: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// <c>cntDewCollector</c> and <c>cntApiary</c> use <c>XUiC_DewCollectorWindowGroup.SetTileEntity(TileEntityCollector)</c> (XUi
+        /// <c>window_group</c> <c>dewcollector</c>, not <c>WorkstationWindowGroup</c>). <c>OnOpen</c> may run before <c>te</c> is set, so
+        /// we postfix <c>SetTileEntity</c> and reuse <see cref="WorkstationRestrictionUi.PostfixSetTileEntity"/> (block id from the TE).
+        /// </summary>
+        private static void ApplyDewCollectorWindowGroupSetTileEntityPatchFromGameAssembly(Harmony harmony)
+        {
+            try
+            {
+                var gameAssembly = typeof(Equipment).Assembly;
+                var windowType = gameAssembly.GetType("XUiC_DewCollectorWindowGroup");
+                var teType = gameAssembly.GetType("TileEntityCollector");
+                if (windowType == null || teType == null)
+                {
+                    SafeLog("[LimitByCraftingSkill] XUiC_DewCollectorWindowGroup or TileEntityCollector not found, SetTileEntity Postfix (collector) skipped.");
+                    return;
+                }
+
+                var postfix = typeof(WorkstationRestrictionUi).GetMethod("PostfixSetTileEntity", BindingFlags.Static | BindingFlags.Public);
+                if (postfix == null)
+                    return;
+
+                var method = windowType.GetMethod("SetTileEntity", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null, new[] { teType }, null);
+                if (method == null || method.DeclaringType != windowType)
+                {
+                    SafeLog("[LimitByCraftingSkill] XUiC_DewCollectorWindowGroup.SetTileEntity(TileEntityCollector) not found, collector SetTileEntity Postfix skipped.");
+                    return;
+                }
+
+                harmony.Patch(method, postfix: new HarmonyMethod(postfix));
+                SafeLog("[LimitByCraftingSkill] XUiC_DewCollectorWindowGroup.SetTileEntity(TileEntityCollector) Postfix (collector) applied.");
+            }
+            catch (Exception ex)
+            {
+                SafeLog("[LimitByCraftingSkill] DewCollectorWindowGroup SetTileEntity Postfix failed: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Collector windows can reopen with an already-bound TE, so enforce on OnOpen in addition to SetTileEntity.
+        /// </summary>
+        private static void ApplyDewCollectorWindowGroupOnOpenPatchFromGameAssembly(Harmony harmony)
+        {
+            try
+            {
+                var gameAssembly = typeof(Equipment).Assembly;
+                var windowType = gameAssembly.GetType("XUiC_DewCollectorWindowGroup");
+                if (windowType == null)
+                {
+                    SafeLog("[LimitByCraftingSkill] XUiC_DewCollectorWindowGroup not found, OnOpen Postfix (collector) skipped.");
+                    return;
+                }
+
+                var method = windowType.GetMethod("OnOpen", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
+                if (method == null || method.DeclaringType != windowType)
+                {
+                    SafeLog("[LimitByCraftingSkill] XUiC_DewCollectorWindowGroup.OnOpen() not found, collector OnOpen Postfix skipped.");
+                    return;
+                }
+
+                var postfix = typeof(WorkstationRestrictionUi).GetMethod("PostfixDewCollectorWindowGroupOnOpen", BindingFlags.Static | BindingFlags.Public);
+                if (postfix == null)
+                    return;
+
+                harmony.Patch(method, postfix: new HarmonyMethod(postfix));
+                SafeLog("[LimitByCraftingSkill] XUiC_DewCollectorWindowGroup.OnOpen Postfix (collector) applied.");
+            }
+            catch (Exception ex)
+            {
+                SafeLog("[LimitByCraftingSkill] DewCollectorWindowGroup OnOpen Postfix failed: " + ex.Message);
             }
         }
 

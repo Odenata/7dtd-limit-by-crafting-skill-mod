@@ -909,17 +909,21 @@ namespace LimitByCraftingSkillMod
             try
             {
                 var t = blockValue.GetType();
-                var prop = t.GetProperty("Block", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (prop != null)
+                foreach (var member in new[] { "Block", "block" })
                 {
-                    var b = prop.GetValue(blockValue, null);
-                    if (b != null) return b;
-                }
-                var field = t.GetField("Block", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (field != null)
-                {
-                    var b = field.GetValue(blockValue);
-                    if (b != null) return b;
+                    var prop = t.GetProperty(member, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (prop != null)
+                    {
+                        var b = prop.GetValue(blockValue, null);
+                        if (b != null) return b;
+                    }
+
+                    var field = t.GetField(member, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (field != null)
+                    {
+                        var b = field.GetValue(blockValue);
+                        if (b != null) return b;
+                    }
                 }
                 // Block can be null for Extends/variant tiles while type indexes the real entry in Block.list.
                 return TryGetBlockListEntryByTypeIndex(blockValue);
@@ -957,7 +961,8 @@ namespace LimitByCraftingSkillMod
         }
 
         /// <summary>
-        /// Gets the BlockValue from a TileEntity (e.g. TileEntityWorkstation). Uses BlockValue property or blockValue field.
+        /// Gets the BlockValue from a TileEntity (e.g. TileEntityWorkstation, TileEntityCollector).
+        /// Vanilla uses a <c>blockValue</c> property (camelCase) on many tile types; older lookups used <c>BlockValue</c> or a field.
         /// </summary>
         internal static object GetBlockValueFromTileEntity(object tileEntity)
         {
@@ -965,12 +970,24 @@ namespace LimitByCraftingSkillMod
             try
             {
                 var t = tileEntity.GetType();
-                var prop = t.GetProperty("BlockValue", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (prop != null) return prop.GetValue(tileEntity, null);
-                var field = t.GetField("blockValue", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                return field?.GetValue(tileEntity);
+                foreach (var propName in new[] { "blockValue", "BlockValue" })
+                {
+                    var prop = t.GetProperty(propName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (prop == null) continue;
+                    var v = prop.GetValue(tileEntity, null);
+                    if (v != null) return v;
+                }
+
+                foreach (var fieldName in new[] { "blockValue", "BlockValue" })
+                {
+                    var field = t.GetField(fieldName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (field == null) continue;
+                    var v = field.GetValue(tileEntity);
+                    if (v != null) return v;
+                }
             }
             catch { return null; }
+            return null;
         }
 
         /// <summary>
@@ -1007,10 +1024,14 @@ namespace LimitByCraftingSkillMod
                 case "dewcollector":
                 case "terrdewcollector":
                 case "cntdewcollector":
+                case "tooldewfilter":
                     return "cntDewCollector";
                 case "apiary":
                 case "terrapiary":
                 case "cntapiary":
+                case "toolapiarybroodbox":
+                case "toolapiaryextractor":
+                case "toolapiarysmoker":
                     return "cntApiary";
                 default:
                     return t;
@@ -1127,10 +1148,14 @@ namespace LimitByCraftingSkillMod
                     Add("cntChemistryStation");
                     break;
                 case "cntapiary":
+                    Add("toolApiaryBroodBox");
+                    Add("toolApiaryExtractor");
+                    Add("toolApiarySmoker");
                     Add("apiary");
                     Add("cntApiary");
                     break;
                 case "cntdewcollector":
+                    Add("toolDewFilter");
                     Add("dewCollector");
                     Add("cntDewCollector");
                     break;
@@ -1292,7 +1317,8 @@ namespace LimitByCraftingSkillMod
         }
 
         /// <summary>
-        /// Block name used for ClassNameToCraftingSkillMap lookup (Name property/field, then type name).
+        /// Block name used for ClassNameToCraftingSkillMap lookup.
+        /// Vanilla block ids are often stored in <c>blockName</c> (e.g. BlockCollector), not only <c>Name</c>.
         /// </summary>
         internal static string GetBlockNameForMap(object block)
         {
@@ -1300,23 +1326,41 @@ namespace LimitByCraftingSkillMod
             try
             {
                 var t = block.GetType();
-                var nameProp = t.GetProperty("Name", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (nameProp != null)
+                foreach (var memberName in new[] { "Name", "blockName", "BlockName" })
                 {
-                    var v = nameProp.GetValue(block, null);
-                    if (v is string s && !string.IsNullOrWhiteSpace(s)) return s.Trim();
+                    var nameProp = t.GetProperty(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (nameProp != null)
+                    {
+                        var v = nameProp.GetValue(block, null);
+                        if (v is string s && !string.IsNullOrWhiteSpace(s)) return s.Trim();
+                    }
+
+                    var nameField = t.GetField(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (nameField != null)
+                    {
+                        var v = nameField.GetValue(block);
+                        if (v is string s2 && !string.IsNullOrWhiteSpace(s2)) return s2.Trim();
+                    }
                 }
-                var nameField = t.GetField("Name", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (nameField != null)
+                try
                 {
-                    var v = nameField.GetValue(block);
-                    if (v is string s2 && !string.IsNullOrWhiteSpace(s2)) return s2.Trim();
+                    return block.GetType().Name;
                 }
-                return block.GetType().Name;
+                catch
+                {
+                    return null;
+                }
             }
             catch
             {
-                return block.GetType().Name;
+                try
+                {
+                    return block == null ? null : block.GetType().Name;
+                }
+                catch
+                {
+                    return null;
+                }
             }
         }
 
@@ -2470,6 +2514,18 @@ namespace LimitByCraftingSkillMod
             public static int ResolveTierForUnlockChildForTests(object displayData, int siblingCount, object unlockData, int unlockIndex0Based)
             {
                 return ResolveTierForUnlockChild(displayData, siblingCount, unlockData, unlockIndex0Based);
+            }
+
+            /// <summary>Exposes <see cref="GetBlockValueFromTileEntity"/> for unit tests (vanilla uses <c>blockValue</c> property).</summary>
+            public static object GetBlockValueFromTileEntityForTests(object tileEntity)
+            {
+                return GetBlockValueFromTileEntity(tileEntity);
+            }
+
+            /// <summary>Exposes <see cref="GetBlockNameForMap"/> for unit tests.</summary>
+            public static string GetBlockNameForMapForTests(object block)
+            {
+                return GetBlockNameForMap(block);
             }
         }
     }

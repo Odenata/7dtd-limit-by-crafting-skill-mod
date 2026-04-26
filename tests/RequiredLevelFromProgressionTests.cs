@@ -767,6 +767,15 @@ namespace LimitByCraftingSkillMod.Tests
             Assert.Equal(50, GameReflection.TestHooks.TryResolveRequiredLevelByMapKeyOnlyForTests(prog, "Workstations", "chemistryStation", 1));
         }
 
+        [Fact]
+        public void MapKeyOnly_Workstations_VanillaApiaryToolIds_MatchCompositeUnlockColumns()
+        {
+            var prog = new FakeProgressionMapKeyWorkstations();
+            Assert.Equal(40, GameReflection.TestHooks.TryResolveRequiredLevelByMapKeyOnlyForTests(prog, "Workstations", "toolApiaryExtractor", 1));
+            Assert.Equal(44, GameReflection.TestHooks.TryResolveRequiredLevelByMapKeyOnlyForTests(prog, "Workstations", "toolApiaryBroodBox", 1));
+            Assert.Equal(48, GameReflection.TestHooks.TryResolveRequiredLevelByMapKeyOnlyForTests(prog, "Workstations", "toolDewFilter", 1));
+        }
+
         /// <summary>In-game <c>UnlockData</c> may leave <c>ItemName</c> empty while <c>DisplayData.GetUnlockItem</c> holds the block id.</summary>
         private sealed class FakeDisplayWorkstationForgeUnlockItemOnly
         {

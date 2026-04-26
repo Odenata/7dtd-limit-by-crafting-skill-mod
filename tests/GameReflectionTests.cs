@@ -92,6 +92,45 @@ namespace LimitByCraftingSkillMod.Tests
             Assert.Equal("cntApiary", GameReflection.TestHooks.CanonicalizeWorkstationClassNameMapKeyForTests("cntApiary"));
         }
 
+        private sealed class FakeTileEntityCamelCaseBlockValue
+        {
+            public object blockValue { get; set; }
+        }
+
+        private sealed class FakeTileEntityPascalBlockValue
+        {
+            public object BlockValue { get; set; }
+        }
+
+        private sealed class FakeBlockWithLowerCamelName
+        {
+            public string blockName;
+        }
+
+        [Fact]
+        public void GetBlockValueFromTileEntity_ReadsCamelCaseOrPascalBlockValueProperty()
+        {
+            var marker = new object();
+            Assert.Same(marker, GameReflection.TestHooks.GetBlockValueFromTileEntityForTests(new FakeTileEntityCamelCaseBlockValue { blockValue = marker }));
+            Assert.Same(marker, GameReflection.TestHooks.GetBlockValueFromTileEntityForTests(new FakeTileEntityPascalBlockValue { BlockValue = marker }));
+        }
+
+        [Fact]
+        public void GetBlockNameForMap_ReadsLowerCamelBlockNameField()
+        {
+            var fake = new FakeBlockWithLowerCamelName { blockName = "cntApiary" };
+            Assert.Equal("cntApiary", GameReflection.TestHooks.GetBlockNameForMapForTests(fake));
+        }
+
+        [Fact]
+        public void CanonicalizeWorkstationClassNameMapKey_VanillaToolPlaceableIds_ToCntKeys()
+        {
+            Assert.Equal("cntDewCollector", GameReflection.TestHooks.CanonicalizeWorkstationClassNameMapKeyForTests("toolDewFilter"));
+            Assert.Equal("cntApiary", GameReflection.TestHooks.CanonicalizeWorkstationClassNameMapKeyForTests("toolApiaryBroodBox"));
+            Assert.Equal("cntApiary", GameReflection.TestHooks.CanonicalizeWorkstationClassNameMapKeyForTests("toolApiaryExtractor"));
+            Assert.Equal("cntApiary", GameReflection.TestHooks.CanonicalizeWorkstationClassNameMapKeyForTests("toolApiarySmoker"));
+        }
+
         [Fact]
         public void GetWorkstationsGatedLevelForMapKey_AliasKeys_MatchCanonicalCntKeys()
         {
@@ -102,6 +141,11 @@ namespace LimitByCraftingSkillMod.Tests
             var apiaryCanonical = GameReflection.GetWorkstationsGatedLevelForMapKey("cntApiary");
             var apiaryAlias = GameReflection.GetWorkstationsGatedLevelForMapKey("apiary");
             Assert.Equal(apiaryCanonical, apiaryAlias);
+
+            Assert.Equal(dewCanonical, GameReflection.GetWorkstationsGatedLevelForMapKey("toolDewFilter"));
+            Assert.Equal(apiaryCanonical, GameReflection.GetWorkstationsGatedLevelForMapKey("toolApiaryBroodBox"));
+            Assert.Equal(apiaryCanonical, GameReflection.GetWorkstationsGatedLevelForMapKey("toolApiaryExtractor"));
+            Assert.Equal(apiaryCanonical, GameReflection.GetWorkstationsGatedLevelForMapKey("toolApiarySmoker"));
         }
 
         [Fact]
