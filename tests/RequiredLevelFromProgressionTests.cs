@@ -101,6 +101,76 @@ namespace LimitByCraftingSkillMod.Tests
         }
     }
 
+    /// <summary>Mirrors vanilla craftingHarvestingTools stone unlock_level 1,2,4,6,8,10 vs iron 11,13,...</summary>
+    public sealed class FakePcHarvestingVanillaLikeStoneAndIronBands
+    {
+        public ArrayList DisplayDataList = new ArrayList
+        {
+            new FakeDisplayData
+            {
+                ItemName = "meleeToolShovelT0StoneShovel",
+                QualityStarts = new[] { 1, 2, 4, 6, 8, 10 }
+            },
+            new FakeDisplayData
+            {
+                ItemName = "meleeToolRepairT0StoneAxe",
+                QualityStarts = new[] { 1, 2, 4, 6, 8, 10 }
+            },
+            new FakeDisplayData
+            {
+                ItemName = "meleeToolShovelT1IronShovel",
+                QualityStarts = new[] { 11, 13, 16, 19, 22, 25 }
+            },
+            new FakeDisplayData
+            {
+                ItemName = "meleeToolAxeT1IronFireaxe",
+                QualityStarts = new[] { 11, 13, 16, 19, 22, 25 }
+            }
+        };
+    }
+
+    public sealed class FakeProgressionVanillaLikeStoneIronHarvesting
+    {
+        public object GetProgressionValue(string name)
+        {
+            if (string.Equals(name, "craftingharvestingtools", System.StringComparison.OrdinalIgnoreCase))
+                return new FakePv { ProgressionClass = new FakePcHarvestingVanillaLikeStoneAndIronBands() };
+            return null;
+        }
+    }
+
+    public sealed class FakeUnlockEntryStoneHarvestChild
+    {
+        public string ItemName;
+        public int UnlockTier;
+    }
+
+    /// <summary>Vanilla stone <c>display_entry</c> shape: two <c>unlock_entry</c> siblings sharing <c>unlock_tier</c> (stored 0).</summary>
+    public sealed class FakeDisplayStoneHarvestTwoUnlockSameTier
+    {
+        public string unlock_level = "1,2,4,6,8,10";
+        public ArrayList UnlockDataList = new ArrayList
+        {
+            new FakeUnlockEntryStoneHarvestChild { ItemName = "meleeToolRepairT0StoneAxe", UnlockTier = 0 },
+            new FakeUnlockEntryStoneHarvestChild { ItemName = "meleeToolShovelT0StoneShovel", UnlockTier = 0 },
+        };
+    }
+
+    public sealed class FakePcHarvestingStoneTwoUnlockChildren
+    {
+        public ArrayList DisplayDataList = new ArrayList { new FakeDisplayStoneHarvestTwoUnlockSameTier() };
+    }
+
+    public sealed class FakeProgressionStoneRowTwoUnlockChildren
+    {
+        public object GetProgressionValue(string name)
+        {
+            if (string.Equals(name, "craftingharvestingtools", System.StringComparison.OrdinalIgnoreCase))
+                return new FakePv { ProgressionClass = new FakePcHarvestingStoneTwoUnlockChildren() };
+            return null;
+        }
+    }
+
     public sealed class FakePcWorkstations
     {
         public ArrayList DisplayDataList = new ArrayList
@@ -218,6 +288,32 @@ namespace LimitByCraftingSkillMod.Tests
             var stoneShovel = new ItemClass { Name = "meleeToolShovelT0StoneShovel" };
             var shovelValue = new TestItemValueWithQuality { ItemClass = stoneShovel, Quality = 3 };
             Assert.Equal(31, GameReflection.GetRequiredLevelForItemForUnitTest(stoneShovel, shovelValue, prog));
+        }
+
+        [Fact]
+        public void GetRequiredLevelForItemForUnitTest_StoneShovelAndAxe_Q2UsesStoneHarvestBandsNotIronFromProgressionMatchName()
+        {
+            if (GameReflection.GetCraftingSkillGroup(new ItemClass { Name = "meleeToolShovelT0StoneShovel" }) == null) return;
+
+            var prog = new FakeProgressionVanillaLikeStoneIronHarvesting();
+            var shovel = new ItemClass { Name = "meleeToolShovelT0StoneShovel" };
+            var shovelQ2 = new TestItemValueWithQuality { ItemClass = shovel, Quality = 2 };
+            Assert.Equal(2, GameReflection.GetRequiredLevelForItemForUnitTest(shovel, shovelQ2, prog));
+
+            var stoneAxe = new ItemClass { Name = "meleeToolAxeT0StoneAxe" };
+            var axeQ2 = new TestItemValueWithQuality { ItemClass = stoneAxe, Quality = 2 };
+            Assert.Equal(2, GameReflection.GetRequiredLevelForItemForUnitTest(stoneAxe, axeQ2, prog));
+        }
+
+        [Fact]
+        public void HarvestingStoneRow_TwoUnlockChildrenSameStoredTier_IndexesUnlockLevelByItemQuality()
+        {
+            if (GameReflection.GetCraftingSkillGroup(new ItemClass { Name = "meleeToolShovelT0StoneShovel" }) == null) return;
+
+            var prog = new FakeProgressionStoneRowTwoUnlockChildren();
+            var shovel = new ItemClass { Name = "meleeToolShovelT0StoneShovel" };
+            Assert.Equal(4, GameReflection.GetRequiredLevelForItemForUnitTest(shovel, new TestItemValueWithQuality { ItemClass = shovel, Quality = 3 }, prog));
+            Assert.Equal(10, GameReflection.GetRequiredLevelForItemForUnitTest(shovel, new TestItemValueWithQuality { ItemClass = shovel, Quality = 6 }, prog));
         }
 
         [Fact]

@@ -1441,13 +1441,20 @@ namespace LimitByCraftingSkillMod
         /// </summary>
         private static int TryResolveRequiredLevelByMapKeyOnly(object progression, string craftingSkillGroup, string mapKeyName, int effectiveQuality)
         {
-            if (progression == null || string.IsNullOrWhiteSpace(craftingSkillGroup)) return -1;
+            return TryResolveRequiredLevelByMapKeyCandidates(progression, craftingSkillGroup, BuildProgressionMatchCandidates(mapKeyName), effectiveQuality);
+        }
+
+        /// <summary>
+        /// Like <see cref="TryResolveRequiredLevelByMapKeyOnly"/> but uses an explicit candidate list (e.g. stone-tier anchors without progressionMatchName override).
+        /// </summary>
+        private static int TryResolveRequiredLevelByMapKeyCandidates(object progression, string craftingSkillGroup, IList<string> mapKeyCandidates, int effectiveQuality)
+        {
+            if (progression == null || string.IsNullOrWhiteSpace(craftingSkillGroup) || mapKeyCandidates == null || mapKeyCandidates.Count == 0) return -1;
             var progressionClass = GetProgressionClassForCraftingSkill(progression, craftingSkillGroup);
             if (progressionClass == null) return -1;
             var displayDataList = GetDisplayDataListFromProgressionClass(progressionClass);
             if (displayDataList == null || displayDataList.Count == 0) return -1;
-            var candidates = BuildProgressionMatchCandidates(mapKeyName);
-            foreach (var itemNameForMatch in candidates)
+            foreach (var itemNameForMatch in mapKeyCandidates)
             {
                 // 1) Unlock children: use each match's UnlockTier column into unlock_level / QualityStarts (vanilla Workstations).
                 for (int i = 0; i < displayDataList.Count; i++)
@@ -1756,15 +1763,19 @@ namespace LimitByCraftingSkillMod
                     if (mapOnly > resolvedLevel)
                         resolvedLevel = mapOnly;
                 }
-                // Stone axe/shovel can resolve through T0 rows that stay at level 1 for all qualities. For quality>1, also
-                // evaluate the corresponding iron progression row and keep the higher required level.
-                if (effectiveQuality > 1 &&
-                    string.Equals(skillGroup, "HarvestingTools", StringComparison.OrdinalIgnoreCase) &&
-                    TryGetHarvestingStoneQualityProxyMapKey(mapKeyName, out var proxyMapKey))
+                // Vanilla craftingHarvestingTools stone tier uses unlock_level 1,2,4,6,8,10 on harvestToolsStone; iron tier uses 11,13,...
+                // ClassNameToCraftingSkillMap progressionMatchName prepends iron ids in BuildProgressionMatchCandidates, so the
+                // tree path applies iron bands to stone qualities (Q2 needs skill 13 instead of 2). Re-read the stone display row
+                // using anchor ids that appear in progression.xml unlock_entry (repair stone axe / stone shovel), without override
+                // candidates. When that row's band is at least as strict as the item quality (stoneLv >= effectiveQuality), use it;
+                // otherwise keep the iron-based resolution (e.g. fake progressions with flat stone rows still fall back to iron).
+                if (string.Equals(skillGroup, "HarvestingTools", StringComparison.OrdinalIgnoreCase) &&
+                    TryGetHarvestingStoneTierDisplayAnchorMapKey(mapKeyName, out var stoneAnchor))
                 {
-                    var proxyLevel = TryResolveRequiredLevelByMapKeyOnly(progression, skillGroup, proxyMapKey, effectiveQuality);
-                    if (proxyLevel > resolvedLevel)
-                        resolvedLevel = proxyLevel;
+                    var stoneCandidates = new List<string> { stoneAnchor };
+                    var stoneLv = TryResolveRequiredLevelByMapKeyCandidates(progression, skillGroup, stoneCandidates, effectiveQuality);
+                    if (stoneLv >= 0 && stoneLv >= effectiveQuality)
+                        resolvedLevel = stoneLv;
                 }
                 // requiredLevelOverride / requiredLevelMin: both are floors via Max (same as workstation/vehicle block paths).
                 // Historically override only ran when resolvedLevel <= 0, which skipped XML gates whenever progression returned
@@ -1890,18 +1901,22 @@ namespace LimitByCraftingSkillMod
             return list;
         }
 
-        private static bool TryGetHarvestingStoneQualityProxyMapKey(string mapKeyName, out string proxyMapKey)
+        /// <summary>
+        /// Progression.xml stone-tier row unlock_entry lists <c>meleeToolRepairT0StoneAxe</c> and <c>meleeToolShovelT0StoneShovel</c>;
+        /// <c>meleeToolAxeT0StoneAxe</c> is not listed (icon-only on the row). Anchor map-key-only resolution to ids that match that row.
+        /// </summary>
+        private static bool TryGetHarvestingStoneTierDisplayAnchorMapKey(string mapKeyName, out string anchorMapKey)
         {
-            proxyMapKey = null;
+            anchorMapKey = null;
             if (string.IsNullOrWhiteSpace(mapKeyName)) return false;
-            if (mapKeyName.IndexOf("stoneaxe", StringComparison.OrdinalIgnoreCase) >= 0)
+            if (string.Equals(mapKeyName, "meleeToolShovelT0StoneShovel", StringComparison.OrdinalIgnoreCase))
             {
-                proxyMapKey = "meleeToolAxeT1IronFireaxe";
+                anchorMapKey = mapKeyName;
                 return true;
             }
-            if (mapKeyName.IndexOf("stoneshovel", StringComparison.OrdinalIgnoreCase) >= 0)
+            if (mapKeyName.IndexOf("stoneaxe", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                proxyMapKey = "meleeToolShovelT1IronShovel";
+                anchorMapKey = "meleeToolRepairT0StoneAxe";
                 return true;
             }
             return false;
@@ -2052,6 +2067,48 @@ namespace LimitByCraftingSkillMod
             return -1;
         }
 
+        /// <summary>
+        /// When every unlock child carries the same stored <c>UnlockTier</c> (0-based), they share one <c>unlock_level</c> /
+        /// <c>QualityStarts</c> band row (vanilla stone harvesting: two tools under <c>unlock_tier="1"</c>). Column selection must
+        /// still follow item quality, unlike multi-tier composite rows (food, explosives) where the column is the matched tier only.
+        /// </summary>
+        private static bool AllUnlockChildrenShareSameStoredUnlockTierZeroBased(object displayData)
+        {
+            if (displayData == null) return false;
+            var unlockList = GetUnlockDataListFromDisplayData(displayData);
+            if (unlockList != null && unlockList.Count > 1)
+            {
+                int? z0 = null;
+                for (var u = 0; u < unlockList.Count; u++)
+                {
+                    var ud = unlockList[u];
+                    if (ud == null) continue;
+                    var z = TryGetStoredUnlockTierZeroBased(ud);
+                    if (z < 0) return false;
+                    if (z0 == null) z0 = z;
+                    else if (z0.Value != z) return false;
+                }
+                return z0 != null;
+            }
+
+            var mGetUd = displayData.GetType().GetMethod("GetUnlockData", new[] { typeof(int) });
+            if (mGetUd == null) return false;
+            int? zb = null;
+            var got = 0;
+            for (var u = 0; u < 256; u++)
+            {
+                object ud = null;
+                try { ud = mGetUd.Invoke(displayData, new object[] { u }); } catch { break; }
+                if (ud == null) break;
+                got++;
+                var z = TryGetStoredUnlockTierZeroBased(ud);
+                if (z < 0) return false;
+                if (zb == null) zb = z;
+                else if (zb.Value != z) return false;
+            }
+            return got > 1 && zb != null;
+        }
+
         private static int CountUnlockChildren(object displayData)
         {
             if (displayData == null) return 0;
@@ -2094,15 +2151,18 @@ namespace LimitByCraftingSkillMod
         }
 
         /// <summary>
-        /// Composite rows (several unlock children) use the resolved unlock column; single-item rows blend with stack quality.
+        /// Composite rows (several unlock children) usually use the resolved unlock column only; single-item rows blend with stack quality.
+        /// Exception: multiple children that <b>share</b> the same stored <c>UnlockTier</c> (stone harvesting) still index bands by item quality.
         /// </summary>
         private static int ResolveDisplayDataQualityOrUnlockColumn(object displayData, int unlockTier1Based, int itemQualityFromStack)
         {
             if (unlockTier1Based < 1) unlockTier1Based = 1;
+            var q = itemQualityFromStack >= 1 ? itemQualityFromStack : 1;
             var siblingCount = CountUnlockChildren(displayData);
+            if (siblingCount > 1 && AllUnlockChildrenShareSameStoredUnlockTierZeroBased(displayData))
+                return System.Math.Max(unlockTier1Based, q);
             if (siblingCount > 1)
                 return unlockTier1Based;
-            var q = itemQualityFromStack >= 1 ? itemQualityFromStack : 1;
             return System.Math.Max(unlockTier1Based, q);
         }
 

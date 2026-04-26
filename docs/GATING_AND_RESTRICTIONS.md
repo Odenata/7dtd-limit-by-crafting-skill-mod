@@ -69,6 +69,14 @@ For **handheld** items (`IsBlock` false), those block-oriented paths are **skipp
 
 Some electric placeables match **`craftingelectrician`** at a low tier while the real gate sits under **`craftingworkstations`**. After resolving Electrician, the code may take the **max** with a Workstations pass for that item (see `GetRequiredLevelForItemWithProgression`).
 
+### 2.5 HarvestingTools: stone tier (`T0` axe / shovel) and `progressionMatchName`
+
+Vanilla **`craftingHarvestingTools`** has a **stone** `display_entry` with **`unlock_level="1,2,4,6,8,10"`** (quality bands 1–6). The next tier (**iron**) uses **`11,13,16,…`**. In **`ClassNameToCraftingSkillMap.xml`**, stone axe / shovel rows often set **`progressionMatchName`** to an **iron** tool id so progression **matching** still works (the stone row’s **`unlock_entry`** lists **`meleeToolRepairT0StoneAxe`** and **`meleeToolShovelT0StoneShovel`**, not **`meleeToolAxeT0StoneAxe`**).
+
+**Problem A — iron bands on stone quality:** [`BuildProgressionMatchCandidates`](../src/GameReflection.cs) prepends **`progressionMatchName`**, so the first successful resolution can apply the **iron** row’s bands to **every** stone quality (e.g. quality 2 would require skill **13** instead of **2**). **`GetRequiredLevelForItemWithProgression`** therefore re-resolves the **stone** row using **anchor ids only** (no map override list): **`meleeToolShovelT0StoneShovel`** for the shovel, and **`meleeToolRepairT0StoneAxe`** for any id whose name contains **`stoneaxe`** (stone axe and repair stone axe share that progression row). When that anchor read returns **`stoneLv >= effectiveQuality`**, it replaces the tree result; when the stone row is **degenerate** (flat bands in tests), **`stoneLv < effectiveQuality`** and the **iron-based** level is kept.
+
+**Problem B — shared `UnlockTier` on multiple children:** The stone `display_entry` is commonly represented as **two** `UnlockData` children that **share the same stored `UnlockTier`** (one XML **`unlock_tier`** for both tools). For generic **multi-child** composites (food, explosives), the column into **`unlock_level`** / **`QualityStarts`** is the **matched unlock tier only**. For **all children sharing the same `UnlockTier`**, the column must still follow **stack quality** (1-based index into the CSV). [`AllUnlockChildrenShareSameStoredUnlockTierZeroBased`](../src/GameReflection.cs) detects that pattern; [`ResolveDisplayDataQualityOrUnlockColumn`](../src/GameReflection.cs) then uses **`max(unlockTier1Based, itemQuality)`** so qualities 3–6 read **4, 6, 8, 10** instead of always using column **1**.
+
 ---
 
 ## 3. Where restrictions are enforced (player actions)
