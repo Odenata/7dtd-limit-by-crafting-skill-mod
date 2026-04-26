@@ -30,7 +30,16 @@ Prevent placing items into player armor/equipment slots. Block at **XUiM_PlayerE
 
 When the player attempts to open the placed workstation UI (e.g. default keybind 'E'), check their crafting level for the Workstations skill against the placed block's required level. If below, block opening the interface and show feedback. Picking up and other interactions remain allowed.
 
-Workstation modifiers (e.g. Bellows, Crucible) that are not placed in the world are not restricted in the initial implementation (future work).
+### Upgrade / modifier items (intentionally permissive)
+
+**Policy:** We do **not** treat typical **upgrade** or **install-only** items as gated end products. Those are things the player inserts into another block or item to improve it, rather than “uses” as a standalone equipped tool or placeable. Examples: **workstation** upgrade parts (Crucible, Bellows, Anvil, …), **vehicle** modifier parts (extra seat, armor plating, …), **weapon** attachments (scopes, magazines, …), and **battery** items slotted into banks, vehicles, or tools.
+
+**How that works in practice:**
+
+- They are **not listed** in [`ClassNameToCraftingSkillMap.xml`](../src/ClassNameToCraftingSkillMap.xml), so [`RestrictionHelper`](../src/RestrictionHelper.cs) does not mark them restricted for skill-level purposes.
+- We **do not** add dedicated “block every insert into part / mod / battery / workstation-upgrade slot” rules for those categories. Some existing hooks (e.g. workstation **tool** grids, vehicle **part** grids) still call `RestrictionHelper` for **dragged** stacks; keeping upgrade items **unmapped** avoids accidental blocks there. Maintainers should **not** map those ids to a crafting group unless there is a deliberate product decision to gate that install path.
+
+See [`GATING_AND_RESTRICTIONS.md`](GATING_AND_RESTRICTIONS.md) §3.9 for hook-level nuance (e.g. workstation tool grid, vehicle part slots, and the Vehicles skill).
 
 **Chemistry Station:** blocked by intercepting its specific UI window name (`GUIWindowManager.Open("workstation_chemistryStation", ...)`) when the player is below the required Workstations level.
 

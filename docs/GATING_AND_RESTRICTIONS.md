@@ -161,7 +161,20 @@ Inventory / hotbar restrictions still apply to vehicle **items** in bags; drivin
 | **Tooltips** | Tint / text hints | [`PopupToolTipDisplayTooltipTextPatch`](../src/PopupToolTipDisplayTooltipTextPatch.cs), [`GameManagerShowTooltipTintPatch`](../src/GameManagerShowTooltipTintPatch.cs), etc. |
 | **Popups when blocked** | “You don’t know how to use …” style | [`RestrictionFeedback`](../src/RestrictionFeedback.cs). |
 
-### 3.9 Other patches
+### 3.9 Upgrade / modifier installs (policy: do not gate by default)
+
+**Design intent** (see [`DESIGN.md`](DESIGN.md) § Workstations → *Upgrade / modifier items*): items that only exist as **installs** into another entity—workstation upgrades (Crucible, Bellows, …), vehicle mods (extra seat, …), weapon attachments (scopes, …), **battery** cells slotted into devices—should remain **usable for installation** without a crafting-skill check. The mod achieves that by **omitting** those class names from `ClassNameToCraftingSkillMap.xml`, so `GetRequiredLevelForItem` / `RestrictionHelper` never mark them restricted.
+
+**Hook caveat (maintainers):** a few drag targets still consult `RestrictionHelper` on the **dragged** stack:
+
+| Surface | File | Behavior |
+|---------|------|----------|
+| Workstation **tool** grid (forge hammer slot, etc.) | [`WorkstationToolHandleStackSwapPatch`](../src/WorkstationVehicleStackSwapPatches.cs) | Blocks drop if `RestrictionHelper.IsItemRestricted(drag)` — **any** mapped+restricted item. Do **not** map workstation upgrade tools here unless you intend to block them. |
+| Vehicle **part** grid | [`VehiclePartHandleStackSwapPatch`](../src/WorkstationVehicleStackSwapPatches.cs) | Only when **Vehicles** restriction is enabled **and** `GetCraftingSkillGroup` is **Vehicles** **and** the stack is restricted; then the drop is blocked. Other skill groups are not checked on this path. |
+
+There is **no** dedicated patch set for “weapon mod slot” or “battery slot” inventory grids; those stacks follow normal inventory rules plus whatever the item is **mapped** as. **Policy:** keep upgrade/mod/battery **item ids** out of the map unless you explicitly want them gated.
+
+### 3.10 Other patches
 
 - [`ProgressionLevelUpPatch`](../src/ProgressionLevelUpPatch.cs): marks restriction UI dirty after crafting skill changes.  
 - [`PatchAll`](../src/ModApi.cs) also picks up `[HarmonyPatch]` types in the mod assembly (e.g. `HotbarRestrictionPatch`, `EquipmentRestrictionPatch`) in addition to the **explicit** `Apply*` game-assembly patches.
