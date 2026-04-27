@@ -7,7 +7,7 @@ namespace LimitByCraftingSkillMod
     /// Many workstations open a <see cref="GUIWindowManager"/> panel named <c>workstation_{className}</c> (e.g. forge, chemistry
     /// station) where XUi hooks never resolve a <c>BlockValue</c> — close + popup from Postfix, same as chemistry.
     /// </summary>
-    internal static class GUIWindowManagerOpenNameLogPatch
+    internal static class GUIWindowManagerWorkstationWindowPatch
     {
         private const string WorkstationWindowPrefix = "workstation_";
         private const int WorkstationBlockedRecloseMs = 1200;

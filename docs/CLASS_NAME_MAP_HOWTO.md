@@ -3,7 +3,9 @@
 The mod restricts items by **crafting skill**. It resolves the skill in this order:
 
 1. **ClassNameToCraftingSkillMap.xml** — lookup by item name (`ItemClass.Name`, case-insensitive). Map entry wins if present.
-2. **Game `ItemClass.CraftingSkillGroup`** — only when **unmapped**, and only if the value is **Electrician**, **Workstations**, **HarvestingTools**, or **Tools** (treated as HarvestingTools). This covers wire tools, picks, shovels, etc. that the game tags but are not listed in the XML.
+2. **Vanilla id prefixes** — only when **unmapped**, and only for a few stable families (`planted*` → Seeds, `thrown*` / `mine*` / rocket ids → Explosives).
+3. **Game item tags** — known tag hints for explosives and planting can infer Explosives or Seeds.
+4. **Game `ItemClass.CraftingSkillGroup`** — only when **unmapped**, and only if the value is **Electrician**, **Workstations**, **HarvestingTools**, **Tools** (treated as HarvestingTools), **Explosives**, or **Seeds**. This covers wire tools, picks, shovels, etc. that the game tags but are not listed in the XML.
 
 If neither applies, **the item is not restricted** by this mod for handheld/hotbar logic.
 
@@ -26,7 +28,7 @@ Some items are tagged **Electrician** but their **unlock tier lives under `craft
 
 ### `requiredLevelOverride` (optional)
 
-Use when progression resolves to **no positive requirement** (no match, **or** match at tier **0**). The mod applies the override whenever the computed required level is **≤ 0**. For “raise a level that already resolved” (e.g. vanilla says 10 but you want 25), use **`requiredLevelMin`** instead.
+Use when progression resolves to **no positive requirement** (no match, **or** match at tier **0**) or when a shipped map row needs an explicit fixed floor. The mod applies `requiredLevelOverride` as **`max(vanillaResolved, override)`**. That means it can also raise a positive vanilla level.
 
 Set a fixed gate when needed:
 
@@ -42,7 +44,7 @@ After progression resolves a required level, the mod uses **max(vanillaResolved,
 <Item className="meleeToolAxeT2SteelFireaxe" craftingSkillGroup="HarvestingTools" requiredLevelMin="25"/>
 ```
 
-Use for verification or stricter floors. Unlike `requiredLevelOverride`, this does **not** replace a successful progression match—it only raises the bar.
+Use for verification or stricter floors. It has the same floor behavior as `requiredLevelOverride`; keep `requiredLevelMin` for rows where the value is explicitly documenting a minimum over vanilla progression, and `requiredLevelOverride` for rows where the XML map is providing the intended required level directly.
 
 This doc explains how to edit the map when the game is updated or when you add mods.
 
@@ -68,6 +70,7 @@ This doc explains how to edit the map when the game is updated or when you add m
 
 ## How to find the map key (className)
 
+- **Creative Menu:** With cheats allowed, search for the item in the creative menu and hover over it to see the `className`.
 - **7dtd-dev-inspector-mod:** Hover over an item in-game; the inspector shows the item identifier used for lookup (the item name from the game's XML, same as `ItemClass.Name`). Use that value as `className` in the map.
 
 ## Valid `craftingSkillGroup` values

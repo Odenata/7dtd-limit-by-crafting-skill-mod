@@ -5,6 +5,20 @@ using HarmonyLib;
 namespace LimitByCraftingSkillMod
 {
     /// <summary>
+    /// Single prefix for XUiC_ItemStack.HandleStackSwap. Keeping toolbelt and workstation-tool dispatch together avoids
+    /// relying on Harmony prefix registration order for the same game method.
+    /// </summary>
+    internal static class ItemStackHandleStackSwapRestrictionPatch
+    {
+        public static bool Prefix(object __instance)
+        {
+            if (!ToolbeltHandleStackSwapPatch.Prefix(__instance))
+                return false;
+            return WorkstationToolHandleStackSwapPatch.Prefix(__instance);
+        }
+    }
+
+    /// <summary>
     /// Blocks placing restricted tools on workstation tool grids (forge hammer slot, etc.).
     /// </summary>
     internal static class WorkstationToolHandleStackSwapPatch

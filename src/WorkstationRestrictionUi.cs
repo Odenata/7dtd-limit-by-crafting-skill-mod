@@ -40,7 +40,7 @@ namespace LimitByCraftingSkillMod
         /// Do not require <c>XUiC_WorkstationWindowGroup</c>: vanilla forge UI can sit on <c>CraftingWindowGroup</c> subclasses that are
         /// not assignable from <c>WorkstationWindowGroup</c>; <see cref="TileEntityForge"/> is not a <c>TileEntityWorkstation</c>, so
         /// <c>SetTileEntity</c> / <c>GameManager.workstationOpened</c> hooks alone miss it. Chemistry still has an extra
-        /// <see cref="GUIWindowManagerOpenNameLogPatch"/> for its window id.
+        /// <see cref="GUIWindowManagerWorkstationWindowPatch"/> for its window id.
         /// </remarks>
         public static void PostfixFilteredCraftingOnOpen(object __instance)
         {

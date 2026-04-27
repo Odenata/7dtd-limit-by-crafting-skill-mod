@@ -14,4 +14,5 @@ Beyond restricting *use* of over-level items, prevent players from *acquiring* t
 
 - Use restriction may be sufficient for the design goal.
 - Implementation scope is large (multiple systems, edge cases, compatibility with other mods).
-- This document preserves the idea for later consideration.
+
+This document preserves the idea for later consideration.

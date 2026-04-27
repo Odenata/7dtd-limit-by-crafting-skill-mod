@@ -3,14 +3,15 @@ using System;
 namespace LimitByCraftingSkillMod
 {
     /// <summary>
-    /// Blocks opening the placed workstation UI (e.g. press E on Forge/Workbench) when the player's
-    /// Workstations level is below the block's required level. Shows the red restriction popup.
+    /// Blocks opening collector-style workstation UIs when the player's Workstations level is below the block's required level.
+    /// Broad BlockWorkstation prefixes are intentionally not registered; this logic is currently used by the narrow
+    /// BlockCollector path (Dew Collector / Apiary), where UI-only hooks can miss the primary activation flow.
     /// </summary>
     internal static class WorkstationOpenRestrictionPatch
     {
         /// <summary>
-        /// Prefix for BlockWorkstation.OnBlockActivated(String _commandName, WorldBase, int, Vector3i, BlockValue, EntityPlayerLocal).
-        /// Used when the game opens a workstation via a command (e.g. Chemistry Bench). Same logic as Prefix.
+        /// Prefix for BlockCollector.OnBlockActivated(String _commandName, WorldBase, int, Vector3i, BlockValue, EntityPlayerLocal).
+        /// Same logic as Prefix, with the command-name argument ignored.
         /// </summary>
         public static bool PrefixWithCommand(object __instance, object _commandName, object _world, int _cIdx, object _blockPos, object _blockValue, object _player)
         {
@@ -18,17 +19,7 @@ namespace LimitByCraftingSkillMod
         }
 
         /// <summary>
-        /// Prefix for BlockCompositeTileEntity.OnBlockActivated(String _commandName, WorldBase, int, Vector3i, BlockValue, EntityPlayerLocal).
-        /// Harmony parameter name matching can differ across types (_cIdx vs _clrIdx). Use Harmony's index-based param name (__2)
-        /// to reliably bind the int argument across both naming variants.
-        /// </summary>
-        public static bool PrefixWithCommandClrIdx(object __instance, object _commandName, object _world, int __2, object _blockPos, object _blockValue, object _player)
-        {
-            return Prefix(__instance, _world, __2, _blockPos, _blockValue, _player);
-        }
-
-        /// <summary>
-        /// Prefix for BlockWorkstation.OnBlockActivated(WorldBase, int, Vector3i, BlockValue, EntityPlayerLocal).
+        /// Prefix for BlockCollector.OnBlockActivated(WorldBase, int, Vector3i, BlockValue, EntityPlayerLocal).
         /// Return false to skip opening the UI and show popup when restricted.
         /// </summary>
         public static bool Prefix(object __instance, object _world, int _cIdx, object _blockPos, object _blockValue, object _player)

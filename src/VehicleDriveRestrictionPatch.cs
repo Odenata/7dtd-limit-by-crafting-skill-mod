@@ -9,7 +9,7 @@ namespace LimitByCraftingSkillMod
     internal static class VehicleDriveRestrictionPatch
     {
         /// <summary>
-        /// Prefix for EntityDriveable.EnterVehicle(EntityAlive _entity). Return false to skip attaching (drive blocked).
+        /// Prefix for EntityVehicle.EnterVehicle(EntityAlive _entity). Return false to skip attaching (drive blocked).
         /// </summary>
         public static bool Prefix(object __instance, object _entity)
         {

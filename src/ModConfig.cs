@@ -6,8 +6,7 @@ using System.Xml;
 namespace LimitByCraftingSkillMod
 {
     /// <summary>
-    /// Loads and exposes mod configuration from Config.xml.
-    /// In multiplayer, server config should override; read source is documented in DESIGN.md.
+    /// Loads and exposes mod configuration from the local mod folder's Config.xml.
     /// </summary>
     public sealed class ModConfig
     {

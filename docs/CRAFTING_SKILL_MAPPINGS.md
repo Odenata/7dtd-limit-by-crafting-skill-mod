@@ -4,9 +4,16 @@ This document shows how **game-reported item group names** (from `ItemClass.Craf
 
 ### How we get the crafting skill for an item (restriction)
 
-The mod uses **only** **ClassNameToCraftingSkillMap.xml** to decide which crafting skill an item uses for restriction. It looks up the item's map key (ItemClass.Name / item name from XML, with GetType().Name fallback) in that file. If the file is missing or the key has no mapping, **the item is not restricted**. There is no game API or heuristic at runtime.
+The mod resolves the item's crafting skill in this order:
 
-To update or extend the map (e.g. after a game update or for mod-added items), see **[CLASS_NAME_MAP_HOWTO.md](CLASS_NAME_MAP_HOWTO.md)**.
+1. **ClassNameToCraftingSkillMap.xml** by map key (usually the XML item/block id). A map entry wins when present.
+2. **Vanilla id prefixes** for a few stable families that are commonly omitted from the map (`planted*` → Seeds, `thrown*` / `mine*` / rocket ids → Explosives).
+3. **Item tags** for known vanilla skill hints (`explosivesSkill`, `perkDemolitionsExpert`, `plantingSkill`, `perkLivingOffTheLand`).
+4. **`ItemClass.CraftingSkillGroup` fallback**, but only for groups the mod intentionally accepts without a map row: Tools/HarvestingTools, Electrician, Workstations, Explosives, and Seeds.
+
+If none of those paths produces a skill group, **the item is not restricted** by this mod for item-stack checks.
+
+To update or extend the explicit map (e.g. after a game update or for mod-added items), see **[CLASS_NAME_MAP_HOWTO.md](CLASS_NAME_MAP_HOWTO.md)**.
 
 ---
 
@@ -65,9 +72,9 @@ If the mod can’t map a name, it falls back to `"crafting" + lowercase(group).R
 | Item type (typical) | Game group we’ve seen | Config | Level used |
 |----------------------|------------------------|--------|------------|
 | Armor / clothing | Clothing | Armor | craftingarmor |
-| Bows, guns, ammo | Ammo/Weapons | Weapons | max(ammo, weapons); weapons = max(bows, handguns, shotguns, rifles, machineguns) |
-| Harvesting tools (e.g. shovel, axe) | Tools/Traps or Tools | HarvestingTools / Traps | Tools/Traps: min(tools, traps); Tools: craftingharvestingtools |
-| Traps | Tools/Traps or Traps | Traps | Tools/Traps: min(tools, traps); Traps: craftingtraps |
+| Bows, guns, ammo | Bows/Handguns/Shotguns/Rifles/MachineGuns or mapped item rows | Matching weapon skill | One progression key per resolved skill group (for example, `craftingbows`, `craftinghandguns`) |
+| Harvesting tools (e.g. shovel, axe) | HarvestingTools or Tools | HarvestingTools | craftingharvestingtools |
+| Traps | Traps or mapped item rows | Traps | craftingtraps |
 | Bows only (if game ever sent “Bows”) | Bows | Bows | craftingbows |
 
 ---

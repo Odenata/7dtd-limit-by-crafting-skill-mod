@@ -32,7 +32,7 @@ Optional attributes on the same row:
 | Attribute | Purpose |
 |-----------|---------|
 | `progressionMatchName` | When the progression row uses a different string than the item id, this is the name used for matching `DisplayData` / unlock rows. |
-| `requiredLevelOverride` | If vanilla progression resolves to `0` or too low, force a **fixed** minimum crafting level for that id. |
+| `requiredLevelOverride` | Force an explicit floor for that id: the mod applies **`max(vanillaResolved, override)`** when set. |
 | `requiredLevelMin` | **Floor** the resolved level to at least this value (useful when the first matched row is tier `0` in vanilla data). |
 
 Loader and merge order: embedded resource first, then file on disk over the mod folder (see [`ModContentRoot`](../src/ModContentRoot.cs)).
@@ -87,9 +87,8 @@ The mod does **not** try to intercept every possible code path once; it targets 
 
 | Player action | What we hook | Implementation |
 |----------------|--------------|----------------|
-| **Drag-and-drop** onto a hotbar slot | `XUiC_ItemStack.HandleStackSwap` | [`ToolbeltHandleStackSwapPatch`](../src/ToolbeltHandleStackSwapPatch.cs) (applied from [`ModApi`](../src/ModApi.cs) against the **game** assembly). |
+| **Drag-and-drop** onto a hotbar slot | `XUiC_ItemStack.HandleStackSwap` | [`ItemStackHandleStackSwapRestrictionPatch`](../src/WorkstationVehicleStackSwapPatches.cs) dispatches to [`ToolbeltHandleStackSwapPatch`](../src/ToolbeltHandleStackSwapPatch.cs) (applied from [`ModApi`](../src/ModApi.cs) against the **game** assembly). |
 | **Equip key / quick move to toolbelt** | `XUiM_PlayerInventory.AddItemToToolbelt`, `AddItemToPreferredToolbeltSlot` | [`AddItemToToolbeltRestrictionPatch`](../src/AddItemToToolbeltRestrictionPatch.cs). |
-| **Setting hotbar slot programmatically** | `Inventory.SetItem` | [`HotbarRestrictionPatch`](../src/HotbarRestrictionPatch.cs) (`[HarmonyPatch]` on mod assembly). |
 
 Shift-click flows: vanilla tries **backpack** before **toolbelt**; the mod intentionally **does not** patch `HandleMoveToPreferredLocation` so backpack merges keep working—see [`QUICK_MOVE_AND_TOOLBELT_HOOKS.md`](QUICK_MOVE_AND_TOOLBELT_HOOKS.md).
 
@@ -99,7 +98,6 @@ Shift-click flows: vanilla tries **backpack** before **toolbelt**; the mod inten
 |----------------|--------------|----------------|
 | **Click-to-equip** (equipment UI) | `XUiM_PlayerEquipment.EquipItem(ItemStack)` | [`EquipItemRestrictionPatch`](../src/EquipItemRestrictionPatch.cs) (game assembly). |
 | **Drag-and-drop** onto an equipment slot | `XUiC_EquipmentStack.HandleStackSwap` | [`EquipmentStackHandleStackSwapPatch`](../src/EquipmentStackHandleStackSwapPatch.cs) (game assembly). |
-| **Some programmatic equip paths** | `Equipment.SetSlotItem` | [`EquipmentRestrictionPatch`](../src/EquipmentRestrictionPatch.cs) (`[HarmonyPatch]`). |
 
 ### 3.3 Toolbelt / equipment “equip” from item list UI
 
@@ -177,7 +175,7 @@ There is **no** dedicated patch set for “weapon mod slot” or “battery slot
 ### 3.10 Other patches
 
 - [`ProgressionLevelUpPatch`](../src/ProgressionLevelUpPatch.cs): marks restriction UI dirty after crafting skill changes.  
-- [`PatchAll`](../src/ModApi.cs) also picks up `[HarmonyPatch]` types in the mod assembly (e.g. `HotbarRestrictionPatch`, `EquipmentRestrictionPatch`) in addition to the **explicit** `Apply*` game-assembly patches.
+- [`PatchAll`](../src/ModApi.cs) is still invoked for any future attribute-based patches, but current shipping enforcement patches are applied explicitly against the **game** assembly in `ModApi`.
 
 ---
 

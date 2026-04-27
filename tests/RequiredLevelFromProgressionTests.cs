@@ -236,10 +236,15 @@ namespace LimitByCraftingSkillMod.Tests
         private static bool MapHasPickaxe =>
             GameReflection.GetCraftingSkillGroup(new ItemClass { Name = "meleeToolPickT1IronPickaxe" }) != null;
 
+        private static void AssertMapHasSkill(string itemName, string expectedSkill)
+        {
+            Assert.Equal(expectedSkill, GameReflection.GetCraftingSkillGroup(new ItemClass { Name = itemName }));
+        }
+
         [Fact]
         public void GetRequiredLevelForItemForUnitTest_HarvestingSyntheticTier1_UsesFirstQualityBand()
         {
-            if (!MapHasPickaxe) return;
+            Assert.True(MapHasPickaxe, "Embedded ClassNameToCraftingSkillMap.xml should map iron pickaxe in tests.");
             var itemClass = new ItemClass { Name = "meleeToolPickT1IronPickaxe" };
             var itemValue = new ItemValue { ItemClass = itemClass };
             var prog = new FakeProgressionForRequiredLevel();
@@ -250,7 +255,7 @@ namespace LimitByCraftingSkillMod.Tests
         [Fact]
         public void GetRequiredLevelForItemForUnitTest_WithQuality_UsesMatchingBand()
         {
-            if (!MapHasPickaxe) return;
+            Assert.True(MapHasPickaxe, "Embedded ClassNameToCraftingSkillMap.xml should map iron pickaxe in tests.");
             var itemClass = new ItemClass { Name = "meleeToolPickT1IronPickaxe" };
             var itemValue = new TestItemValueWithQuality { ItemClass = itemClass, Quality = 3 };
             var prog = new FakeProgressionForRequiredLevel();
@@ -261,7 +266,7 @@ namespace LimitByCraftingSkillMod.Tests
         [Fact]
         public void GetRequiredLevelForItemForUnitTest_StoneAxeAndShovelQuality_UseProgressionMatchOverrideBands()
         {
-            if (GameReflection.GetCraftingSkillGroup(new ItemClass { Name = "meleeToolAxeT0StoneAxe" }) == null) return;
+            AssertMapHasSkill("meleeToolAxeT0StoneAxe", "HarvestingTools");
 
             var prog = new FakeProgressionForStoneHarvestingOverride();
 
@@ -277,7 +282,7 @@ namespace LimitByCraftingSkillMod.Tests
         [Fact]
         public void GetRequiredLevelForItemForUnitTest_StoneRowsLockedToOne_QualityUsesIronProxyBands()
         {
-            if (GameReflection.GetCraftingSkillGroup(new ItemClass { Name = "meleeToolRepairT0StoneAxe" }) == null) return;
+            AssertMapHasSkill("meleeToolRepairT0StoneAxe", "HarvestingTools");
 
             var prog = new FakeProgressionStoneRowsPlusIronRows();
 
@@ -293,7 +298,7 @@ namespace LimitByCraftingSkillMod.Tests
         [Fact]
         public void GetRequiredLevelForItemForUnitTest_StoneShovelAndAxe_Q2UsesStoneHarvestBandsNotIronFromProgressionMatchName()
         {
-            if (GameReflection.GetCraftingSkillGroup(new ItemClass { Name = "meleeToolShovelT0StoneShovel" }) == null) return;
+            AssertMapHasSkill("meleeToolShovelT0StoneShovel", "HarvestingTools");
 
             var prog = new FakeProgressionVanillaLikeStoneIronHarvesting();
             var shovel = new ItemClass { Name = "meleeToolShovelT0StoneShovel" };
@@ -308,7 +313,7 @@ namespace LimitByCraftingSkillMod.Tests
         [Fact]
         public void HarvestingStoneRow_TwoUnlockChildrenSameStoredTier_IndexesUnlockLevelByItemQuality()
         {
-            if (GameReflection.GetCraftingSkillGroup(new ItemClass { Name = "meleeToolShovelT0StoneShovel" }) == null) return;
+            AssertMapHasSkill("meleeToolShovelT0StoneShovel", "HarvestingTools");
 
             var prog = new FakeProgressionStoneRowTwoUnlockChildren();
             var shovel = new ItemClass { Name = "meleeToolShovelT0StoneShovel" };
@@ -320,7 +325,6 @@ namespace LimitByCraftingSkillMod.Tests
         public void GetRequiredLevelForItemForUnitTest_WorkstationsSyntheticTier_MatchesDisplayData()
         {
             var itemClass = new ItemClass { Name = "workbench" };
-            if (GameReflection.GetCraftingSkillGroup(itemClass) == null) return;
             var itemValue = new ItemValue { ItemClass = itemClass };
             Assert.Equal("Workstations", GameReflection.GetCraftingSkillGroup(itemClass));
             var prog = new FakeProgressionForRequiredLevel();

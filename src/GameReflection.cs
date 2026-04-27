@@ -9,7 +9,16 @@ namespace LimitByCraftingSkillMod
 {
     /// <summary>
     /// Reflection-based access to game types for player crafting level and item required level.
-    /// Hides member names so the mod can tolerate game version drift; see docs/GAME_API_NOTES.md and RUNTIME_API_MISMATCH_DEBUGGING in dev-tools.
+    /// Hides member names so the mod can tolerate game version drift.
+    ///
+    /// Required-level pipeline:
+    /// 1. Resolve a stable map key from ItemClass/ItemValue or BlockValue (concrete XML id where possible).
+    /// 2. Resolve a skill group from ClassNameToCraftingSkillMap, narrow vanilla id/tag inference, then limited CraftingSkillGroup fallback.
+    /// 3. Convert the skill group to the vanilla progression key (for example, Clothing -> craftingarmor).
+    /// 4. Find matching DisplayData / UnlockData rows, then read unlock_level/QualityStarts/GetQualityLevel according to row shape.
+    /// 5. Apply special-case corrections (for example stone harvesting tools, powered garage doors) and XML floors/overrides.
+    ///
+    /// Keep this high-level order in sync with docs/GATING_AND_RESTRICTIONS.md and docs/CLASS_NAME_MAP_HOWTO.md.
     /// </summary>
     internal static class GameReflection
     {

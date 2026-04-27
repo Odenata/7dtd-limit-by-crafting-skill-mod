@@ -6,6 +6,12 @@ namespace LimitByCraftingSkillMod
 {
     public class ModApi : IModApi
     {
+        // Patch strategy:
+        // - Prefer UI/input chokepoints that run before the game commits an item move (toolbelt, equipment, vehicle spawn).
+        // - Avoid returning false from low-level setters such as Inventory.SetItem / Equipment.SetSlotItem; those are unsafe item-loss points.
+        // - Workstations mostly use UI postfixes that close restricted windows after vanilla open; broad BlockWorkstation prefixes caused UI lock.
+        // - Dew Collector / Apiary are the narrow BlockCollector exception because their shared Collector UI can bypass generic workstation hooks.
+        // - Reflection patching targets the live game assembly whenever possible so mock-reference types do not hide runtime signature drift.
         public void InitMod(Mod modInstance)
         {
             ModContentRoot.ApplyFromModApi(modInstance);
@@ -39,7 +45,7 @@ namespace LimitByCraftingSkillMod
                 ApplyDewCollectorWindowGroupSetTileEntityPatchFromGameAssembly(harmony);
                 ApplyDewCollectorWindowGroupOnOpenPatchFromGameAssembly(harmony);
                 ApplyGameManagerWorkstationOpenedPatchFromGameAssembly(harmony);
-                ApplyGUIWindowManagerOpenNameLoggingPatchFromGameAssembly(harmony);
+                ApplyGUIWindowManagerWorkstationWindowPatchFromGameAssembly(harmony);
                 ApplyVehicleDrivePatchFromGameAssembly(harmony);
                 ApplyItemActionSpawnVehiclePatchFromGameAssembly(harmony);
                 ApplyItemActionExecuteRestrictionPatchesFromGameAssembly(harmony);
@@ -72,6 +78,34 @@ namespace LimitByCraftingSkillMod
             catch
             {
                 // Unity not available (test environment)
+            }
+        }
+
+        private static Type[] GetLoadableTypes(Assembly assembly, string context)
+        {
+            if (assembly == null) return Type.EmptyTypes;
+            try
+            {
+                return assembly.GetTypes();
+            }
+            catch (ReflectionTypeLoadException ex)
+            {
+                SafeLog("[LimitByCraftingSkill] Partial type load while scanning " + context + ": " + ex.Message);
+                if (ex.LoaderExceptions != null)
+                {
+                    foreach (var loaderEx in ex.LoaderExceptions)
+                    {
+                        if (loaderEx != null)
+                            SafeLog("[LimitByCraftingSkill]   loader: " + loaderEx.Message);
+                    }
+                }
+                if (ex.Types == null) return Type.EmptyTypes;
+                var list = new System.Collections.Generic.List<Type>();
+                foreach (var t in ex.Types)
+                {
+                    if (t != null) list.Add(t);
+                }
+                return list.ToArray();
             }
         }
 
@@ -177,9 +211,9 @@ namespace LimitByCraftingSkillMod
                     SafeLog("[LimitByCraftingSkill] HandleStackSwap not found on XUiC_ItemStack, toolbelt patch skipped.");
                     return;
                 }
-                var prefix = typeof(ToolbeltHandleStackSwapPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.Public);
+                var prefix = typeof(ItemStackHandleStackSwapRestrictionPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.Public);
                 harmony.Patch(handleStackSwap, prefix: new HarmonyMethod(prefix));
-                SafeLog("[LimitByCraftingSkill] ItemStack.HandleStackSwap (toolbelt drag-drop block) patch applied.");
+                SafeLog("[LimitByCraftingSkill] ItemStack.HandleStackSwap (toolbelt + workstation tool drag-drop block) patch applied.");
             }
             catch (Exception ex)
             {
@@ -192,17 +226,8 @@ namespace LimitByCraftingSkillMod
             try
             {
                 var gameAssembly = typeof(Equipment).Assembly;
-                var itemStackType = gameAssembly.GetType("XUiC_ItemStack");
-                if (itemStackType != null)
-                {
-                    var hss = itemStackType.GetMethod("HandleStackSwap", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                    if (hss != null)
-                    {
-                        var ws = typeof(WorkstationToolHandleStackSwapPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.Public);
-                        harmony.Patch(hss, prefix: new HarmonyMethod(ws));
-                        SafeLog("[LimitByCraftingSkill] Workstation tool grid HandleStackSwap patch applied.");
-                    }
-                }
+                // XUiC_ItemStack.HandleStackSwap is patched once in ApplyToolbeltHandleStackSwapPatchFromGameAssembly.
+                // That combined prefix dispatches both toolbelt and workstation-tool behavior in a deterministic order.
                 var partStackType = gameAssembly.GetType("XUiC_ItemPartStack");
                 if (partStackType != null)
                 {
@@ -412,7 +437,7 @@ namespace LimitByCraftingSkillMod
                     SafeLog("[LimitByCraftingSkill] XUiC_WorkstationWindowGroup.SetTileEntity Postfix patch applied.");
                 }
 
-                foreach (var subType in gameAssembly.GetTypes())
+                foreach (var subType in GetLoadableTypes(gameAssembly, "workstation SetTileEntity subtypes"))
                 {
                     if (subType == null || !subType.IsClass || subType == windowType || !windowType.IsAssignableFrom(subType))
                         continue;
@@ -486,7 +511,7 @@ namespace LimitByCraftingSkillMod
                     }
                 }
 
-                foreach (var subType in gameAssembly.GetTypes())
+                foreach (var subType in GetLoadableTypes(gameAssembly, "workstation OnOpen subtypes"))
                 {
                     if (subType == null || !subType.IsClass || !wsType.IsAssignableFrom(subType))
                         continue;
@@ -587,7 +612,7 @@ namespace LimitByCraftingSkillMod
         /// Workstation <c>workstation_*</c> GUI: Postfix on Open / OpenIfNotOpen / SwitchVisible — close + popup if Workstations level too low.
         /// Prefix+skip caused UI lock; Postfix runs after vanilla Open.
         /// </summary>
-        private static void ApplyGUIWindowManagerOpenNameLoggingPatchFromGameAssembly(Harmony harmony)
+        private static void ApplyGUIWindowManagerWorkstationWindowPatchFromGameAssembly(Harmony harmony)
         {
             try
             {
@@ -599,7 +624,7 @@ namespace LimitByCraftingSkillMod
                     return;
                 }
 
-                var patchType = typeof(GUIWindowManagerOpenNameLogPatch);
+                var patchType = typeof(GUIWindowManagerWorkstationWindowPatch);
                 var pxGeneric = patchType.GetMethod("PostfixAny_StringFirstArg", BindingFlags.Static | BindingFlags.Public);
                 var pxUpdate = patchType.GetMethod("PostfixUpdate_Float", BindingFlags.Static | BindingFlags.Public);
                 if (pxGeneric == null || pxUpdate == null)

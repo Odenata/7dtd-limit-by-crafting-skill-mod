@@ -11,6 +11,8 @@ Examples:
 - Offset = 0 (default): Player must have level ≥ required to use the item.
 - Offset = 1: Player can use items up to one tier above what they can craft (e.g. can use quality 3 when they can craft quality 2).
 
+This could give back some of the excitement of finding higher quality loot without letting players get too far ahead too quickly.
+
 ## Implementation sketch
 
 - Add a config value (e.g. `LevelOffset`, integer ≥ 0).
@@ -18,5 +20,4 @@ Examples:
 
 ## Rationale for not implementing
 
-- Keeps initial scope smaller.
-- Can be added later if desired without changing the core restriction points.
+- Simply out of scope for initial implementation. No technical limitations.

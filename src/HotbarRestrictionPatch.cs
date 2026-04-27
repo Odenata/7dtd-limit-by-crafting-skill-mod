@@ -1,14 +1,13 @@
 using System;
 using System.Reflection;
-using HarmonyLib;
 
 namespace LimitByCraftingSkillMod
 {
     /// <summary>
-    /// Would restrict hotbar by level. We never return false: skipping SetItem after the game has
-    /// moved the item can cause item loss. Restriction must be implemented at an earlier hook.
+    /// Non-shipping diagnostic helper for hotbar SetItem behavior.
+    /// Do not Harmony-patch this in normal builds: it never blocks, and SetItem is a hot path where
+    /// returning false after the game has moved an item can cause item loss.
     /// </summary>
-    [HarmonyPatch(typeof(Inventory), "SetItem", new Type[] { typeof(int), typeof(ItemStack) })]
     internal static class HotbarRestrictionPatch
     {
         private const int HotbarSlotCountFallback = 10;

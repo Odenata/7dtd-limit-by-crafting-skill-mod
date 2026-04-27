@@ -75,6 +75,7 @@ namespace LimitByCraftingSkillMod
     {
         private static readonly Dictionary<object, float> _lastRunByGrid = new Dictionary<object, float>();
         private const float ThrottleSeconds = 0.2f;
+        private const int MaxTrackedGridControllers = 128;
 
         public static void Postfix(object __instance)
         {
@@ -116,6 +117,10 @@ namespace LimitByCraftingSkillMod
             RestrictionLabelColor.RestrictionColorsDirty = false;
             lock (_lastRunByGrid)
             {
+                // XUi controllers normally transition through IsOpen=false, where we remove them. If a game update destroys
+                // controllers without closing, cap the cache so a long session cannot retain an unbounded number of grids.
+                if (_lastRunByGrid.Count > MaxTrackedGridControllers)
+                    _lastRunByGrid.Clear();
                 _lastRunByGrid[__instance] = now;
             }
         }

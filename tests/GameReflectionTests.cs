@@ -5,9 +5,16 @@ namespace LimitByCraftingSkillMod.Tests
 {
     public class GameReflectionTests
     {
+        private sealed class TestItemClassWithCraftingSkillGroup : ItemClass
+        {
+            public string CraftingSkillGroup;
+        }
+
         private static ItemClass ItemWithNameAndOptionalCraftingSkill(string name, string craftingSkillGroup = null)
         {
-            var ic = new ItemClass { Name = name };
+            var ic = craftingSkillGroup == null
+                ? new ItemClass { Name = name }
+                : new TestItemClassWithCraftingSkillGroup { Name = name, CraftingSkillGroup = craftingSkillGroup };
             if (craftingSkillGroup == null) return ic;
             var p = typeof(ItemClass).GetProperty("CraftingSkillGroup", BindingFlags.Public | BindingFlags.Instance);
             var f = typeof(ItemClass).GetField("CraftingSkillGroup", BindingFlags.Public | BindingFlags.Instance);
@@ -19,9 +26,6 @@ namespace LimitByCraftingSkillMod.Tests
         [Fact]
         public void GetCraftingSkillGroup_WhenItemClassIsInMap_ReturnsMappedGroup()
         {
-            var probe = new ItemClass { Name = "meleeToolPickT1IronPickaxe" };
-            if (GameReflection.GetCraftingSkillGroup(probe) == null)
-                return; // e.g. Bazel test without ClassNameToCraftingSkillMap.xml beside DLL
             var itemClass = new ItemClass { Name = "meleeToolPickT1IronPickaxe" };
             var result = GameReflection.GetCraftingSkillGroup(itemClass);
             Assert.Equal("HarvestingTools", result);
@@ -31,9 +35,6 @@ namespace LimitByCraftingSkillMod.Tests
         public void GetCraftingSkillGroup_WhenUnmappedAndGameCraftingSkillGroupIsTools_ReturnsHarvestingTools()
         {
             var itemClass = ItemWithNameAndOptionalCraftingSkill("someModPickNotInMap", "Tools");
-            if (typeof(ItemClass).GetProperty("CraftingSkillGroup") == null &&
-                typeof(ItemClass).GetField("CraftingSkillGroup") == null)
-                return;
             Assert.Equal("HarvestingTools", GameReflection.GetCraftingSkillGroup(itemClass));
         }
 
@@ -41,17 +42,12 @@ namespace LimitByCraftingSkillMod.Tests
         public void GetCraftingSkillGroup_WhenUnmappedAndGameCraftingSkillGroupIsElectrician_ReturnsElectrician()
         {
             var itemClass = ItemWithNameAndOptionalCraftingSkill("customWireBlock", "Electrician");
-            if (typeof(ItemClass).GetProperty("CraftingSkillGroup") == null &&
-                typeof(ItemClass).GetField("CraftingSkillGroup") == null)
-                return;
             Assert.Equal("Electrician", GameReflection.GetCraftingSkillGroup(itemClass));
         }
 
         [Fact]
         public void GetCraftingSkillGroup_MapEntryOverridesGameCraftingSkillGroup()
         {
-            var probe = new ItemClass { Name = "meleeToolPickT1IronPickaxe" };
-            if (GameReflection.GetCraftingSkillGroup(probe) == null) return;
             var itemClass = ItemWithNameAndOptionalCraftingSkill("meleeToolPickT1IronPickaxe", "Electrician");
             Assert.Equal("HarvestingTools", GameReflection.GetCraftingSkillGroup(itemClass));
         }
@@ -263,7 +259,6 @@ namespace LimitByCraftingSkillMod.Tests
         {
             var itemClass = new ItemClass { Name = "meleeWpnBladeT0BoneKnife" };
             var itemValue = new ItemValue { ItemClass = itemClass };
-            if (GameReflection.GetCraftingSkillGroup(itemClass) == null) return;
             var result = GameReflection.GetRequiredLevelForItem(itemClass, itemValue);
             Assert.Equal(0, result);
         }

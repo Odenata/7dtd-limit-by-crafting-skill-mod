@@ -1,40 +1,79 @@
 # Limit by Crafting Skill Mod
 
-Restricts equipping and using items to the player's crafting skill level for that item type. See [LootProgressionByCraftingSkillModIdea.md](LootProgressionByCraftingSkillModIdea.md) and [docs/DESIGN.md](docs/DESIGN.md) for design. **Open work / roadmap:** [docs/DESIGN.md](docs/DESIGN.md#roadmap--known-gaps) · [docs/TODO.md](docs/TODO.md). **Map maintenance:** [tools/README_MAP_GENERATOR.md](tools/README_MAP_GENERATOR.md).
+*Limit by Crafting Skill* restricts the use of craftable items based on each player's crafting skill levels. If your skill level is below an item's required crafting level, you will be blocked from using it.
 
-## Build
+Consider this mod if you find vanilla progression to be fast, especially when driven by high-tier loot or rewards too early. It also prevents some over-helping from friends who might have supplied such loot rather than letting the player progress on their own.
 
-Sources live at the **repository root** (`src/`, `tests/`). Do not commit or edit files under a nested `bazel-*` execroot mirror.
+## What It Restricts
 
-- **Bazel (hermetic):** `bazel build //src:LimitByCraftingSkillMod` — output DLL under `bazel-bin\src\LimitByCraftingSkillMod.dll` (not `src\bin`).
-- **Bazel run (non-hermetic, uses host dotnet):** `bazel run //tools:build`
-- **Local (IDE):** `.\tools\build.ps1` — requires `7dtd-mod-dev-tools` as a sibling repo (e.g. `repos\7dtd-mod-dev-tools`). MSBuild outputs go to `src\bin\` (gitignored).
+- Armor and clothing cannot be equipped until your Armor skill is high enough.
+- Weapons, tools, traps, robotics, and placeable items cannot be put on the hotbar when restricted.
+- Workstation blocks cannot be opened until your Workstations skill is high enough.
+- Vehicles can still be opened, refueled, picked up, and used as a passenger, but cannot be driven until your Vehicles skill is high enough.
+- Food and medical restrictions are available, but off by default.
+- Upgrade-style items are intentionally not gated by default. Examples include workstation upgrades such as Crucible or Bellows, vehicle modifiers such as extra seats, weapon attachments such as scopes, and batteries installed into battery banks.
 
-## Prepare mod files (for players or manual copy)
+## Installation
 
-`.\tools\prepare_mod.ps1` fills **`prepared_mod_files\`** with exactly what belongs in `Mods\LimitByCraftingSkillMod\` (DLL, `0Harmony.dll`, `ModInfo.xml`, `Config.xml`, `ClassNameToCraftingSkillMap.xml`). Use **`-DllPath`** if you built with Bazel (point at `bazel-bin\src\LimitByCraftingSkillMod.dll`). See [`prepared_mod_files/README.md`](prepared_mod_files/README.md).
+Install the mod into your 7 Days to Die game folder:
 
-- **Bazel:** `bazel run //tools:prepare_mod` (same script via `prepare_run.ps1`).
+```text
+<7 Days To Die>\Mods\LimitByCraftingSkillMod\
+```
 
-## ClassName map generator (hermetic Python)
+That folder must contain these files:
 
-- **Run:** `bazel run //tools:generate_classname_map_report -- --items <game>\Data\Config\items.xml --map src/ClassNameToCraftingSkillMap.xml --out-csv … --out-generated-xml src/ClassNameToCraftingSkillMap_generated.xml`
-- **Details:** [tools/README_MAP_GENERATOR.md](tools/README_MAP_GENERATOR.md)
+- `LimitByCraftingSkillMod.dll`
+- `0Harmony.dll`
+- `ModInfo.xml`
+- `Config.xml`
+- `ClassNameToCraftingSkillMap.xml`
 
-## Test
+If you received a prepared mod folder or release zip, copy all of those files into `Mods\LimitByCraftingSkillMod\`. Create the `Mods` folder if your game install does not already have one.
 
-- **Bazel:** `bazel test //tests:all` (on Windows may require `BAZEL_SH` set to bash for test runner; see 7dtd-mod-dev-tools docs).
-- **dotnet:** From repo root with 7dtd-mod-dev-tools as sibling: `dotnet test tests\LimitByCraftingSkillMod.Tests.csproj`.
-- **In-game:** After deploy, use [docs/IN_GAME_TEST_CHECKLIST.md](docs/IN_GAME_TEST_CHECKLIST.md). Optional: [docs/LOCAL_GAME_HARNESS.md](docs/LOCAL_GAME_HARNESS.md) (live progression / future standalone harness).
+Restart 7 Days to Die after installing or replacing mod files.
 
-## Debugging required-level issues
+## Configuration
 
-To trace why an item shows required level **0** or wrong tier after a game update, see **[docs/DEBUG_INSTRUMENTATION.md](docs/DEBUG_INSTRUMENTATION.md)** (NDJSON log helpers and where to hook `GetRequiredLevelForItem`).
+Edit `Config.xml` in the installed mod folder, then restart the game.
 
-## Deploy
+Each entry under `<CraftingSkills>` turns one restriction category on or off:
 
-Deploy **always builds** (Release by default), runs **`prepare_mod.ps1`**, then copies everything from **`prepared_mod_files\`** into `<game>\Mods\LimitByCraftingSkillMod\`. This avoids stale DLLs and missing `ClassNameToCraftingSkillMap.xml`.
+```xml
+<Vehicles>true</Vehicles>
+```
 
-- **Game install directory:** `SEVENDTD_GAME_PATH` or `7_DAYS_TO_DIE_GAME_PATH`, else the default Steam path.
-- **Local:** `.\tools\deploy.ps1` — optional `-SkipBuild` if you already built; optional `-DllPath` for a Bazel-built DLL.
-- **Bazel:** `MSYS2_ARG_CONV_EXCL='*' bazel run tools:deploy` from Git Bash (MSYS strips `//` in `//tools:deploy` unless you use this env or run from **cmd/PowerShell** as `bazel run //tools:deploy`).
+Set a category to `false` to disable that category's restrictions. `Food` and `Medical` are shipped as `false`, so eating, drinking, and medicine behave like vanilla unless you opt in. Feel free to customize your experience by limiting only certain categories to achieve the balance that matches your desired playstyle.
+
+Set `<DebugMode>true</DebugMode>` only while troubleshooting. It writes extra mod messages to the game log.
+
+## Updating
+
+Replace every file in:
+
+```text
+<7 Days To Die>\Mods\LimitByCraftingSkillMod\
+```
+
+If you customized `Config.xml` or `ClassNameToCraftingSkillMap.xml`, back those files up first and re-apply your changes after updating.
+
+## Uninstalling
+
+Delete this folder:
+
+```text
+<7 Days To Die>\Mods\LimitByCraftingSkillMod\
+```
+
+Then restart the game.
+
+## Troubleshooting
+
+- If a restriction does not appear to apply, confirm the mod folder contains all five required files above.
+- If you changed `Config.xml`, restart the game before testing.
+- If a server is involved, install the mod and matching configuration on the side that should enforce gameplay. This MVP reads its local `Config.xml`; it does not include a separate config sync system.
+- For maintainer-level troubleshooting, see `docs/DEBUG_INSTRUMENTATION.md`.
+
+## For Developers
+
+Build, test, deployment, map maintenance, and design notes live under `docs/`. Start with `docs/DEVELOPING.md`.

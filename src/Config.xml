@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LimitByCraftingSkillModConfig>
   <!-- One toggle per crafting skill. When true, items requiring that skill are restricted by player level. -->
-  <!-- Server config overrides client in multiplayer. -->
+  <!-- Multiplayer: this MVP reads the local Config.xml for each process; keep server/client configs aligned. -->
   <CraftingSkills>
     <Armor>true</Armor>
     <Bows>true</Bows>

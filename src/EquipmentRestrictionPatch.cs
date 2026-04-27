@@ -1,16 +1,13 @@
 using System;
 using System.Reflection;
-using HarmonyLib;
 
 namespace LimitByCraftingSkillMod
 {
     /// <summary>
-    /// Would restrict equipping armor/equipment by level. Blocking here is DISABLED: returning false
-    /// from this Prefix skips SetSlotItem after the game has already removed the item from its source,
-    /// which deletes the item. We never return false; restriction must be implemented at an earlier
-    /// hook (e.g. XUiM_PlayerEquipment.EquipItem) before the item is moved. See docs/GAME_API_NOTES.md.
+    /// Non-shipping diagnostic helper for Equipment.SetSlotItem behavior.
+    /// Do not Harmony-patch this in normal builds: it never blocks, and SetSlotItem is an unsafe item-loss
+    /// point because the source stack may already have been changed. Blocking happens at earlier UI hooks.
     /// </summary>
-    [HarmonyPatch(typeof(Equipment), "SetSlotItem", new Type[] { typeof(int), typeof(ItemValue), typeof(bool) })]
     internal static class EquipmentRestrictionPatch
     {
         static bool Prefix(Equipment __instance, int index, ItemValue value, bool isLocal)

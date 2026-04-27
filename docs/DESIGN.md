@@ -8,8 +8,8 @@ The player may not equip or use an item if the item's **required level** (for it
 
 - **Source:** Each item has `ItemClass.CraftingSkillGroup` (string) and optionally a quality tier. Quality is exposed as `ItemValue.Quality` (e.g. 1–5). Items without quality are treated as requiring a single tier (e.g. required level 0 or 1 — no restriction, or a minimal level to be validated against the game's progression data).
 - **Derivation:** Required level comes from `ProgressionValue` → `ProgressionClass` → `DisplayDataList`. For each matched `DisplayData` row, the mod reads gates in order: positional **`unlock_level`** CSV (and similar), then **`QualityStarts`**, then inverse **`GetQualityLevel`** for rolled item quality—see [`GATING_AND_RESTRICTIONS.md`](GATING_AND_RESTRICTIONS.md). Matching the item to a row: direct `DisplayData.item` / `ItemName` when set; otherwise scan `UnlockDataList` (or `GetUnlockData(i)` when the list is empty), matching via unlock `item`/`ItemName`, `DisplayData.GetUnlockItem(i)`, or `UnlockData.RecipeList` strings. Armor and some other skills use empty top-level `ItemName` and populate unlocks instead.
-- **No quality tier:** For **Electrician**, **Workstations**, **HarvestingTools**, and (when **Food** / **Medical** restrictions are enabled) most consumables, inventory items often have no meaningful `ItemValue` quality. Those skills use **synthetic tier 1** for progression lookup so placeables, tools, and consumable rows still resolve a band from vanilla **DisplayData** when progression matches. Rolled quality still applies where vanilla uses it (e.g. weapons, armor).
-- **Debug:** With `Config.xml` → `DebugMode` true, `GetRequiredLevelForItem` logs `exit=0` with **reason** (`no_map`, `no_quality`, `no_progression_match`, etc.). `no_map` is logged at most once per item name. Optional NDJSON file logging: **`docs/DEBUG_INSTRUMENTATION.md`**.
+- **No quality tier:** For **Electrician**, **Workstations**, **HarvestingTools**, **Explosives**, **Seeds**, and (when **Food** / **Medical** restrictions are enabled) most consumables, inventory items often have no meaningful `ItemValue` quality. Those skills use **synthetic tier 1** for progression lookup so placeables, tools, mines, seeds, and consumable rows still resolve a band from vanilla **DisplayData** when progression matches. Rolled quality still applies where vanilla uses it (e.g. weapons, armor).
+- **Debug:** With `Config.xml` → `DebugMode` true, `GetRequiredLevelForItem` logs `exit=0` with **reason** (`no_map`, `no_quality`, `no_progression_match`, etc.). `no_map` is logged at most once per item name. For temporary deeper instrumentation, see **`docs/DEBUG_INSTRUMENTATION.md`**.
 
 ## Restriction points
 
@@ -28,11 +28,11 @@ Prevent placing items into player armor/equipment slots. Block at **XUiM_PlayerE
 
 ### Workstations
 
-When the player attempts to open the placed workstation UI (e.g. default keybind 'E'), check their crafting level for the Workstations skill against the placed block's required level. If below, block opening the interface and show feedback. Picking up and other interactions remain allowed.
+When the player attempts to open the placed workstation UI (e.g. default keybind 'E'), check their crafting level for the Workstations skill against the placed block's required level. If below, block opening the interface and show feedback. Picking up and other interactions may remain allowed.
 
 ### Upgrade / modifier items (intentionally permissive)
 
-**Policy:** We do **not** treat typical **upgrade** or **install-only** items as gated end products. Those are things the player inserts into another block or item to improve it, rather than “uses” as a standalone equipped tool or placeable. Examples: **workstation** upgrade parts (Crucible, Bellows, Anvil, …), **vehicle** modifier parts (extra seat, armor plating, …), **weapon** attachments (scopes, magazines, …), and **battery** items slotted into banks, vehicles, or tools.
+**Policy:** We do **not** treat typical **upgrade** or **install-only** items as gated end products. Those are things the player inserts into another block or item to improve it, rather than “uses” as a standalone equipped tool or placeable. Examples: **workstation** upgrade parts (Crucible, Bellows, Anvil, …), **vehicle** modifier parts (extra seat, armor plating, …), **weapon** attachments (scopes, magazines, …), and **battery** items slotted into battery banks.
 
 **How that works in practice:**
 
@@ -55,7 +55,7 @@ Treated as handheld: if the item cannot be placed in the hotbar, it cannot be he
 
 ### Inventory
 
-Indicate restricted items by coloring the in-inventory item **label red** wherever the player sees items: player inventory (backpack, toolbelt), character equipment slots, container/loot inventories, vehicle inventory, workstation inventory, and any other UI that displays item stacks or equipment. The same rule applies for all restricted item types (armor, tools, workstations, vehicles); the only difference is which grid type the game uses (item-stack grid vs equipment-stack grid). Grids are detected by **base type** (`XUiC_ItemStackGrid` / `XUiC_EquipmentStackGrid`) so all subclasses (e.g. Backpack, Toolbelt, PartList, VehicleContainer, WorkstationGrid) are covered.
+Indicate restricted items by coloring the in-inventory item **label red** wherever the player sees items: player inventory (backpack, toolbelt), character equipment slots, container/loot inventories, vehicle inventory, workstation inventory, and any other UI that displays item stacks or equipment. The same rule applies for all restricted item types (armor, tools, workstations, vehicles); the only difference is which grid type the game uses (item-stack grid vs equipment-stack grid). Grids are detected by **base type** (`XUiC_ItemStackGrid` / `XUiC_EquipmentStackGrid`) so all subclasses (e.g. Backpack, Toolbelt, PartList, VehicleContainer, WorkstationGrid) are covered. Labels are provided for stackable items and items with quality tiers, so not all items have a label to turn red.
 
 **Triggers:** (1) **OnOpen** Postfix on `XUiC_ItemStackGrid` and `XUiC_EquipmentStackGrid` calls `ApplyRestrictionColorsToGrid` once. (2) When the player levels up a crafting skill, **Progression.addProgressionCurrency** Postfix sets a dirty flag. (3) Each grid’s **Update** Postfix, when the grid is open, runs `ApplyRestrictionColorsToGrid` only if the dirty flag is set or a per-grid throttle has elapsed (e.g. every 0.2s per open grid), then clears the dirty flag. Immediate apply on open and when dirty keeps labels correct after open/level-up; throttling the steady-state refresh limits compute. The throttle interval can be tuned if the game overwrites label color more frequently.
 
@@ -63,21 +63,21 @@ Indicate restricted items by coloring the in-inventory item **label red** wherev
 
 ### In-world (workstation, vehicle, etc.)
 
-When a blocked use occurs, show a **red** popup using the game's existing popup/notification system with:
+When a blocked use occurs, show an **orange** popup using the game's existing popup/notification system with:
 
 1. "You don't know how to use [item name]"
 2. "[Crafting Skill Name] [player level]/[required level]"
 
-The exact API for this popup is to be identified in the game API investigation.
+The implementation uses `GameManager.ShowTooltip` via reflection with `"ui_denied"` where available, plus tooltip tint patches for the mod's denial text; see [`GAME_API_NOTES.md`](GAME_API_NOTES.md) and [`RestrictionFeedback`](../src/RestrictionFeedback.cs).
 
 ## Config
 
 - **Per–crafting-skill toggles:** One toggle per crafting skill (e.g. Armor, HarvestingTools, Workstations, Vehicles). When enabled, restriction applies for that skill; when disabled, items for that skill are not restricted.
-- **Server vs client:** In multiplayer, restrictions must respect the **server's** config, not the client's. Where config is read (server vs client process) and how server authority is enforced is documented here and implemented when the game API for that is clear. Initial implementation can be client-only with a note to add server path later.
+- **Server vs client:** The MVP reads `Config.xml` from the local mod folder for the process running the mod. There is no separate config sync layer yet; multiplayer deployments should install matching config on the side(s) expected to enforce restrictions. Server-authoritative config remains future work.
 
-## Food and Medicine (optional toggles) — **implemented**
+### Food and Medicine (optional toggles) — **implemented**
 
-- **Release default:** **Food** and **Medical** are **false** in `Config.xml` so eat/drink/meds match vanilla use unless the player opts in. Set both to **true** (or only one) to enforce skill gates for mapped consumables in [`ClassNameToCraftingSkillMap.xml`](../src/ClassNameToCraftingSkillMap.xml).
+- **Release default:** **Food** and **Medical** are **false** in `Config.xml` so eat/drink/meds match vanilla use unless the player opts in. Set to **true** to enforce skill gates for mapped consumables in [`ClassNameToCraftingSkillMap.xml`](../src/ClassNameToCraftingSkillMap.xml).
 
 - **Categorization:** Drinks, meals, and similar are mapped to **`Food`**; bandages, kits, drugs, etc. to **`Medical`**. The map drives **`GetCraftingSkillGroup`** and the **`Config.xml`** flag via `ToProgressionOrConfigName` (no rename).
 
