@@ -19,7 +19,7 @@ Slow progression and make crafting skills more meaningful by restricting equippi
 - **src/:** Mod DLL (ModApi, ModConfig, LimitByCraftingSkillLogic, patches, GameReflection, visualization).
 - **tests/:** Hermetic unit tests for core logic, config, reflection/progression resolution, and map-generator helpers. Optional integration tests can consume local game XML / assemblies when environment variables are set.
 - **tools/:** build, prepare, deploy, and map-generation helpers.
-- **docs/:** Design, game API notes, map maintenance, developer workflow, and optional docs.
+- **docs/:** Design, game API notes, map maintenance, developer workflow, [`COMPATIBILITY.md`](COMPATIBILITY.md) (mod vs game versions), and optional docs.
 
 ## References
 

@@ -4,6 +4,10 @@
 
 Consider this mod if you find vanilla progression to be fast, especially when driven by high-tier loot or rewards too early. It also prevents some over-helping from friends who might have supplied such loot rather than letting the player progress on their own.
 
+## Game version compatibility
+
+Release downloads are named by **mod version** only; the same zip may work across multiple game patches. See **[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)** for which **7 Days to Die** versions go with which mod release.
+
 ## What It Restricts
 
 - Armor and clothing cannot be equipped until your Armor skill is high enough.

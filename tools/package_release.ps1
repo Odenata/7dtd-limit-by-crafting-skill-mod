@@ -4,7 +4,9 @@
 
 .DESCRIPTION
   Runs prepare_mod.ps1, stages the deployable files under a single top-level
-  LimitByCraftingSkillMod\ folder, and writes LimitByCraftingSkillMod-<VERSION>.zip.
+  LimitByCraftingSkillMod\ folder, and writes LimitByCraftingSkillMod-<VERSION>.zip
+  (mod version only; game compatibility is documented in docs/COMPATIBILITY.md).
+
   Generated zips are release artifacts and should not be committed.
 
 .PARAMETER Configuration
@@ -48,6 +50,14 @@ if ([string]::IsNullOrWhiteSpace($version)) {
   Write-Host "ERROR: VERSION is empty." -ForegroundColor Red
   exit 1
 }
+
+function Get-SafeArchiveLabel([string]$raw) {
+  $t = ($raw.Trim() -replace '[\\/:*?"<>|]+', "-" -replace "\s+", "-").Trim("-")
+  if ([string]::IsNullOrWhiteSpace($t)) { return "unknown" }
+  return $t
+}
+
+$modLabel = Get-SafeArchiveLabel $version
 
 $prepareScript = Join-Path $PSScriptRoot "prepare_mod.ps1"
 if (-not (Test-Path $prepareScript)) {
@@ -95,7 +105,7 @@ foreach ($file in $requiredFiles) {
   Copy-Item -Path $src -Destination (Join-Path $stageModDir $file) -Force
 }
 
-$zipPath = Join-Path $OutputDir "LimitByCraftingSkillMod-$version.zip"
+$zipPath = Join-Path $OutputDir "LimitByCraftingSkillMod-$modLabel.zip"
 if (Test-Path $zipPath) {
   Remove-Item -Path $zipPath -Force
 }
@@ -105,5 +115,6 @@ Remove-Item -Path $stageRoot -Recurse -Force
 
 Write-Host "`nRelease package created:" -ForegroundColor Cyan
 Write-Host $zipPath -ForegroundColor Yellow
+Write-Host "Mod version: $version (game compatibility: docs/COMPATIBILITY.md)" -ForegroundColor Cyan
 Write-Host "Zip root: LimitByCraftingSkillMod/" -ForegroundColor Cyan
 exit 0

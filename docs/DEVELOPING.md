@@ -32,7 +32,7 @@ bazel run //tools:prepare_mod
 
 ## Package a release zip
 
-`.\tools\package_release.ps1` creates a CurseForge/GitHub release archive under `dist\`:
+`.\tools\package_release.ps1` creates a CurseForge/GitHub release archive under `dist\`, named by mod version ([`VERSION`](../VERSION)).
 
 ```powershell
 .\tools\package_release.ps1 -DllPath .\bazel-bin\src\LimitByCraftingSkillMod.dll
@@ -105,3 +105,4 @@ To trace why an item resolves to required level `0` or a wrong tier after a game
 - [`CLASS_NAME_MAP_HOWTO.md`](CLASS_NAME_MAP_HOWTO.md): map editing and override semantics.
 - [`GAME_API_NOTES.md`](GAME_API_NOTES.md): game API assumptions and Harmony patch targets.
 - [`PUBLISHING.md`](PUBLISHING.md): CurseForge/GitHub release packaging and upload checklist.
+- [`COMPATIBILITY.md`](COMPATIBILITY.md): mod version vs supported game versions (update when compatibility changes).
