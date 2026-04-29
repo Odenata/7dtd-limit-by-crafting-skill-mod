@@ -30,6 +30,16 @@ Equivalent Bazel entry point:
 bazel run //tools:prepare_mod
 ```
 
+## Package a release zip
+
+`.\tools\package_release.ps1` creates a CurseForge/GitHub release archive under `dist\`:
+
+```powershell
+.\tools\package_release.ps1 -DllPath .\bazel-bin\src\LimitByCraftingSkillMod.dll
+```
+
+The zip contains one top-level `LimitByCraftingSkillMod\` folder with the deployable mod files. Publishing checklist and CurseForge listing notes: [`PUBLISHING.md`](PUBLISHING.md).
+
 ## Deploy to a local game install
 
 `tools\deploy.ps1` always builds by default, runs `prepare_mod.ps1`, then copies everything from `prepared_mod_files\` into:
@@ -94,4 +104,4 @@ To trace why an item resolves to required level `0` or a wrong tier after a game
 - [`GATING_AND_RESTRICTIONS.md`](GATING_AND_RESTRICTIONS.md): required-level resolution and enforcement hooks.
 - [`CLASS_NAME_MAP_HOWTO.md`](CLASS_NAME_MAP_HOWTO.md): map editing and override semantics.
 - [`GAME_API_NOTES.md`](GAME_API_NOTES.md): game API assumptions and Harmony patch targets.
-- [`TODO.md`](TODO.md): low-priority follow-ups.
+- [`PUBLISHING.md`](PUBLISHING.md): CurseForge/GitHub release packaging and upload checklist.

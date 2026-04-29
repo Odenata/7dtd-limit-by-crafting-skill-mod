@@ -73,7 +73,7 @@ The implementation uses `GameManager.ShowTooltip` via reflection with `"ui_denie
 ## Config
 
 - **Per–crafting-skill toggles:** One toggle per crafting skill (e.g. Armor, HarvestingTools, Workstations, Vehicles). When enabled, restriction applies for that skill; when disabled, items for that skill are not restricted.
-- **Server vs client:** Single-player uses local `Config.xml`. In multiplayer, the server sends its `Config.xml` to connected clients via the game's config-file net package path, and clients apply that snapshot ahead of local config for restriction checks. Server-side rejection of every restricted action remains future work; current enforcement is still primarily client-side.
+- **Server vs client:** Single-player uses local `Config.xml`. In multiplayer, the server sends its `Config.xml` to connected clients via the game's config-file net package path, and clients apply that snapshot ahead of local config for restriction checks.
 
 ### Food and Medicine (optional toggles) — **implemented**
 
