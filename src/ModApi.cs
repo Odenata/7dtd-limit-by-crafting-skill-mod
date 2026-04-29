@@ -56,6 +56,7 @@ namespace LimitByCraftingSkillMod
                 ApplyPopupToolTipDisplayTooltipPostfix(harmony);
                 ApplyPopupToolTipUpdateTintPostfix(harmony);
                 ApplyGameManagerShowTooltipTintPostfixes(harmony);
+                ServerConfigSync.Register(harmony);
                 SafeLog("Harmony patches applied");
             }
             catch (Exception ex)

@@ -55,8 +55,9 @@ APIs were confirmed from `7dtd-mod-dev-tools/docs/game-api/assembly-csharp/by-ty
 
 ## Server config
 
-- **MVP behavior:** `ModConfig` reads `Config.xml` from the local mod folder for the process running the mod.
-- **Future work:** Server-authoritative config would require either installing matching config on the enforcing process or adding an explicit sync path. That sync path is not implemented.
+- **Current behavior:** `ModConfig` reads local `Config.xml` by default. On multiplayer joins, the server sends its `Config.xml` as `LimitByCraftingSkillMod/Config.xml` using `NetPackageConfigFile`; clients patch `NetPackageConfigFile.ProcessPackage` and apply that payload as an in-memory server snapshot.
+- **Precedence:** Server snapshot wins while present. Local `Config.xml` remains the fallback for single-player and for servers that do not send the package.
+- **Limit:** This is config consistency, not full server-authoritative enforcement. Most restriction hooks still run on the client. Keep `ClassNameToCraftingSkillMap.xml` and mod DLL versions aligned manually.
 
 ## Patch targets (from investigation)
 
@@ -72,7 +73,7 @@ APIs were confirmed from `7dtd-mod-dev-tools/docs/game-api/assembly-csharp/by-ty
 | Workstation open UI | **`XUiC_WorkstationWindowGroup.OnOpen` Postfix** (close + popup if restricted) | **WorkstationWindowOnOpenRestrictionPatch**. `workstationBlock` / `workstationData.TileEntity` for level; `WorkstationData.WorkstationWindow` for **`CloseIfOpen`**. |
 | Workstation (other) | Material/input grids, TE open | Partial: tool grid only; see DESIGN.md § Roadmap / known gaps. |
 | Vehicle drive       | **`EntityVehicle.EnterVehicle(EntityAlive)`** | **VehicleDriveRestrictionPatch** (client). Entity type → GetRequiredLevelForVehicleEntity. |
-| Vehicle (other)     | Fuel, **VehicleInventory**, part grid, spawn | Part grid + spawn patched; drive patched; server sync TBD. |
+| Vehicle (other)     | Fuel, **VehicleInventory**, part grid, spawn | Part grid + spawn patched; drive patched; server config sync implemented for client-side toggles. |
 | Popup       | **`GameManager.ShowTooltip(EntityPlayerLocal, string, string, string, ToolTipEvent, bool, bool, float)`** with **`"ui_denied"`**; fallbacks above | **RestrictionFeedback.ShowRestrictionPopup** (reflection). Red style. |
 | In-inventory red label | **`XUiC_ItemStackGrid.OnOpen`**, **`XUiC_EquipmentStackGrid.OnOpen`**, grid **`Update`**, **`Progression.addProgressionCurrency`** | Red label for restricted items in **all** UIs that display items: player backpack, toolbelt, equipment, container, vehicle, workstation, etc. Any controller assignable to `XUiC_ItemStackGrid` or `XUiC_EquipmentStackGrid` is treated the same (base-type detection via `IsAssignableFrom`). Known ItemStackGrid subclasses: Backpack, Toolbelt, PartList, VehicleContainer, WorkstationGrid, PowerSourceSlots, PowerRangedAmmoSlots. Apply on grid OnOpen (Postfix), set **RestrictionColorsDirty** when crafting skill levels up, refresh in grid Update when dirty (throttled). Get slot view via **ViewComponent** → **uiTransform** → **gameObject**; set **UILabel** `color`/`mColor` on that GameObject and children (or XUiV_Label for equipment slots). **Empty and non-restricted** slots are reset to default white on each apply so swap/move does not leave stale red. |
 

@@ -52,10 +52,12 @@
     <Compile Include="ModApi.cs" />
     <Compile Include="ModContentRoot.cs" />
     <Compile Include="ModConfig.cs" />
+    <Compile Include="ModConfigSnapshot.cs" />
     <Compile Include="ProgressionLevelUpPatch.cs" />
     <Compile Include="RestrictionFeedback.cs" />
     <Compile Include="RestrictionHelper.cs" />
     <Compile Include="RestrictionLabelColor.cs" />
+    <Compile Include="ServerConfigSync.cs" />
     <Compile Include="ToolbeltHandleStackSwapPatch.cs" />
     <Compile Include="WorkstationVehicleStackSwapPatches.cs" />
     <Compile Include="ItemActionSpawnVehicleRestrictionPatch.cs" />

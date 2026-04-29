@@ -13,6 +13,31 @@ To validate **exact** required levels against the running game (e.g. *“Electri
    `IsItemRestricted` / `requiredLevel_zero_not_restricted` in trace output.
 4. Compare to the progression UI (crafting menu) for the same item.
 
+## Local dedicated server + client
+
+For multiplayer config-sync validation, use a separate dedicated server install. A SteamCMD install such as:
+
+```text
+C:\...\steamcmd\seven-days-to-die
+```
+
+can run alongside the normal Steam client because the dedicated server is installed through SteamCMD app `294420` and can use anonymous login. Keep server files separate from the Steam client game folder.
+
+1. Disable EAC in the dedicated server `serverconfig.xml`; Harmony / DLL mods require EAC off.
+2. Deploy the same mod build to both:
+   - server: `<dedicated-server>\Mods\LimitByCraftingSkillMod\`
+   - client: `<7 Days To Die>\Mods\LimitByCraftingSkillMod\`
+3. Deliberately vary `Config.xml` between server and client. Example: server `Food=true`, client `Food=false`.
+4. Start the dedicated server with its normal start script.
+5. Launch the Steam client on the same machine and join the LAN server.
+6. Watch logs for:
+   - server: `Sent server Config.xml sync`
+   - client: `Applied server Config.xml sync`
+7. Verify the client follows the server toggles. Repeat with the toggles inverted to prove both enabled and disabled server values win.
+8. Disconnect or return to the main menu, then test single-player to confirm the local client `Config.xml` is again the fallback. The client log should show `Cleared server Config.xml sync`.
+
+This validates config consistency only. It does not prove server-authoritative anti-cheat enforcement, because most restriction hooks remain client-side.
+
 ## Separate local-only harness repo (future)
 
 A **dedicated repository** (not this mod) can:

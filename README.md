@@ -47,6 +47,12 @@ Set a category to `false` to disable that category's restrictions. `Food` and `M
 
 Set `<DebugMode>true</DebugMode>` only while troubleshooting. It writes extra mod messages to the game log.
 
+## Multiplayer
+
+Install the same mod version on the dedicated server and every client. Because this is a Harmony / DLL mod, EAC must be disabled for the server.
+
+When a client joins a server running this mod, the server sends its `Config.xml` to that client and the client uses those crafting-skill toggles for restriction checks. The local client `Config.xml` still applies in single-player or on servers that do not send this sync package. Keep `ClassNameToCraftingSkillMap.xml` aligned manually across server and clients.
+
 ## Updating
 
 Replace every file in:
@@ -71,7 +77,7 @@ Then restart the game.
 
 - If a restriction does not appear to apply, confirm the mod folder contains all five required files above.
 - If you changed `Config.xml`, restart the game before testing.
-- If a server is involved, install the mod and matching configuration on the side that should enforce gameplay. This MVP reads its local `Config.xml`; it does not include a separate config sync system.
+- If a server is involved, confirm the client log reports that server config sync was applied. Also confirm server and clients have the same mod version and `ClassNameToCraftingSkillMap.xml`.
 - For maintainer-level troubleshooting, see `docs/DEBUG_INSTRUMENTATION.md`.
 
 ## For Developers

@@ -1,16 +1,17 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Xml;
 
 namespace LimitByCraftingSkillMod
 {
     /// <summary>
-    /// Loads and exposes mod configuration from the local mod folder's Config.xml.
+    /// Loads and exposes mod configuration. Multiplayer clients can receive a server-provided snapshot
+    /// that takes precedence over the local Config.xml until the connection ends.
     /// </summary>
     public sealed class ModConfig
     {
         private static ModConfig _instance;
+        private static ModConfigSnapshot _serverSnapshot;
         private static readonly object Lock = new object();
 
         public static ModConfig Instance
@@ -22,7 +23,7 @@ namespace LimitByCraftingSkillMod
                     lock (Lock)
                     {
                         if (_instance == null)
-                            _instance = Load();
+                            _instance = LoadEffective();
                     }
                 }
                 return _instance;
@@ -39,6 +40,9 @@ namespace LimitByCraftingSkillMod
         }
 
         public bool DebugMode { get; private set; }
+        public bool IsServerProvided { get; private set; }
+        public string Source { get; private set; }
+        public string Hash { get; private set; }
 
         /// <summary>
         /// Per crafting skill: when true, restriction is enabled for that skill.
@@ -49,55 +53,85 @@ namespace LimitByCraftingSkillMod
         private ModConfig()
         {
             CraftingSkillEnabled = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+            Source = "defaults";
+            Hash = "";
         }
 
-        private static ModConfig Load()
+        private ModConfig(ModConfigSnapshot snapshot, bool isServerProvided)
         {
-            var config = new ModConfig();
+            if (snapshot == null) snapshot = ModConfigSnapshot.Empty("defaults");
+            DebugMode = snapshot.DebugMode;
+            CraftingSkillEnabled = snapshot.CraftingSkillEnabled ?? new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+            IsServerProvided = isServerProvided;
+            Source = snapshot.Source;
+            Hash = snapshot.Hash;
+        }
+
+        private static ModConfig LoadEffective()
+        {
+            lock (Lock)
+            {
+                if (_serverSnapshot != null)
+                    return new ModConfig(_serverSnapshot, true);
+            }
+
+            return new ModConfig(LoadLocalSnapshot(), false);
+        }
+
+        internal static ModConfigSnapshot LoadLocalSnapshot()
+        {
             try
             {
                 var modDir = GetModDirectory();
-                if (string.IsNullOrEmpty(modDir)) return config;
+                if (string.IsNullOrEmpty(modDir)) return ModConfigSnapshot.Empty("missing mod directory");
 
                 var configPath = Path.Combine(modDir, "Config.xml");
-                if (!File.Exists(configPath)) return config;
-
-                var doc = new XmlDocument();
-                doc.Load(configPath);
-                var root = doc.DocumentElement;
-                if (root == null) return config;
-
-                var debugNode = root.SelectSingleNode("DebugMode");
-                if (debugNode != null && bool.TryParse(debugNode.InnerText?.Trim(), out var debug))
-                    config.DebugMode = debug;
-
-                var skills = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
-                var skillsNode = root.SelectSingleNode("CraftingSkills");
-                if (skillsNode != null)
-                {
-                    foreach (XmlNode child in skillsNode.ChildNodes)
-                    {
-                        if (child.NodeType != XmlNodeType.Element) continue;
-                        var name = child.Name;
-                        if (string.IsNullOrWhiteSpace(name)) continue;
-                        var enabled = true;
-                        if (!string.IsNullOrWhiteSpace(child.InnerText) && bool.TryParse(child.InnerText.Trim(), out var parsed))
-                            enabled = parsed;
-                        skills[name] = enabled;
-                    }
-                }
-                config.CraftingSkillEnabled = skills;
+                return ModConfigSnapshot.FromFile(configPath);
             }
             catch (Exception)
             {
                 // Leave defaults
+                return ModConfigSnapshot.Empty("config load error");
             }
-            return config;
         }
 
         private static string GetModDirectory()
         {
             return ModContentRoot.ResolveModDirectory();
+        }
+
+        internal static bool TryApplyServerXml(string xml, string source, out string error)
+        {
+            error = null;
+            try
+            {
+                var snapshot = ModConfigSnapshot.FromXml(xml, string.IsNullOrWhiteSpace(source) ? "server" : source);
+                lock (Lock)
+                {
+                    _serverSnapshot = snapshot;
+                    _instance = new ModConfig(snapshot, true);
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+        }
+
+        internal static void ClearServerSnapshot()
+        {
+            lock (Lock)
+            {
+                _serverSnapshot = null;
+                _instance = null;
+            }
+        }
+
+        internal static string GetLocalConfigXmlForSync()
+        {
+            return LoadLocalSnapshot().ToXmlString();
         }
 
         /// <summary>

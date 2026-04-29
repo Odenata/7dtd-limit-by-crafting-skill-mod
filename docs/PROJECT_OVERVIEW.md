@@ -11,7 +11,7 @@ Slow progression and make crafting skills more meaningful by restricting equippi
 
 - **Restriction points:** Armor slots, hotbar (handheld), workstation UI open, vehicle drive. Traps/robotics follow handheld rules. **Food** and **Medical** (eat/drink/meds via `ItemActionEat`) are **implemented** and **opt-in** — `Config.xml` defaults them to **false**; see the **Food and Medicine** section in [DESIGN.md](DESIGN.md).
 - **Logic:** Pure function `LimitByCraftingSkillLogic.IsRestricted(playerLevel, requiredLevel, configEnabled)`. Game-facing layer uses reflection/compat to get player level and item required level, then calls this logic.
-- **Config:** One toggle per crafting skill. The MVP reads `Config.xml` from the local mod folder; server-authoritative config sync is not implemented.
+- **Config:** One toggle per crafting skill. Single-player uses local `Config.xml`; multiplayer clients apply the server's synced `Config.xml` when available.
 - **Visualization:** Inventory label color for restricted items; red popup when blocking in-world use.
 
 ## Repo layout
