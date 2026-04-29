@@ -18,15 +18,15 @@
     <HarvestingTools>true</HarvestingTools>
     <RepairTools>true</RepairTools>
     <SalvageTools>true</SalvageTools>
-    <!-- Release default: false — opt in to consumable restrictions (ItemActionEat + craftingFood / craftingMedical progression). -->
-    <Medical>false</Medical>
-    <Food>false</Food>
     <Seeds>true</Seeds>
     <Traps>true</Traps>
     <Robotics>true</Robotics>
     <Workstations>true</Workstations>
     <Vehicles>true</Vehicles>
     <Electrician>true</Electrician>
+    <!-- Food and Medical restrictions are disabled by default -->
+    <Medical>false</Medical>
+    <Food>false</Food>
   </CraftingSkills>
   <!-- If true, writes extra info to the game log (for troubleshooting). Values: true, false -->
   <DebugMode>false</DebugMode>
