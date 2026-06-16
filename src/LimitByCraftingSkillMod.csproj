@@ -64,6 +64,7 @@
     <Compile Include="ItemActionExecuteRestrictionPatch.cs" />
     <Compile Include="VehicleDriveRestrictionPatch.cs" />
     <Compile Include="WorkstationOpenRestrictionPatch.cs" />
+    <Compile Include="WorkstationActivationCommandsSafePatch.cs" />
     <Compile Include="WorkstationRestrictionUi.cs" />
     <Compile Include="GUIWindowManagerOpenNameLogPatch.cs" />
     <Compile Include="PopupToolTipDisplayTooltipTextPatch.cs" />

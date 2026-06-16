@@ -1,15 +1,13 @@
 using System;
-using System.Collections;
 using System.Reflection;
 using UnityEngine;
 
 namespace LimitByCraftingSkillMod
 {
     /// <summary>
-    /// Shared workstation UI restriction: after vanilla UI code runs, close and show popup if Workstations level is too low.
-    /// Hooks: CraftingWindowGroup.OnOpen (filtered to workstation windows), <c>WorkstationWindowGroup.SetTileEntity</c>, and
-    /// <c>XUiC_DewCollectorWindowGroup.SetTileEntity(TileEntityCollector)</c> (Dew/Apiary share <c>window_group</c> <c>dewcollector</c>;
-    /// <c>OnOpen</c> is too early — the tile entity is bound in <c>SetTileEntity</c>).
+    /// Shared workstation restriction helpers. v3.0 gates only via <see cref="WorkstationOpenRestrictionPatch"/>
+    /// (BlockWorkstation / BlockCollector OnBlockActivated Prefix). UI postfixes that called CloseIfOpen mid-open were
+    /// removed — they corrupted tile entities and chunk saves.
     /// </summary>
     internal static class WorkstationRestrictionUi
     {
@@ -397,6 +395,8 @@ namespace LimitByCraftingSkillMod
         {
             try
             {
+                // Close via GUIWindowManager only. Do not force XUiController.IsOpen=false or call OnClose
+                // mid-open — v3 syncUIfromTE breaks and leaves a half-open inventory shell.
                 if (playerUi != null && !string.IsNullOrEmpty(windowId))
                 {
                     var wmProp = playerUi.GetType().GetProperty("windowManager", BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
@@ -408,82 +408,10 @@ namespace LimitByCraftingSkillMod
                         closeIfOpen?.Invoke(wm, new object[] { windowId });
                     }
                 }
-
-                TryCloseWorkstationWindowGroupsOnXUi(playerUi);
-                TryCloseXUiController(workstationController);
             }
             catch
             {
                 // best-effort
-            }
-        }
-
-        private static void TryCloseWorkstationWindowGroupsOnXUi(object playerUi)
-        {
-            try
-            {
-                if (playerUi == null)
-                    return;
-                var xuiProp = playerUi.GetType().GetProperty("xui", BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-                var xui = xuiProp?.GetValue(playerUi, null);
-                if (xui == null)
-                    return;
-
-                var gameAssembly = xui.GetType().Assembly;
-                var wsgType = gameAssembly.GetType("XUiC_WorkstationWindowGroup");
-                if (wsgType == null)
-                    return;
-
-                var xuiType = xui.GetType();
-                foreach (var m in xuiType.GetMethods(BindingFlags.Public | BindingFlags.Instance))
-                {
-                    if (m.Name != "GetWindowsByType" || !m.IsGenericMethodDefinition || m.GetParameters().Length != 0)
-                        continue;
-                    MethodInfo gm;
-                    try
-                    {
-                        gm = m.MakeGenericMethod(wsgType);
-                    }
-                    catch
-                    {
-                        continue;
-                    }
-
-                    var listObj = gm.Invoke(xui, null) as IEnumerable;
-                    if (listObj == null)
-                        continue;
-
-                    foreach (var ctrl in listObj)
-                    {
-                        if (ctrl == null)
-                            continue;
-                        TryCloseXUiController(ctrl);
-                    }
-                }
-            }
-            catch
-            {
-                // ignored
-            }
-        }
-
-        private static void TryCloseXUiController(object ctrl)
-        {
-            if (ctrl == null)
-                return;
-            try
-            {
-                var t = ctrl.GetType();
-                var isOpen = t.GetProperty("IsOpen", BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
-                if (isOpen != null && isOpen.CanWrite && isOpen.PropertyType == typeof(bool))
-                    isOpen.SetValue(ctrl, false, null);
-
-                var onClose = t.GetMethod("OnClose", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null);
-                onClose?.Invoke(ctrl, null);
-            }
-            catch
-            {
-                // ignored
             }
         }
     }

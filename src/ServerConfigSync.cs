@@ -195,6 +195,17 @@ namespace LimitByCraftingSkillMod
                 var adapterType = typeof(ModEventRefAdapter<>).MakeGenericType(dataType);
                 var adapter = Activator.CreateInstance(adapterType, handlerName);
                 var method = adapterType.GetMethod("Handle", BindingFlags.Instance | BindingFlags.Public);
+                if (invoke?.ReturnType != typeof(void))
+                {
+                    method = adapterType
+                        .GetMethod("HandleInterruptible", BindingFlags.Instance | BindingFlags.Public)
+                        ?.MakeGenericMethod(invoke.ReturnType);
+                }
+                if (method == null)
+                {
+                    ModApi.DebugLog("ModEvents." + eventName + " adapter method not found.");
+                    return;
+                }
                 var del = Delegate.CreateDelegate(handlerType, adapter, method);
                 register.Invoke(eventMember, new object[] { del });
                 ModApi.DebugLog("Registered server config sync handler for ModEvents." + eventName + ".");
@@ -234,6 +245,25 @@ namespace LimitByCraftingSkillMod
                     OnPlayerDisconnected(data);
                 else if (string.Equals(_handlerName, "OnMainMenuOpening", StringComparison.Ordinal))
                     OnMainMenuOpening(data);
+            }
+
+            public TResult HandleInterruptible<TResult>(ref TData data)
+            {
+                Handle(ref data);
+                return ResolveContinueResult<TResult>();
+            }
+
+            private static TResult ResolveContinueResult<TResult>()
+            {
+                var modEventsType = typeof(GameManager).Assembly.GetType("ModEvents");
+                var resultType = modEventsType?.GetNestedType("EModEventResult", BindingFlags.Public | BindingFlags.NonPublic);
+                if (resultType == null)
+                    throw new InvalidOperationException("ModEvents.EModEventResult type not found.");
+
+                var continueName = Enum.IsDefined(resultType, "Continue")
+                    ? "Continue"
+                    : Enum.GetNames(resultType)[0];
+                return (TResult)Enum.Parse(resultType, continueName);
             }
         }
     }

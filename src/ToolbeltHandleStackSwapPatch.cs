@@ -17,7 +17,7 @@ namespace LimitByCraftingSkillMod
             {
                 if (!IsToolbeltSlot(__instance)) return true;
 
-                ItemStack dragStack = GetDragStack(__instance);
+                ItemStack dragStack = UiDragDropReflection.GetDragStackFromXUiChild(__instance);
                 if (dragStack == null || dragStack.IsEmpty()) return true;
                 if (!RestrictionHelper.IsItemRestricted(dragStack)) return true;
 
@@ -51,34 +51,6 @@ namespace LimitByCraftingSkillMod
                 parent = GetPropertyOrField(parent, "Parent") ?? GetPropertyOrField(parent, "parent");
             }
             return false;
-        }
-
-        private static ItemStack GetDragStack(object controller)
-        {
-            if (controller == null) return null;
-            try
-            {
-                object xui = GetPropertyOrField(controller, "xui");
-                if (xui == null)
-                {
-                    var parent = GetPropertyOrField(controller, "Parent") ?? GetPropertyOrField(controller, "parent");
-                    while (parent != null)
-                    {
-                        xui = GetPropertyOrField(parent, "xui");
-                        if (xui != null) break;
-                        parent = GetPropertyOrField(parent, "Parent") ?? GetPropertyOrField(parent, "parent");
-                    }
-                }
-                if (xui == null) return null;
-                object dragAndDrop = GetPropertyOrField(xui, "dragAndDrop") ?? GetPropertyOrField(xui, "DragAndDrop");
-                if (dragAndDrop == null) return null;
-                object stack = GetPropertyOrField(dragAndDrop, "CurrentStack") ?? GetPropertyOrField(dragAndDrop, "itemStack");
-                return stack as ItemStack;
-            }
-            catch
-            {
-                return null;
-            }
         }
 
         private static object GetPropertyOrField(object obj, string name)

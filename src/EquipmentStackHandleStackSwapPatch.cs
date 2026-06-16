@@ -15,7 +15,7 @@ namespace LimitByCraftingSkillMod
         {
             try
             {
-                ItemStack dragStack = GetDragStack(__instance);
+                ItemStack dragStack = UiDragDropReflection.GetDragStackFromXUiChild(__instance);
                 if (dragStack == null || dragStack.IsEmpty()) return true;
                 if (!RestrictionHelper.IsItemRestricted(dragStack)) return true;
 
@@ -30,44 +30,6 @@ namespace LimitByCraftingSkillMod
                     ModApi.DebugLog($"[LimitByCraftingSkill] HandleStackSwap patch error: {ex.Message}");
                 return true;
             }
-        }
-
-        private static ItemStack GetDragStack(object equipmentStackController)
-        {
-            if (equipmentStackController == null) return null;
-            try
-            {
-                object xui = GetPropertyOrField(equipmentStackController, "xui");
-                if (xui == null)
-                {
-                    var parent = GetPropertyOrField(equipmentStackController, "Parent") ?? GetPropertyOrField(equipmentStackController, "parent");
-                    while (parent != null)
-                    {
-                        xui = GetPropertyOrField(parent, "xui");
-                        if (xui != null) break;
-                        parent = GetPropertyOrField(parent, "Parent") ?? GetPropertyOrField(parent, "parent");
-                    }
-                }
-                if (xui == null) return null;
-                object dragAndDrop = GetPropertyOrField(xui, "dragAndDrop") ?? GetPropertyOrField(xui, "DragAndDrop");
-                if (dragAndDrop == null) return null;
-                object stack = GetPropertyOrField(dragAndDrop, "CurrentStack") ?? GetPropertyOrField(dragAndDrop, "itemStack");
-                return stack as ItemStack;
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private static object GetPropertyOrField(object obj, string name)
-        {
-            if (obj == null) return null;
-            var type = obj.GetType();
-            var prop = type.GetProperty(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (prop != null) return prop.GetValue(obj, null);
-            var field = type.GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            return field?.GetValue(obj);
         }
     }
 }

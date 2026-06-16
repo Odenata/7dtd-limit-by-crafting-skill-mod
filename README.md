@@ -6,7 +6,7 @@ Consider this mod if you find vanilla progression to be fast, especially when dr
 
 ## Game version compatibility
 
-Release downloads are named by **mod version** only; the same zip may work across multiple game patches. See **[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)** for which **7 Days to Die** versions go with which mod release.
+Release downloads are named by **mod version**; the same zip may work across multiple game patches. See **[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)** for which **7 Days to Die** versions go with which mod release.
 
 ## What It Restricts
 

@@ -124,7 +124,12 @@ namespace LimitByCraftingSkillMod
                     }
                 }
                 if (xui == null) return null;
-                object dragAndDrop = GetPropertyOrField(xui, "dragAndDrop") ?? GetPropertyOrField(xui, "DragAndDrop");
+
+                // v3.0+: drag state lives on XUi.DragAndDropWindow (XUiC_DragAndDropWindow), not xui.dragAndDrop.
+                object dragAndDrop = GetPropertyOrField(xui, "DragAndDropWindow")
+                                     ?? GetPropertyOrField(xui, "dragAndDropWindow")
+                                     ?? GetPropertyOrField(xui, "dragAndDrop")
+                                     ?? GetPropertyOrField(xui, "DragAndDrop");
                 if (dragAndDrop == null) return null;
                 object stack = GetPropertyOrField(dragAndDrop, "CurrentStack") ?? GetPropertyOrField(dragAndDrop, "itemStack");
                 return stack as ItemStack;

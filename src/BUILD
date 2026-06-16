@@ -40,6 +40,7 @@ net_library(
         "ToolbeltHandleStackSwapPatch.cs",
         "VehicleDriveRestrictionPatch.cs",
         "WorkstationOpenRestrictionPatch.cs",
+        "WorkstationActivationCommandsSafePatch.cs",
         "WorkstationRestrictionUi.cs",
         "WorkstationVehicleStackSwapPatches.cs",
     ],

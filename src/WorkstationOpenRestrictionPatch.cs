@@ -10,19 +10,19 @@ namespace LimitByCraftingSkillMod
     internal static class WorkstationOpenRestrictionPatch
     {
         /// <summary>
-        /// Prefix for BlockCollector.OnBlockActivated(String _commandName, WorldBase, int, Vector3i, BlockValue, EntityPlayerLocal).
+        /// Prefix for BlockCollector.OnBlockActivated(String _commandName, WorldBase, Vector3i, BlockValue, EntityPlayerLocal).
         /// Same logic as Prefix, with the command-name argument ignored.
         /// </summary>
-        public static bool PrefixWithCommand(object __instance, object _commandName, object _world, int _cIdx, object _blockPos, object _blockValue, object _player)
+        public static bool PrefixWithCommand(object __instance, object _commandName, object _world, object _blockPos, object _blockValue, object _player)
         {
-            return Prefix(__instance, _world, _cIdx, _blockPos, _blockValue, _player);
+            return Prefix(__instance, _world, _blockPos, _blockValue, _player);
         }
 
         /// <summary>
-        /// Prefix for BlockCollector.OnBlockActivated(WorldBase, int, Vector3i, BlockValue, EntityPlayerLocal).
+        /// Prefix for BlockCollector.OnBlockActivated(WorldBase, Vector3i, BlockValue, EntityPlayerLocal).
         /// Return false to skip opening the UI and show popup when restricted.
         /// </summary>
-        public static bool Prefix(object __instance, object _world, int _cIdx, object _blockPos, object _blockValue, object _player)
+        public static bool Prefix(object __instance, object _world, object _blockPos, object _blockValue, object _player)
         {
             try
             {

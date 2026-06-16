@@ -9,7 +9,9 @@ namespace LimitByCraftingSkillMod
         // Patch strategy:
         // - Prefer UI/input chokepoints that run before the game commits an item move (toolbelt, equipment, vehicle spawn).
         // - Avoid returning false from low-level setters such as Inventory.SetItem / Equipment.SetSlotItem; those are unsafe item-loss points.
-        // - Workstations mostly use UI postfixes that close restricted windows after vanilla open; broad BlockWorkstation prefixes caused UI lock.
+        // - Workstations: BlockWorkstation / BlockCollector OnBlockActivated Prefix only (popup, no UI open).
+        //   Do NOT register SetTileEntity / OnOpen / GUIWindowManager close postfixes — they race vanilla TE↔UI sync,
+        //   corrupt tile entities, and can destroy chunk saves on write (observed: "Wrong chunk header" on load).
         // - Dew Collector / Apiary are the narrow BlockCollector exception because their shared Collector UI can bypass generic workstation hooks.
         // - Reflection patching targets the live game assembly whenever possible so mock-reference types do not hide runtime signature drift.
         public void InitMod(Mod modInstance)
@@ -39,13 +41,8 @@ namespace LimitByCraftingSkillMod
                 ApplyToolbeltHandleStackSwapPatchFromGameAssembly(harmony);
                 ApplyWorkstationVehicleStackSwapPatchesFromGameAssembly(harmony);
                 ApplyWorkstationOpenPatchFromGameAssembly(harmony);
+                ApplyWorkstationActivationCommandsSafePatchFromGameAssembly(harmony);
                 ApplyCollectorOpenRestrictionPatchFromGameAssembly(harmony);
-                ApplyWorkstationWindowSetTileEntityPatchFromGameAssembly(harmony);
-                ApplyWorkstationWindowOnOpenRestrictionPatchFromGameAssembly(harmony);
-                ApplyDewCollectorWindowGroupSetTileEntityPatchFromGameAssembly(harmony);
-                ApplyDewCollectorWindowGroupOnOpenPatchFromGameAssembly(harmony);
-                ApplyGameManagerWorkstationOpenedPatchFromGameAssembly(harmony);
-                ApplyGUIWindowManagerWorkstationWindowPatchFromGameAssembly(harmony);
                 ApplyVehicleDrivePatchFromGameAssembly(harmony);
                 ApplyItemActionSpawnVehiclePatchFromGameAssembly(harmony);
                 ApplyItemActionExecuteRestrictionPatchesFromGameAssembly(harmony);
@@ -229,7 +226,7 @@ namespace LimitByCraftingSkillMod
                 var gameAssembly = typeof(Equipment).Assembly;
                 // XUiC_ItemStack.HandleStackSwap is patched once in ApplyToolbeltHandleStackSwapPatchFromGameAssembly.
                 // That combined prefix dispatches both toolbelt and workstation-tool behavior in a deterministic order.
-                var partStackType = gameAssembly.GetType("XUiC_ItemPartStack");
+                var partStackType = gameAssembly.GetType("XUiC_BasePartStack");
                 if (partStackType != null)
                 {
                     var hss2 = partStackType.GetMethod("HandleStackSwap", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
@@ -237,7 +234,7 @@ namespace LimitByCraftingSkillMod
                     {
                         var vp = typeof(VehiclePartHandleStackSwapPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.Public);
                         harmony.Patch(hss2, prefix: new HarmonyMethod(vp));
-                        SafeLog("[LimitByCraftingSkill] ItemPartStack.HandleStackSwap (vehicle mods) patch applied.");
+                        SafeLog("[LimitByCraftingSkill] BasePartStack.HandleStackSwap (vehicle mods) patch applied.");
                     }
                 }
             }
@@ -248,20 +245,139 @@ namespace LimitByCraftingSkillMod
         }
 
         /// <summary>
-        /// Previously patched Block.OnBlockActivated / BlockWorkstation / composite paths with Prefix+skip.
-        /// Any Harmony prefix that skips these instance methods correlated with client UI lock until rejoin.
-        /// Workstation restriction is enforced in <see cref="ApplyWorkstationWindowOnOpenRestrictionPatchFromGameAssembly"/> (OnOpen Postfix).
-        /// Types like WorkstationOpenRestrictionPatch remain in the repo for reference.
+        /// v3.0: Block at OnBlockActivated (popup only). UI SetTileEntity/OnOpen/GUIWindowManager postfixes were removed —
+        /// they raced vanilla sync, corrupted TEs, and caused chunk save failures.
         /// </summary>
         private static void ApplyWorkstationOpenPatchFromGameAssembly(Harmony harmony)
         {
             try
             {
-                SafeLog("[LimitByCraftingSkill] OnBlockActivated workstation prefixes not applied (avoid UI lock). Restriction uses WorkstationWindowGroup.OnOpen Postfix.");
+                var gameAssembly = typeof(Equipment).Assembly;
+                var workstationType = gameAssembly.GetType("BlockWorkstation");
+                if (workstationType == null)
+                {
+                    SafeLog("[LimitByCraftingSkill] BlockWorkstation not found, OnBlockActivated Prefix skipped.");
+                    return;
+                }
+
+                var wb = gameAssembly.GetType("WorldBase");
+                var v3i = gameAssembly.GetType("Vector3i");
+                var bv = gameAssembly.GetType("BlockValue");
+                var epl = gameAssembly.GetType("EntityPlayerLocal");
+                if (wb == null || v3i == null || bv == null || epl == null)
+                {
+                    SafeLog("[LimitByCraftingSkill] Required game types missing for BlockWorkstation.OnBlockActivated patch.");
+                    return;
+                }
+
+                var prefix = typeof(WorkstationOpenRestrictionPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.Public);
+                var prefixWithCommand = typeof(WorkstationOpenRestrictionPatch).GetMethod("PrefixWithCommand", BindingFlags.Static | BindingFlags.Public);
+                if (prefix == null || prefixWithCommand == null)
+                {
+                    SafeLog("[LimitByCraftingSkill] WorkstationOpenRestrictionPatch.Prefix / PrefixWithCommand not found.");
+                    return;
+                }
+
+                var methodNoCommand = workstationType.GetMethod(
+                    "OnBlockActivated",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null,
+                    new[] { wb, v3i, bv, epl },
+                    null);
+                if (methodNoCommand != null && methodNoCommand.DeclaringType == workstationType)
+                {
+                    harmony.Patch(methodNoCommand, prefix: new HarmonyMethod(prefix));
+                }
+                else
+                {
+                    SafeLog("[LimitByCraftingSkill] BlockWorkstation.OnBlockActivated(WorldBase,Vector3i,BlockValue,EntityPlayerLocal) not found, Prefix skipped.");
+                }
+
+                var methodWithCommand = workstationType.GetMethod(
+                    "OnBlockActivated",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null,
+                    new[] { typeof(string), wb, v3i, bv, epl },
+                    null);
+                if (methodWithCommand != null && methodWithCommand.DeclaringType == workstationType)
+                {
+                    harmony.Patch(methodWithCommand, prefix: new HarmonyMethod(prefixWithCommand));
+                    SafeLog("[LimitByCraftingSkill] BlockWorkstation.OnBlockActivated (command + no-command) Prefix (Workstations gate) applied.");
+                }
+                else if (methodNoCommand != null)
+                {
+                    SafeLog("[LimitByCraftingSkill] BlockWorkstation.OnBlockActivated(WorldBase,...) Prefix applied (no String overload).");
+                }
             }
             catch (Exception ex)
             {
-                SafeLog($"[LimitByCraftingSkill] Workstation open patch hook failed: {ex.Message}");
+                SafeLog("[LimitByCraftingSkill] BlockWorkstation OnBlockActivated Prefix failed: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Forge and other workstations share <c>BlockWorkstation.GetBlockActivationCommands</c>, which calls
+        /// <c>TileEntityWorkstation.InputIsEmpty()</c> without guarding null <c>input</c> arrays on corrupted TEs.
+        /// </summary>
+        private static void ApplyWorkstationActivationCommandsSafePatchFromGameAssembly(Harmony harmony)
+        {
+            try
+            {
+                var gameAssembly = typeof(Equipment).Assembly;
+                var workstationType = gameAssembly.GetType("BlockWorkstation");
+                if (workstationType == null)
+                {
+                    SafeLog("[LimitByCraftingSkill] BlockWorkstation not found, GetBlockActivationCommands Finalizer skipped.");
+                    return;
+                }
+
+                var wb = gameAssembly.GetType("WorldBase");
+                var v3i = gameAssembly.GetType("Vector3i");
+                var bv = gameAssembly.GetType("BlockValue");
+                var entityAlive = gameAssembly.GetType("EntityAlive");
+                if (wb == null || v3i == null || bv == null || entityAlive == null)
+                    return;
+
+                var finalizer = typeof(WorkstationActivationCommandsSafePatch).GetMethod(
+                    "FinalizerGetBlockActivationCommands",
+                    BindingFlags.Static | BindingFlags.Public);
+                if (finalizer == null)
+                    return;
+
+                var getCommands = workstationType.GetMethod(
+                    "GetBlockActivationCommands",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null,
+                    new[] { wb, bv, v3i, entityAlive },
+                    null);
+                if (getCommands != null && getCommands.DeclaringType == workstationType)
+                {
+                    harmony.Patch(getCommands, finalizer: new HarmonyMethod(finalizer));
+                    SafeLog("[LimitByCraftingSkill] BlockWorkstation.GetBlockActivationCommands Finalizer (forge-safe) applied.");
+                }
+
+                var forgeType = gameAssembly.GetType("BlockForge");
+                var forgeFinalizer = typeof(WorkstationActivationCommandsSafePatch).GetMethod(
+                    "FinalizerForgeGetActivationText",
+                    BindingFlags.Static | BindingFlags.Public);
+                if (forgeType != null && forgeFinalizer != null)
+                {
+                    var getActivationText = forgeType.GetMethod(
+                        "GetActivationText",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                        null,
+                        new[] { wb, bv, v3i, entityAlive },
+                        null);
+                    if (getActivationText != null && getActivationText.DeclaringType == forgeType)
+                    {
+                        harmony.Patch(getActivationText, finalizer: new HarmonyMethod(forgeFinalizer));
+                        SafeLog("[LimitByCraftingSkill] BlockForge.GetActivationText Finalizer (forge-safe) applied.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                SafeLog("[LimitByCraftingSkill] Workstation activation-commands safe patch failed: " + ex.Message);
             }
         }
 
@@ -304,11 +420,21 @@ namespace LimitByCraftingSkillMod
                     "OnBlockActivated",
                     BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
                     null,
-                    new[] { wb, typeof(int), v3i, bv, epl },
+                    new[] { wb, v3i, bv, epl },
                     null);
+                if (methodNoCommand == null)
+                {
+                    // Back-compat for older game builds that included an activation index parameter.
+                    methodNoCommand = collectorType.GetMethod(
+                        "OnBlockActivated",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                        null,
+                        new[] { wb, typeof(int), v3i, bv, epl },
+                        null);
+                }
                 if (methodNoCommand == null || methodNoCommand.DeclaringType != collectorType)
                 {
-                    SafeLog("[LimitByCraftingSkill] BlockCollector.OnBlockActivated(WorldBase,int,Vector3i,BlockValue,EntityPlayerLocal) not found, Prefix skipped.");
+                    SafeLog("[LimitByCraftingSkill] BlockCollector.OnBlockActivated(WorldBase,Vector3i,BlockValue,EntityPlayerLocal) not found, Prefix skipped.");
                     return;
                 }
 
@@ -318,8 +444,18 @@ namespace LimitByCraftingSkillMod
                     "OnBlockActivated",
                     BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
                     null,
-                    new[] { typeof(string), wb, typeof(int), v3i, bv, epl },
+                    new[] { typeof(string), wb, v3i, bv, epl },
                     null);
+                if (methodWithCommand == null)
+                {
+                    // Back-compat for older game builds that included an activation index parameter.
+                    methodWithCommand = collectorType.GetMethod(
+                        "OnBlockActivated",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                        null,
+                        new[] { typeof(string), wb, typeof(int), v3i, bv, epl },
+                        null);
+                }
                 if (methodWithCommand != null && methodWithCommand.DeclaringType == collectorType)
                 {
                     harmony.Patch(methodWithCommand, prefix: new HarmonyMethod(prefixWithCommand));
