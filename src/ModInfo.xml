@@ -4,6 +4,6 @@
   <DisplayName value="Limit by Crafting Skill Mod" />
   <Description value="Restricts equipping and using items to the player's crafting skill level for that item type." />
   <Author value="LearningGrounds" />
-  <Version value="0.1.0" />
+  <Version value="1.0.0" />
   <Website value="" />
 </ModInfo>

@@ -18,7 +18,7 @@ Keep these version fields aligned for each release:
 - [`../MODULE.bazel`](../MODULE.bazel) `module(version = "...")`
 - [`../src/ModInfo.xml`](../src/ModInfo.xml) `<Version value="..." />`
 
-Release zip names use **mod version only** (for example `dist\LimitByCraftingSkillMod-0.1.0.zip`). Update [`COMPATIBILITY.md`](COMPATIBILITY.md) when you confirm support for new game builds or when compatibility changes.
+Release zip names use **mod version only** (for example `dist\LimitByCraftingSkillMod-1.0.0.zip`). Update [`COMPATIBILITY.md`](COMPATIBILITY.md) when you confirm support for new game builds or when compatibility changes.
 
 ## Release checklist
 
