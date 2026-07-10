@@ -15,6 +15,7 @@ if ([string]::IsNullOrWhiteSpace($GameInstallDir)) {
     else { "C:\Program Files (x86)\Steam\steamapps\common\7 Days To Die" }
 }
 
+$GameInstallDir = $GameInstallDir.TrimEnd('\', '/')
 $modRepoRoot = Join-Path $PSScriptRoot ".."
 $prepareScript = Join-Path $PSScriptRoot "prepare_mod.ps1"
 
@@ -50,6 +51,12 @@ if (-not (Test-Path $preparedDir)) {
 }
 
 $modPath = Join-Path $GameInstallDir "Mods\LimitByCraftingSkillMod"
+$tfpHarmony = Join-Path $GameInstallDir "Mods\0_TFP_Harmony"
+if (-not (Test-Path $tfpHarmony)) {
+  Write-Host "WARNING: Mods\0_TFP_Harmony not found under $GameInstallDir" -ForegroundColor Yellow
+  Write-Host "  LimitByCraftingSkillMod requires the official Harmony wrapper. Verify Steam game files if missing." -ForegroundColor Yellow
+}
+
 if (-not (Test-Path $modPath)) {
   New-Item -ItemType Directory -Path $modPath -Force | Out-Null
   Write-Host "Created $modPath" -ForegroundColor Green
@@ -67,7 +74,14 @@ if (-not $copied) {
   exit 1
 }
 
+$staleHarmony = Join-Path $modPath "0Harmony.dll"
+if (Test-Path $staleHarmony) {
+  Remove-Item -LiteralPath $staleHarmony -Force
+  Write-Host "Removed leftover 0Harmony.dll (use Mods\0_TFP_Harmony instead)" -ForegroundColor Yellow
+}
+
 Write-Host "`nDeployment complete." -ForegroundColor Cyan
 Write-Host "Mod folder: $modPath" -ForegroundColor Yellow
+Write-Host "Runtime Harmony: Mods\0_TFP_Harmony (not bundled)" -ForegroundColor Yellow
 Write-Host "Restart 7 Days to Die to load the mod." -ForegroundColor Cyan
 exit 0

@@ -28,10 +28,11 @@ Install the mod into your 7 Days to Die game folder:
 That folder must contain these files:
 
 - `LimitByCraftingSkillMod.dll`
-- `0Harmony.dll`
 - `ModInfo.xml`
 - `Config.xml`
 - `ClassNameToCraftingSkillMap.xml`
+
+Do **not** add `0Harmony.dll` to this folder. The game already provides Harmony via **`Mods\0_TFP_Harmony`** (shipped with 7 Days to Die). If that folder is missing, verify Steam game files. Delete any leftover `0Harmony.dll` inside `LimitByCraftingSkillMod` from older installs.
 
 If you received a prepared mod folder or release zip, copy all of those files into `Mods\LimitByCraftingSkillMod\`. Create the `Mods` folder if your game install does not already have one.
 

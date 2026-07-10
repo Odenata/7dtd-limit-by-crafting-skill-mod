@@ -17,10 +17,11 @@ Sources live at the repository root (`src/`, `tests/`). Do not commit or edit fi
 `.\tools\prepare_mod.ps1` fills `prepared_mod_files\` with exactly what belongs in `Mods\LimitByCraftingSkillMod\`:
 
 - `LimitByCraftingSkillMod.dll`
-- `0Harmony.dll`
 - `ModInfo.xml`
 - `Config.xml`
 - `ClassNameToCraftingSkillMap.xml`
+
+Runtime Harmony comes from the game's `Mods\0_TFP_Harmony` — do not ship `0Harmony.dll` with this mod.
 
 Use `-DllPath` if you built with Bazel, pointing at `bazel-bin\src\LimitByCraftingSkillMod.dll`.
 

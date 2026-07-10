@@ -3,9 +3,10 @@
   Assembles everything that belongs in the game's Mods\LimitByCraftingSkillMod folder into prepared_mod_files\.
 
 .DESCRIPTION
-  Copies LimitByCraftingSkillMod.dll, 0Harmony.dll (from 7dtd-mod-dev-tools), ModInfo.xml, Config.xml,
-  and ClassNameToCraftingSkillMap.xml. End users can copy all files from prepared_mod_files into their
-  game Mods folder after running this script (developers usually run deploy.ps1 which builds + prepares).
+  Copies LimitByCraftingSkillMod.dll, ModInfo.xml, Config.xml, and ClassNameToCraftingSkillMap.xml.
+  Runtime Harmony comes from the game's official Mods\0_TFP_Harmony folder — do not ship 0Harmony.dll.
+  End users can copy all files from prepared_mod_files into their game Mods folder after running
+  this script (developers usually run deploy.ps1 which builds + prepares).
 
 .PARAMETER Configuration
   MSBuild configuration when using the default dotnet output path (default Release).
@@ -28,12 +29,6 @@ if ([string]::IsNullOrWhiteSpace($ModRepoRoot)) {
   $ModRepoRoot = Split-Path $PSScriptRoot -Parent
 }
 
-$devToolsHarmony = Join-Path $ModRepoRoot "..\7dtd-mod-dev-tools\third_party\harmony\lib\net472\0Harmony.dll"
-if (-not (Test-Path $devToolsHarmony)) {
-  Write-Host "ERROR: 0Harmony.dll not found at $devToolsHarmony (is 7dtd-mod-dev-tools a sibling repo?)" -ForegroundColor Red
-  exit 1
-}
-
 if ([string]::IsNullOrWhiteSpace($DllPath)) {
   $DllPath = Join-Path $ModRepoRoot "src\bin\$Configuration\net472\LimitByCraftingSkillMod.dll"
 }
@@ -54,7 +49,6 @@ Get-ChildItem -Path $outDir -File -ErrorAction SilentlyContinue | Where-Object {
 $srcDir = Join-Path $ModRepoRoot "src"
 $files = @(
   @{ Src = $DllPath; Dest = "LimitByCraftingSkillMod.dll" }
-  @{ Src = $devToolsHarmony; Dest = "0Harmony.dll" }
   @{ Src = Join-Path $srcDir "ModInfo.xml"; Dest = "ModInfo.xml" }
   @{ Src = Join-Path $srcDir "Config.xml"; Dest = "Config.xml" }
   @{ Src = Join-Path $srcDir "ClassNameToCraftingSkillMap.xml"; Dest = "ClassNameToCraftingSkillMap.xml" }
@@ -71,4 +65,5 @@ foreach ($f in $files) {
 
 Write-Host "`nOutput: $outDir" -ForegroundColor Cyan
 Write-Host "Copy these files into: <game>\\Mods\\LimitByCraftingSkillMod\\" -ForegroundColor Cyan
+Write-Host "Requires game Mods\\0_TFP_Harmony (do not add 0Harmony.dll here)." -ForegroundColor Cyan
 exit 0

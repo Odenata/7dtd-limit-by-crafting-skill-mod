@@ -18,7 +18,7 @@ Keep these version fields aligned for each release:
 - [`../MODULE.bazel`](../MODULE.bazel) `module(version = "...")`
 - [`../src/ModInfo.xml`](../src/ModInfo.xml) `<Version value="..." />`
 
-Release zip names use **mod version only** (for example `dist\LimitByCraftingSkillMod-1.0.0.zip`). Update [`COMPATIBILITY.md`](COMPATIBILITY.md) when you confirm support for new game builds or when compatibility changes.
+Release zip names use **mod version only** (for example `dist\LimitByCraftingSkillMod-1.1.0.zip`). Update [`COMPATIBILITY.md`](COMPATIBILITY.md) when you confirm support for new game builds or when compatibility changes.
 
 ## Release checklist
 
@@ -48,12 +48,13 @@ Release zip names use **mod version only** (for example `dist\LimitByCraftingSki
 
    ```text
    LimitByCraftingSkillMod/
-     0Harmony.dll
      ClassNameToCraftingSkillMap.xml
      Config.xml
      LimitByCraftingSkillMod.dll
      ModInfo.xml
    ```
+
+   Do **not** include `0Harmony.dll`. Players use the game's official `Mods\0_TFP_Harmony`.
 
 9. Upload `dist\LimitByCraftingSkillMod-<version>.zip` to CurseForge (see console output for the exact path).
 10. Choose the appropriate CurseForge release type:

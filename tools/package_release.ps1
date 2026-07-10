@@ -90,7 +90,6 @@ New-Item -ItemType Directory -Path $stageModDir -Force | Out-Null
 
 $requiredFiles = @(
   "LimitByCraftingSkillMod.dll",
-  "0Harmony.dll",
   "ModInfo.xml",
   "Config.xml",
   "ClassNameToCraftingSkillMap.xml"

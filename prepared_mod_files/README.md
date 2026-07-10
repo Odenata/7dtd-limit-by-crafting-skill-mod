@@ -5,10 +5,11 @@ This folder is populated by [`tools/prepare_mod.ps1`](../tools/prepare_mod.ps1) 
 `Mods/LimitByCraftingSkillMod/`
 
 - `LimitByCraftingSkillMod.dll`
-- `0Harmony.dll`
 - `ModInfo.xml`
 - `Config.xml`
 - `ClassNameToCraftingSkillMap.xml`
+
+Do **not** add `0Harmony.dll` here. The game provides Harmony via **`Mods\0_TFP_Harmony`**.
 
 **Developers:** run `.\tools\prepare_mod.ps1` from the repo root (or use `.\tools\deploy.ps1`, which builds, prepares, and copies to your game install).
 

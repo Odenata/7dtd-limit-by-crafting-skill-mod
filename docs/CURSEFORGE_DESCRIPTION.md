@@ -33,6 +33,8 @@ Install the same mod version on the dedicated server and every client.
 
 Because this is a Harmony / DLL mod, **EAC must be disabled** for modded servers. Unfortunately that means crossplay is not supported.
 
+Do **not** place `0Harmony.dll` inside the mod folder. The game provides Harmony via **`Mods\0_TFP_Harmony`**.
+
 ## Game version compatibility
 
 Archives are named by **mod version**. Not every game update requires a new mod build. For which **7 Days to Die** versions match each mod version, see the compatibility table in the repository:
