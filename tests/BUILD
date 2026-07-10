@@ -6,7 +6,11 @@ UNIT_TESTS = [
     ":mod_config",
 ]
 
-ALL_TESTS = UNIT_TESTS
+TOOL_TESTS = [
+    ":deploy_tool",
+]
+
+ALL_TESTS = UNIT_TESTS + TOOL_TESTS
 
 XUNIT_DEPS = [
     "@rules_dotnet_framework//dotnet/stdlib.net/net472:system.collections.concurrent.dll",
@@ -60,6 +64,20 @@ net_xunit_test(
     deps = XUNIT_DEPS + [
         "@rules_dotnet_framework//dotnet/stdlib.net/net472:system.xml.dll",
     ],
+    dotnet_context_data = "@rules_dotnet_framework//:net_context_data_net472",
+    testlauncher = "@xunit_runner_console//:net",
+)
+
+
+net_xunit_test(
+    name = "deploy_tool",
+    size = "small",
+    srcs = [
+        "DeployToolTests.cs",
+        "TestDataPath.cs",
+    ],
+    data = ["//tools:deploy.ps1"],
+    deps = XUNIT_DEPS,
     dotnet_context_data = "@rules_dotnet_framework//:net_context_data_net472",
     testlauncher = "@xunit_runner_console//:net",
 )

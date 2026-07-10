@@ -27,6 +27,8 @@
     <Compile Include="GameReflectionTests.cs" />
     <Compile Include="LimitByCraftingSkillLogicTests.cs" />
     <Compile Include="ModConfigTests.cs" />
+    <Compile Include="DeployToolTests.cs" />
+    <Compile Include="TestDataPath.cs" />
     <Compile Include="RequiredLevelFromProgressionTests.cs" />
   </ItemGroup>
 

@@ -29,13 +29,9 @@ new_git_repository = use_repo_rule("@bazel_tools//tools/build_defs/repo:git.bzl"
 
 new_git_repository(
     name = "seven_days_to_die_mod_dev_tools",
-    commit = "d9b56dd2ba499dccb718780272f050f51bef51d2",
+    commit = "0ddcade99e10e8a63797e3e79e94d52eeb89c923",
     patch_strip = 1,
-    patches = [
-        "//third_party/bazel:seven_days_to_die_mod_dev_tools.patch",
-        "//third_party/bazel:seven_days_to_die_mod_dev_tools_unity.patch",
-        "//third_party/bazel:seven_days_to_die_mod_dev_tools_validate_refresh_paths.patch",
-    ],
+    patches = [],
     remote = "https://github.com/Odenata/7dtd-mod-dev-tools.git",
 )
 

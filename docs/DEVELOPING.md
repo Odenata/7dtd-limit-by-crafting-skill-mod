@@ -21,7 +21,7 @@ Sources live at the repository root (`src/`, `tests/`). Do not commit or edit fi
 - `Config.xml`
 - `ClassNameToCraftingSkillMap.xml`
 
-Runtime Harmony comes from the game's `Mods\0_TFP_Harmony` — do not ship `0Harmony.dll` with this mod.
+Runtime Harmony comes from the game's `Mods\0_TFP_Harmony` (HarmonyX) — do not ship `0Harmony.dll` with this mod. Compile-time references use HarmonyX from the sibling `7dtd-mod-dev-tools` checkout (or the game DLL when `SevenDtdInstallDir` is set). When `DebugMode` is on (and always for Warn/Error), HarmonyX messages are forwarded to Player.log as `[Harmony] …`.
 
 Use `-DllPath` if you built with Bazel, pointing at `bazel-bin\src\LimitByCraftingSkillMod.dll`.
 

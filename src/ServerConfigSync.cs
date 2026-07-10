@@ -128,7 +128,7 @@ namespace LimitByCraftingSkillMod
                     return;
                 }
 
-                harmony.Patch(process, postfix: new HarmonyMethod(postfix));
+                harmony.Patch(process, postfix: new HarmonyMethod(postfix) { wrapTryCatch = true, optional = true });
                 ModApi.DebugLog("NetPackageConfigFile.ProcessPackage server config sync Postfix applied.");
             }
             catch (Exception ex)

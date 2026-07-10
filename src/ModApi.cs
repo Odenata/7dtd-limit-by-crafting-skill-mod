@@ -23,6 +23,7 @@ namespace LimitByCraftingSkillMod
 
             var config = ModConfig.Instance;
             SafeLog($"Config loaded: DebugMode={config.DebugMode}");
+            BridgeHarmonyLogger(config.DebugMode);
             try
             {
                 SafeLog("[LimitByCraftingSkill] ClassName map entries: " + ClassNameToCraftingSkillMapLoader.GetMap().Count);
@@ -67,6 +68,27 @@ namespace LimitByCraftingSkillMod
             SafeLog("LimitByCraftingSkillMod loaded successfully");
         }
 
+
+        private static void BridgeHarmonyLogger(bool debugMode)
+        {
+            try
+            {
+                HarmonyLib.Tools.Logger.MessageReceived += (sender, args) =>
+                {
+                    if (args.LogChannel == HarmonyLib.Tools.Logger.LogChannel.Error
+                        || args.LogChannel == HarmonyLib.Tools.Logger.LogChannel.Warn
+                        || debugMode)
+                    {
+                        SafeLog($"[Harmony] {args.LogChannel}: {args.Message}");
+                    }
+                };
+            }
+            catch
+            {
+                // HarmonyX logger unavailable in some test environments
+            }
+        }
+
         private static void SafeLog(string message)
         {
             try
@@ -78,6 +100,15 @@ namespace LimitByCraftingSkillMod
                 // Unity not available (test environment)
             }
         }
+
+
+        /// <summary>HarmonyX: wrap patch body in try/catch; treat as optional soft-skip (missing targets already logged).</summary>
+        private static HarmonyMethod SoftPatch(MethodInfo method)
+        {
+            if (method == null) return null;
+            return new HarmonyMethod(method) { wrapTryCatch = true, optional = true };
+        }
+
 
         private static Type[] GetLoadableTypes(Assembly assembly, string context)
         {
@@ -129,7 +160,7 @@ namespace LimitByCraftingSkillMod
                     return;
                 }
                 var prefix = typeof(EquipItemRestrictionPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.NonPublic);
-                harmony.Patch(equipItemMethod, prefix: new HarmonyMethod(prefix));
+                harmony.Patch(equipItemMethod, prefix: SoftPatch(prefix));
                 SafeLog("[LimitByCraftingSkill] EquipItem patch applied from game assembly.");
             }
             catch (Exception ex)
@@ -156,7 +187,7 @@ namespace LimitByCraftingSkillMod
                     return;
                 }
                 var postfix = typeof(ProgressionLevelUpPatch).GetMethod("Postfix", BindingFlags.Static | BindingFlags.Public);
-                harmony.Patch(addCurrencyMethod, postfix: new HarmonyMethod(postfix));
+                harmony.Patch(addCurrencyMethod, postfix: SoftPatch(postfix));
                 SafeLog("[LimitByCraftingSkill] Progression addProgressionCurrency (level-up) patch applied.");
             }
             catch (Exception ex)
@@ -183,7 +214,7 @@ namespace LimitByCraftingSkillMod
                     return;
                 }
                 var prefix = typeof(EquipmentStackHandleStackSwapPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.Public);
-                harmony.Patch(handleStackSwap, prefix: new HarmonyMethod(prefix));
+                harmony.Patch(handleStackSwap, prefix: SoftPatch(prefix));
                 SafeLog("[LimitByCraftingSkill] EquipmentStack.HandleStackSwap (drag-drop block) patch applied.");
             }
             catch (Exception ex)
@@ -210,7 +241,7 @@ namespace LimitByCraftingSkillMod
                     return;
                 }
                 var prefix = typeof(ItemStackHandleStackSwapRestrictionPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.Public);
-                harmony.Patch(handleStackSwap, prefix: new HarmonyMethod(prefix));
+                harmony.Patch(handleStackSwap, prefix: SoftPatch(prefix));
                 SafeLog("[LimitByCraftingSkill] ItemStack.HandleStackSwap (toolbelt + workstation tool drag-drop block) patch applied.");
             }
             catch (Exception ex)
@@ -233,7 +264,7 @@ namespace LimitByCraftingSkillMod
                     if (hss2 != null)
                     {
                         var vp = typeof(VehiclePartHandleStackSwapPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.Public);
-                        harmony.Patch(hss2, prefix: new HarmonyMethod(vp));
+                        harmony.Patch(hss2, prefix: SoftPatch(vp));
                         SafeLog("[LimitByCraftingSkill] BasePartStack.HandleStackSwap (vehicle mods) patch applied.");
                     }
                 }
@@ -286,7 +317,7 @@ namespace LimitByCraftingSkillMod
                     null);
                 if (methodNoCommand != null && methodNoCommand.DeclaringType == workstationType)
                 {
-                    harmony.Patch(methodNoCommand, prefix: new HarmonyMethod(prefix));
+                    harmony.Patch(methodNoCommand, prefix: SoftPatch(prefix));
                 }
                 else
                 {
@@ -301,7 +332,7 @@ namespace LimitByCraftingSkillMod
                     null);
                 if (methodWithCommand != null && methodWithCommand.DeclaringType == workstationType)
                 {
-                    harmony.Patch(methodWithCommand, prefix: new HarmonyMethod(prefixWithCommand));
+                    harmony.Patch(methodWithCommand, prefix: SoftPatch(prefixWithCommand));
                     SafeLog("[LimitByCraftingSkill] BlockWorkstation.OnBlockActivated (command + no-command) Prefix (Workstations gate) applied.");
                 }
                 else if (methodNoCommand != null)
@@ -352,7 +383,7 @@ namespace LimitByCraftingSkillMod
                     null);
                 if (getCommands != null && getCommands.DeclaringType == workstationType)
                 {
-                    harmony.Patch(getCommands, finalizer: new HarmonyMethod(finalizer));
+                    harmony.Patch(getCommands, finalizer: SoftPatch(finalizer));
                     SafeLog("[LimitByCraftingSkill] BlockWorkstation.GetBlockActivationCommands Finalizer (forge-safe) applied.");
                 }
 
@@ -370,7 +401,7 @@ namespace LimitByCraftingSkillMod
                         null);
                     if (getActivationText != null && getActivationText.DeclaringType == forgeType)
                     {
-                        harmony.Patch(getActivationText, finalizer: new HarmonyMethod(forgeFinalizer));
+                        harmony.Patch(getActivationText, finalizer: SoftPatch(forgeFinalizer));
                         SafeLog("[LimitByCraftingSkill] BlockForge.GetActivationText Finalizer (forge-safe) applied.");
                     }
                 }
@@ -438,7 +469,7 @@ namespace LimitByCraftingSkillMod
                     return;
                 }
 
-                harmony.Patch(methodNoCommand, prefix: new HarmonyMethod(prefix));
+                harmony.Patch(methodNoCommand, prefix: SoftPatch(prefix));
 
                 var methodWithCommand = collectorType.GetMethod(
                     "OnBlockActivated",
@@ -458,7 +489,7 @@ namespace LimitByCraftingSkillMod
                 }
                 if (methodWithCommand != null && methodWithCommand.DeclaringType == collectorType)
                 {
-                    harmony.Patch(methodWithCommand, prefix: new HarmonyMethod(prefixWithCommand));
+                    harmony.Patch(methodWithCommand, prefix: SoftPatch(prefixWithCommand));
                     SafeLog("[LimitByCraftingSkill] BlockCollector.OnBlockActivated (command + no-command) Prefix (Workstations gate) applied.");
                 }
                 else
@@ -502,7 +533,7 @@ namespace LimitByCraftingSkillMod
                     return;
                 }
 
-                harmony.Patch(method, postfix: new HarmonyMethod(postfix));
+                harmony.Patch(method, postfix: SoftPatch(postfix));
                 SafeLog("[LimitByCraftingSkill] XUiC_DewCollectorWindowGroup.SetTileEntity(TileEntityCollector) Postfix (collector) applied.");
             }
             catch (Exception ex)
@@ -537,7 +568,7 @@ namespace LimitByCraftingSkillMod
                 if (postfix == null)
                     return;
 
-                harmony.Patch(method, postfix: new HarmonyMethod(postfix));
+                harmony.Patch(method, postfix: SoftPatch(postfix));
                 SafeLog("[LimitByCraftingSkill] XUiC_DewCollectorWindowGroup.OnOpen Postfix (collector) applied.");
             }
             catch (Exception ex)
@@ -570,7 +601,7 @@ namespace LimitByCraftingSkillMod
                     null, new Type[] { teType }, null);
                 if (method != null)
                 {
-                    harmony.Patch(method, postfix: new HarmonyMethod(postfixSt));
+                    harmony.Patch(method, postfix: SoftPatch(postfixSt));
                     SafeLog("[LimitByCraftingSkill] XUiC_WorkstationWindowGroup.SetTileEntity Postfix patch applied.");
                 }
 
@@ -584,7 +615,7 @@ namespace LimitByCraftingSkillMod
                         continue;
                     try
                     {
-                        harmony.Patch(subMethod, postfix: new HarmonyMethod(postfixSt));
+                        harmony.Patch(subMethod, postfix: SoftPatch(postfixSt));
                         SafeLog("[LimitByCraftingSkill] " + subType.Name + ".SetTileEntity Postfix patch applied.");
                     }
                     catch (Exception subEx)
@@ -627,7 +658,7 @@ namespace LimitByCraftingSkillMod
                     var craftOnOpen = craftType.GetMethod("OnOpen", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
                     if (craftOnOpen != null)
                     {
-                        harmony.Patch(craftOnOpen, postfix: new HarmonyMethod(postfixFiltered));
+                        harmony.Patch(craftOnOpen, postfix: SoftPatch(postfixFiltered));
                         SafeLog("[LimitByCraftingSkill] XUiC_CraftingWindowGroup.OnOpen Postfix (filtered to workstation) applied.");
                     }
 
@@ -638,7 +669,7 @@ namespace LimitByCraftingSkillMod
                             continue;
                         try
                         {
-                            harmony.Patch(midOnOpen, postfix: new HarmonyMethod(postfixWs));
+                            harmony.Patch(midOnOpen, postfix: SoftPatch(postfixWs));
                             SafeLog("[LimitByCraftingSkill] " + midType.Name + ".OnOpen Postfix (between Crafting and WorkstationWindowGroup) applied.");
                         }
                         catch (Exception midEx)
@@ -657,7 +688,7 @@ namespace LimitByCraftingSkillMod
                         continue;
                     try
                     {
-                        harmony.Patch(sm, postfix: new HarmonyMethod(postfixWs));
+                        harmony.Patch(sm, postfix: SoftPatch(postfixWs));
                         SafeLog("[LimitByCraftingSkill] " + subType.Name + ".OnOpen Postfix applied.");
                     }
                     catch (Exception subEx)
@@ -701,7 +732,7 @@ namespace LimitByCraftingSkillMod
                     return;
                 }
 
-                harmony.Patch(method, postfix: new HarmonyMethod(postfix));
+                harmony.Patch(method, postfix: SoftPatch(postfix));
                 SafeLog("[LimitByCraftingSkill] GameManager.workstationOpened Postfix applied.");
             }
             catch (Exception ex)
@@ -736,7 +767,7 @@ namespace LimitByCraftingSkillMod
                     return;
                 }
                 var prefix = typeof(VehicleDriveRestrictionPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.Public);
-                harmony.Patch(enterVehicle, prefix: new HarmonyMethod(prefix));
+                harmony.Patch(enterVehicle, prefix: SoftPatch(prefix));
                 SafeLog("[LimitByCraftingSkill] EntityVehicle.EnterVehicle (vehicle drive) patch applied.");
             }
             catch (Exception ex)
@@ -782,7 +813,7 @@ namespace LimitByCraftingSkillMod
                         continue;
                     try
                     {
-                        harmony.Patch(method, postfix: new HarmonyMethod(pxGeneric));
+                        harmony.Patch(method, postfix: SoftPatch(pxGeneric));
                         patched++;
                         SafeLog("[LimitByCraftingSkill] GUIWindowManager." + n + "(...) workstation Postfix applied.");
                     }
@@ -798,7 +829,7 @@ namespace LimitByCraftingSkillMod
                 {
                     try
                     {
-                        harmony.Patch(update, postfix: new HarmonyMethod(pxUpdate));
+                        harmony.Patch(update, postfix: SoftPatch(pxUpdate));
                         patched++;
                         SafeLog("[LimitByCraftingSkill] GUIWindowManager.Update(float) workstation watchdog Postfix applied.");
                     }
@@ -834,7 +865,7 @@ namespace LimitByCraftingSkillMod
                     return;
                 }
                 var prefix = typeof(ItemActionSpawnVehicleRestrictionPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.Public);
-                harmony.Patch(execute, prefix: new HarmonyMethod(prefix));
+                harmony.Patch(execute, prefix: SoftPatch(prefix));
                 SafeLog("[LimitByCraftingSkill] ItemActionSpawnVehicle.ExecuteAction patch applied.");
             }
             catch (Exception ex)
@@ -893,7 +924,7 @@ namespace LimitByCraftingSkillMod
                         return;
                     }
 
-                    harmony.Patch(execute, prefix: new HarmonyMethod(prefix));
+                    harmony.Patch(execute, prefix: SoftPatch(prefix));
                     patched++;
                     SafeLog($"[LimitByCraftingSkill] {gameTypeName}.ExecuteAction restriction prefix applied.");
                 }
@@ -917,7 +948,7 @@ namespace LimitByCraftingSkillMod
                             var prefixInstant = typeof(ItemActionExecuteRestrictionPatch).GetMethod(nameof(ItemActionExecuteRestrictionPatch.PrefixEatExecuteInstant), BindingFlags.Static | BindingFlags.Public);
                             if (prefixInstant != null)
                             {
-                                harmony.Patch(instant, prefix: new HarmonyMethod(prefixInstant));
+                                harmony.Patch(instant, prefix: SoftPatch(prefixInstant));
                                 patched++;
                                 SafeLog("[LimitByCraftingSkill] ItemActionEat.ExecuteInstantAction restriction prefix applied.");
                             }
@@ -953,14 +984,14 @@ namespace LimitByCraftingSkillMod
                 if (addToToolbelt != null)
                 {
                     var prefix = typeof(AddItemToToolbeltRestrictionPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.Public);
-                    harmony.Patch(addToToolbelt, prefix: new HarmonyMethod(prefix));
+                    harmony.Patch(addToToolbelt, prefix: SoftPatch(prefix));
                     SafeLog("[LimitByCraftingSkill] XUiM_PlayerInventory.AddItemToToolbelt (equip key block) patch applied.");
                 }
                 var addToPreferred = playerInvType.GetMethod("AddItemToPreferredToolbeltSlot", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new[] { typeof(ItemStack), typeof(int) }, null);
                 if (addToPreferred != null)
                 {
                     var prefixPref = typeof(AddItemToToolbeltRestrictionPatch).GetMethod("PrefixPreferredSlot", BindingFlags.Static | BindingFlags.Public);
-                    harmony.Patch(addToPreferred, prefix: new HarmonyMethod(prefixPref));
+                    harmony.Patch(addToPreferred, prefix: SoftPatch(prefixPref));
                     SafeLog("[LimitByCraftingSkill] XUiM_PlayerInventory.AddItemToPreferredToolbeltSlot (equip key block) patch applied.");
                 }
             }
@@ -988,7 +1019,7 @@ namespace LimitByCraftingSkillMod
                     return;
                 }
                 var prefix = typeof(ItemActionEntryEquipPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.Public);
-                harmony.Patch(onActivated, prefix: new HarmonyMethod(prefix));
+                harmony.Patch(onActivated, prefix: SoftPatch(prefix));
                 SafeLog("[LimitByCraftingSkill] ItemActionEntryEquip.OnActivated (equip key/action block) patch applied.");
             }
             catch (Exception ex)
@@ -1013,7 +1044,7 @@ namespace LimitByCraftingSkillMod
                     if (onOpen != null)
                     {
                         var postfix = typeof(ItemStackGridOnOpenPatch).GetMethod("Postfix", BindingFlags.Static | BindingFlags.Public);
-                        harmony.Patch(onOpen, postfix: new HarmonyMethod(postfix));
+                        harmony.Patch(onOpen, postfix: SoftPatch(postfix));
                         SafeLog("[LimitByCraftingSkill] ItemStackGrid.OnOpen patch applied.");
                     }
                 }
@@ -1028,7 +1059,7 @@ namespace LimitByCraftingSkillMod
                     if (onOpen != null)
                     {
                         var postfix = typeof(EquipmentStackGridOnOpenPatch).GetMethod("Postfix", BindingFlags.Static | BindingFlags.Public);
-                        harmony.Patch(onOpen, postfix: new HarmonyMethod(postfix));
+                        harmony.Patch(onOpen, postfix: SoftPatch(postfix));
                         SafeLog("[LimitByCraftingSkill] EquipmentStackGrid.OnOpen patch applied.");
                     }
                 }
@@ -1044,7 +1075,7 @@ namespace LimitByCraftingSkillMod
                     if (update != null)
                     {
                         var postfix = typeof(GridUpdateRestrictionColorPatch).GetMethod("Postfix", BindingFlags.Static | BindingFlags.Public);
-                        harmony.Patch(update, postfix: new HarmonyMethod(postfix));
+                        harmony.Patch(update, postfix: SoftPatch(postfix));
                         SafeLog("[LimitByCraftingSkill] XUiController.Update (grid restriction refresh) patch applied.");
                     }
                 }
@@ -1078,7 +1109,7 @@ namespace LimitByCraftingSkillMod
                 var postfix = typeof(PopupToolTipDisplayTooltipTextPatch).GetMethod("Postfix", BindingFlags.Static | BindingFlags.Public);
                 if (postfix != null)
                 {
-                    harmony.Patch(display, postfix: new HarmonyMethod(postfix));
+                    harmony.Patch(display, postfix: SoftPatch(postfix));
                     SafeLog("[LimitByCraftingSkill] XUiC_PopupToolTip.DisplayTooltipText restriction-color Postfix applied.");
                 }
             }
@@ -1114,7 +1145,7 @@ namespace LimitByCraftingSkillMod
                 var postfix = typeof(PopupToolTipUpdateTintPatch).GetMethod("Postfix", BindingFlags.Static | BindingFlags.Public);
                 if (postfix != null)
                 {
-                    harmony.Patch(update, postfix: new HarmonyMethod(postfix));
+                    harmony.Patch(update, postfix: SoftPatch(postfix));
                     SafeLog("[LimitByCraftingSkill] XUiC_PopupToolTip.Update restriction-color Postfix applied.");
                 }
             }
@@ -1148,7 +1179,7 @@ namespace LimitByCraftingSkillMod
                     var m = gmType.GetMethod("ShowTooltip", BindingFlags.Static | BindingFlags.Public, null, sig9, null);
                     if (m != null)
                     {
-                        harmony.Patch(m, postfix: new HarmonyMethod(postfix));
+                        harmony.Patch(m, postfix: SoftPatch(postfix));
                         patched++;
                     }
 
@@ -1156,7 +1187,7 @@ namespace LimitByCraftingSkillMod
                     m = gmType.GetMethod("ShowTooltip", BindingFlags.Static | BindingFlags.Public, null, sig9Arr, null);
                     if (m != null)
                     {
-                        harmony.Patch(m, postfix: new HarmonyMethod(postfix));
+                        harmony.Patch(m, postfix: SoftPatch(postfix));
                         patched++;
                     }
                 }
@@ -1167,7 +1198,7 @@ namespace LimitByCraftingSkillMod
                     var m5 = gmType.GetMethod("ShowTooltip", BindingFlags.Static | BindingFlags.Public, null, sig5, null);
                     if (m5 != null)
                     {
-                        harmony.Patch(m5, postfix: new HarmonyMethod(postfix));
+                        harmony.Patch(m5, postfix: SoftPatch(postfix));
                         patched++;
                     }
                 }
@@ -1178,7 +1209,7 @@ namespace LimitByCraftingSkillMod
                     var mMp = gmType.GetMethod("ShowTooltipMP", BindingFlags.Static | BindingFlags.Public, null, sigMp, null);
                     if (mMp != null)
                     {
-                        harmony.Patch(mMp, postfix: new HarmonyMethod(postfix));
+                        harmony.Patch(mMp, postfix: SoftPatch(postfix));
                         patched++;
                     }
                 }
