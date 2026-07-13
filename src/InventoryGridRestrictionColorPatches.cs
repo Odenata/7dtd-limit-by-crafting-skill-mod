@@ -66,24 +66,81 @@ namespace LimitByCraftingSkillMod
     }
 
     /// <summary>
+    /// When a grid slot changes (drag/drop, pickup, etc.), mark restriction colors dirty so open grids re-apply.
+    /// Vanilla label refresh after moves otherwise clears our red tint until the next OnOpen.
+    /// </summary>
+    internal static class ItemStackGridSlotChangedRestrictionColorPatch
+    {
+        public static void Postfix(object __instance)
+        {
+            RestrictionLabelColor.MarkColorsDirty();
+        }
+    }
+
+    internal static class EquipmentStackGridSlotChangedRestrictionColorPatch
+    {
+        public static void Postfix(object __instance)
+        {
+            RestrictionLabelColor.MarkColorsDirty();
+        }
+    }
+
+    /// <summary>
+    /// After vanilla ForceSetItemStack redraws the slot label, re-apply restriction tint immediately.
+    /// Covers backpack sync paths (UpdateBackend / RefreshBackpackSlots) that skip HandleSlotChangedEvent.
+    /// </summary>
+    internal static class ItemStackForceSetRestrictionColorPatch
+    {
+        public static void Postfix(object __instance)
+        {
+            RestrictionLabelColor.MarkColorsDirty();
+            RestrictionLabelColor.ApplyRestrictionColorToItemStackController(__instance);
+        }
+    }
+
+    /// <summary>Grid-level backend/stack sync — marks dirty so any slot vanilla redraws get recolored on Update.</summary>
+    internal static class ItemStackGridBackendRestrictionColorPatch
+    {
+        public static void Postfix(object __instance)
+        {
+            RestrictionLabelColor.MarkColorsDirty();
+        }
+    }
+
+    /// <summary>
     /// Postfix for XUiController.Update. Only runs logic when instance is ItemStackGrid or EquipmentStackGrid (or subclass),
     /// since Update is declared on the base type and Harmony requires patching the declarer.
     /// Uses base-type detection so Backpack, Toolbelt, PartList, VehicleContainer, WorkstationGrid, etc. are included.
-    /// Throttles apply per grid instance (e.g. every 0.2s) when open; always runs when dirty (level-up) or on open.
+    /// Re-applies on dirty (slot change / level-up) or briefly after OnOpen; no forever 5 Hz throttle.
     /// </summary>
     internal static class GridUpdateRestrictionColorPatch
     {
         private static readonly Dictionary<object, float> _lastRunByGrid = new Dictionary<object, float>();
-        private const float ThrottleSeconds = 0.2f;
+        private const float JustOpenedReapplyWindowSeconds = 0.15f;
+        private const float ReapplyMinIntervalSeconds = 0.05f;
         private const int MaxTrackedGridControllers = 128;
+
+        private static Assembly _cachedAssembly;
+        private static Type _cachedItemStackGridType;
+        private static Type _cachedEquipmentStackGridType;
+
+        private static void EnsureGridTypesCached(Assembly asm)
+        {
+            if (asm == null) return;
+            if (ReferenceEquals(_cachedAssembly, asm)) return;
+            _cachedAssembly = asm;
+            _cachedItemStackGridType = asm.GetType("XUiC_ItemStackGrid");
+            _cachedEquipmentStackGridType = asm.GetType("XUiC_EquipmentStackGrid");
+        }
 
         public static void Postfix(object __instance)
         {
             if (__instance == null) return;
             var controllerType = __instance.GetType();
             var asm = controllerType.Assembly;
-            var itemStackGridType = asm.GetType("XUiC_ItemStackGrid");
-            var equipmentStackGridType = asm.GetType("XUiC_EquipmentStackGrid");
+            EnsureGridTypesCached(asm);
+            var itemStackGridType = _cachedItemStackGridType;
+            var equipmentStackGridType = _cachedEquipmentStackGridType;
             string name = controllerType.FullName ?? controllerType.Name;
             bool isItemStackGrid = itemStackGridType != null && itemStackGridType.IsAssignableFrom(controllerType)
                 || (itemStackGridType == null && name.IndexOf("ItemStackGrid", StringComparison.OrdinalIgnoreCase) >= 0);
@@ -103,18 +160,29 @@ namespace LimitByCraftingSkillMod
             }
 
             float now = UnityEngine.Time.time;
-            bool runBecauseDirty = RestrictionLabelColor.RestrictionColorsDirty;
-            bool runBecauseThrottle = false;
-            lock (_lastRunByGrid)
+            bool inDirtyWindow = (now - RestrictionLabelColor.LastColorsDirtyTime) <= RestrictionLabelColor.DirtyReapplyWindowSeconds;
+            bool runBecauseDirty = RestrictionLabelColor.RestrictionColorsDirty || inDirtyWindow;
+            float lastOpenTime = isItemStackGrid
+                ? RestrictionLabelColor.LastItemStackGridOpenTime
+                : RestrictionLabelColor.LastEquipmentGridOpenTime;
+            bool inJustOpenedWindow = (now - lastOpenTime) <= JustOpenedReapplyWindowSeconds;
+
+            bool shouldRun = false;
+            if (runBecauseDirty || inJustOpenedWindow)
             {
-                if (!_lastRunByGrid.TryGetValue(__instance, out float lastRun) || (now - lastRun >= ThrottleSeconds))
-                    runBecauseThrottle = true;
+                lock (_lastRunByGrid)
+                {
+                    if (!_lastRunByGrid.TryGetValue(__instance, out float lastRun)
+                        || (now - lastRun >= ReapplyMinIntervalSeconds))
+                        shouldRun = true;
+                }
             }
 
-            if (!runBecauseDirty && !runBecauseThrottle) return;
+            if (!shouldRun) return;
 
             RestrictionLabelColor.ApplyRestrictionColorsToGrid(__instance);
-            RestrictionLabelColor.RestrictionColorsDirty = false;
+            if (!inDirtyWindow)
+                RestrictionLabelColor.RestrictionColorsDirty = false;
             lock (_lastRunByGrid)
             {
                 // XUi controllers normally transition through IsOpen=false, where we remove them. If a game update destroys

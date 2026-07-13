@@ -11,8 +11,9 @@ The normal CurseForge workflow is manual: generate a zip from this repo, upload 
 - Player README: [`../README.md`](../README.md)
 - Current release version: [`../VERSION`](../VERSION)
 - Mod vs game compatibility (for users and CurseForge “supported version”): [`COMPATIBILITY.md`](COMPATIBILITY.md)
+- Release notes draft / history: [`releases/README.md`](releases/README.md), [`../CHANGELOG.md`](../CHANGELOG.md)
 
-Keep these version fields aligned for each release:
+Keep these version fields aligned for each release (or use `cut --bump-version`):
 
 - [`../VERSION`](../VERSION)
 - [`../MODULE.bazel`](../MODULE.bazel) `module(version = "...")`
@@ -22,29 +23,36 @@ Release zip names use **mod version only** (for example `dist\LimitByCraftingSki
 
 ## Release checklist
 
-1. Decide the target 7 Days to Die version(s) supported by the release.
-2. Update version fields if this is a new release.
-3. Update [`COMPATIBILITY.md`](COMPATIBILITY.md) if the supported game version range changed (or confirm existing rows still apply).
-4. Update player-facing notes in `README.md` and `CURSEFORGE_DESCRIPTION.md` if behavior changed.
-5. Run verification:
+1. Fill / review [`releases/unreleased.md`](releases/unreleased.md).
+2. Preview and cut release notes (bumps version fields when using `--bump-version`):
+
+   ```powershell
+   .\tools\release_notes.ps1 preview
+   .\tools\release_notes.ps1 cut --version X.Y.Z --bump-version
+   ```
+
+3. Decide the target 7 Days to Die version(s) supported by the release.
+4. Update [`COMPATIBILITY.md`](COMPATIBILITY.md) if the supported game version range changed (or confirm existing rows still apply).
+5. Update player-facing notes in `README.md` and `CURSEFORGE_DESCRIPTION.md` if behavior changed.
+6. Run verification:
 
    ```bash
    bazel test //tests:all
    ```
 
-6. Build the DLL:
+7. Build the DLL:
 
    ```bash
    bazel build //src:LimitByCraftingSkillMod
    ```
 
-7. Create the release zip:
+8. Create the release zip:
 
    ```powershell
    .\tools\package_release.ps1 -DllPath .\bazel-bin\src\LimitByCraftingSkillMod.dll
    ```
 
-8. Inspect the zip before upload. It should contain one top-level folder:
+9. Inspect the zip before upload. It should contain one top-level folder:
 
    ```text
    LimitByCraftingSkillMod/
@@ -56,16 +64,16 @@ Release zip names use **mod version only** (for example `dist\LimitByCraftingSki
 
    Do **not** include `0Harmony.dll`. Players use the game's official `Mods\0_TFP_Harmony`.
 
-9. Upload `dist\LimitByCraftingSkillMod-<version>.zip` to CurseForge (see console output for the exact path).
-10. Choose the appropriate CurseForge release type:
+10. Upload `dist\LimitByCraftingSkillMod-<version>.zip` to CurseForge (see console output for the exact path).
+11. Choose the appropriate CurseForge release type:
    - `Release` for the default recommended download.
    - `Beta` for a public test build.
    - `Alpha` only for experimental builds.
-11. Select the supported 7 Days to Die game version(s) (keep consistent with `COMPATIBILITY.md`).
-12. Add a markdown changelog for the file.
-13. Paste or update the CurseForge project description from `CURSEFORGE_DESCRIPTION.md`.
-14. Verify the uploaded file after approval by downloading it and checking the zip layout.
-15. Create a matching Git tag and GitHub Release if you want GitHub to retain old downloadable versions.
+12. Select the supported 7 Days to Die game version(s) (keep consistent with `COMPATIBILITY.md`).
+13. Paste the new top section from [`../CHANGELOG.md`](../CHANGELOG.md) into the CurseForge / GitHub file changelog (do not invent notes at upload time).
+14. Paste or update the CurseForge project description from `CURSEFORGE_DESCRIPTION.md`.
+15. Verify the uploaded file after approval by downloading it and checking the zip layout.
+16. Create a matching Git tag and GitHub Release if you want GitHub to retain old downloadable versions.
 
 ## CurseForge project page
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 
 namespace LimitByCraftingSkillMod
@@ -16,42 +17,55 @@ namespace LimitByCraftingSkillMod
         public static bool IsItemRestricted(ItemStack stack)
         {
             if (stack == null || stack.IsEmpty()) return false;
+            var player = GameReflection.GetLocalPlayer();
+            if (player == null)
+                return false;
+            return IsItemRestricted(stack, player, GameReflection.GetProgression(player));
+        }
+
+        /// <summary>
+        /// Restriction check with pre-resolved player and progression (one resolve per grid apply).
+        /// Optional caches avoid repeated progression / required-level lookups within one apply.
+        /// </summary>
+        public static bool IsItemRestricted(
+            ItemStack stack,
+            EntityAlive player,
+            object progression,
+            IDictionary<string, int> skillLevelCache = null,
+            IDictionary<string, int> requiredLevelCache = null,
+            bool useRequiredLevelMemo = false)
+        {
+            if (stack == null || stack.IsEmpty()) return false;
             var itemValue = GetItemValue(stack);
             if (itemValue == null) return false;
             var itemClass = itemValue.ItemClass;
             if (itemClass == null) return false;
-
-            var skillGroup = GameReflection.GetCraftingSkillGroup(itemClass, itemValue);
-            if (string.IsNullOrWhiteSpace(skillGroup))
-                return false;
-            if (ModConfig.Instance == null)
-                return false;
-            if (!IsRestrictionEnabledForSkillGroup(skillGroup))
-                return false;
-
-            var player = GameReflection.GetLocalPlayer();
             if (player == null)
                 return false;
 
-            var requiredLevel = GameReflection.GetRequiredLevelForItem(itemClass, itemValue);
-            var playerLevel = GameReflection.GetPlayerCraftingLevel(player, skillGroup);
-            var restricted = LimitByCraftingSkillLogic.IsRestricted(playerLevel, requiredLevel, true);
-            if (ModConfig.Instance != null && ModConfig.Instance.DebugMode && restricted)
+            Func<string, int> getLevel = skillGroup => GameReflection.GetPlayerCraftingLevel(player, skillGroup);
+            var restricted = RestrictionScan.EvaluateOne(
+                itemClass,
+                itemValue,
+                progression,
+                getLevel,
+                skillLevelCache,
+                useRequiredLevelMemo,
+                requiredLevelCache);
+
+            if (restricted && ModConfig.Instance != null && ModConfig.Instance.DebugMode)
             {
+                var skillGroup = GameReflection.GetCraftingSkillGroup(itemClass, itemValue);
                 var lookupName = GameReflection.ToProgressionLookupName(skillGroup);
+                int playerLevel = 0;
+                if (skillLevelCache != null && skillLevelCache.TryGetValue(skillGroup, out var cached))
+                    playerLevel = cached;
+                else
+                    playerLevel = GameReflection.GetPlayerCraftingLevel(player, skillGroup);
+                var requiredLevel = GameReflection.GetRequiredLevelForItemForUnitTest(itemClass, itemValue, progression);
                 ModApi.DebugLog($"[LimitByCraftingSkill] IsItemRestricted: skillGroup=\"{skillGroup}\" lookup=\"{lookupName}\" playerLevel={playerLevel} required={requiredLevel}");
             }
             return restricted;
-        }
-
-        /// <summary>
-        /// True if restriction is enabled in config for this skill group.
-        /// </summary>
-        private static bool IsRestrictionEnabledForSkillGroup(string skillGroup)
-        {
-            if (string.IsNullOrWhiteSpace(skillGroup) || ModConfig.Instance == null) return false;
-            var configName = GameReflection.ToProgressionOrConfigName(skillGroup);
-            return ModConfig.Instance.IsRestrictionEnabledForSkill(configName);
         }
 
         /// <summary>

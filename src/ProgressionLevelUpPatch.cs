@@ -21,7 +21,7 @@ namespace LimitByCraftingSkillMod
                 if (parent == null) return;
                 var localPlayer = GameReflection.GetLocalPlayer();
                 if (localPlayer == null || !ReferenceEquals(parent, localPlayer)) return;
-                RestrictionLabelColor.RestrictionColorsDirty = true;
+                RestrictionLabelColor.MarkColorsDirty();
             }
             catch
             {

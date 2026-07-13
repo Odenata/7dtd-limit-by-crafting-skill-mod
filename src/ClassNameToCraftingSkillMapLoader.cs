@@ -71,6 +71,7 @@ namespace LimitByCraftingSkillMod
                 _requiredLevelOverrideByClassName = null;
                 _requiredLevelMinByClassName = null;
             }
+            RestrictionScan.ClearCaches();
         }
 
         private static void EnsureLoaded()

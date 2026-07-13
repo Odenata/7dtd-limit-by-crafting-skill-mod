@@ -30,6 +30,7 @@
     <Compile Include="DeployToolTests.cs" />
     <Compile Include="TestDataPath.cs" />
     <Compile Include="RequiredLevelFromProgressionTests.cs" />
+    <Compile Include="RestrictionScanBenchmarkTests.cs" />
   </ItemGroup>
 
   <Target Name="CopyClassNameMapForTests" AfterTargets="Build">

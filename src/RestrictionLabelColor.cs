@@ -11,18 +11,63 @@ namespace LimitByCraftingSkillMod
     /// </summary>
     internal static class RestrictionLabelColor
     {
-        /// <summary>Set by progression level-up patch; cleared when a grid refreshes its labels.</summary>
+        /// <summary>Set by progression level-up / slot-change; cleared after the dirty re-apply window.</summary>
         public static bool RestrictionColorsDirty { get; set; }
+
+        /// <summary>Time of last <see cref="MarkColorsDirty"/>; Update re-applies while within the dirty window so all open grids see it.</summary>
+        public static float LastColorsDirtyTime { get; private set; }
 
         /// <summary>Set by OnOpen patches so Update can run apply again in the "just opened" window (e.g. 0.15s) without throttle.</summary>
         public static float LastItemStackGridOpenTime { get; set; }
         public static float LastEquipmentGridOpenTime { get; set; }
+
+        /// <summary>How long open grids keep re-applying after a dirty mark (slot move, level-up).</summary>
+        public const float DirtyReapplyWindowSeconds = 0.15f;
 
         /// <summary>Call from ItemStackGrid OnOpen postfix so Update runs apply again shortly without waiting for throttle.</summary>
         public static void MarkItemStackGridJustOpened() { LastItemStackGridOpenTime = UnityEngine.Time.time; }
 
         /// <summary>Call from EquipmentStackGrid OnOpen postfix so Update runs apply again shortly without waiting for throttle.</summary>
         public static void MarkEquipmentGridJustOpened() { LastEquipmentGridOpenTime = UnityEngine.Time.time; }
+
+        /// <summary>
+        /// Mark restriction labels dirty after inventory content changes or crafting level-up.
+        /// Uses a short time window so every open grid (backpack + loot) can refresh before the flag clears.
+        /// </summary>
+        public static void MarkColorsDirty()
+        {
+            RestrictionColorsDirty = true;
+            LastColorsDirtyTime = UnityEngine.Time.time;
+        }
+
+        /// <summary>
+        /// Apply restriction color to a single item-stack slot controller after vanilla has set its labels
+        /// (e.g. ForceSetItemStack postfix). Also marks open grids dirty for sibling slots.
+        /// </summary>
+        public static void ApplyRestrictionColorToItemStackController(object controller)
+        {
+            if (controller == null) return;
+            try
+            {
+                var go = GetViewGameObject(controller);
+                if (go == null) return;
+                var stack = GetItemStackFromController(controller);
+                if (stack == null || stack.IsEmpty())
+                {
+                    SetLabelColorOnEntry(go, InventoryLabelDefaultColor);
+                    return;
+                }
+                if (RestrictionHelper.IsItemRestricted(stack))
+                    SetLabelColorOnEntry(go, RedColor);
+                else
+                    SetLabelColorOnEntry(go, InventoryLabelDefaultColor);
+            }
+            catch (Exception ex)
+            {
+                if (ModConfig.Instance != null && ModConfig.Instance.DebugMode)
+                    ModApi.DebugLog($"[RestrictionLabelColor] ApplyRestrictionColorToItemStackController error: {ex.Message}");
+            }
+        }
 
         private static readonly UnityEngine.Color RedColor = new UnityEngine.Color(1f, 0f, 0f, 1f);
 
@@ -49,6 +94,16 @@ namespace LimitByCraftingSkillMod
                 bool isEquipmentStackGrid = equipmentStackGridType != null && equipmentStackGridType.IsAssignableFrom(gridType)
                     || (equipmentStackGridType == null && typeName.IndexOf("EquipmentStackGrid", StringComparison.OrdinalIgnoreCase) >= 0);
 
+                var player = GameReflection.GetLocalPlayer();
+                var progression = player != null ? GameReflection.GetProgression(player) : null;
+                System.Collections.Generic.Dictionary<string, int> skillLevelCache = null;
+                System.Collections.Generic.Dictionary<string, int> requiredLevelCache = null;
+                if (player != null)
+                {
+                    skillLevelCache = new System.Collections.Generic.Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                    requiredLevelCache = new System.Collections.Generic.Dictionary<string, int>(StringComparer.Ordinal);
+                }
+
                 // ItemStackGrid and subclasses: backpack, toolbelt, container, vehicle, workstation, part list, etc.
                 // Always use SetLabelColorOnEntry(go) so the slot's GameObject tree (item name label) gets colored; TrySetColorOnLabelView often hits "timer" only, not the name.
                 if (isItemStackGrid)
@@ -67,7 +122,7 @@ namespace LimitByCraftingSkillMod
                                 SetLabelColorOnEntry(go, InventoryLabelDefaultColor);
                                 continue;
                             }
-                            if (RestrictionHelper.IsItemRestricted(stack))
+                            if (player != null && RestrictionHelper.IsItemRestricted(stack, player, progression, skillLevelCache, requiredLevelCache, useRequiredLevelMemo: true))
                                 SetLabelColorOnEntry(go, RedColor);
                             else
                                 SetLabelColorOnEntry(go, InventoryLabelDefaultColor);
@@ -86,7 +141,6 @@ namespace LimitByCraftingSkillMod
                         var gridItems = GetPropertyOrField(grid, "items");
                         ItemValue[] gridItemsArray = gridItems as ItemValue[];
 
-                        var player = GameReflection.GetLocalPlayer();
                         object equipment = null;
                         MethodInfo getSlotItemMethod = null;
                         int equipmentSlotCount = -1;
@@ -146,7 +200,7 @@ namespace LimitByCraftingSkillMod
                                     SetLabelColorOnEntry(goEmpty, InventoryLabelDefaultColor);
                                 continue;
                             }
-                            if (RestrictionHelper.IsItemRestricted(stack))
+                            if (player != null && RestrictionHelper.IsItemRestricted(stack, player, progression, skillLevelCache, requiredLevelCache, useRequiredLevelMemo: true))
                             {
                                 if (TrySetColorOnLabelView(ctrl, RedColor))
                                     continue;

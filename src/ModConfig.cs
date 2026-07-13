@@ -37,6 +37,7 @@ namespace LimitByCraftingSkillMod
             {
                 _instance = null;
             }
+            RestrictionScan.ClearCaches();
         }
 
         public bool DebugMode { get; private set; }

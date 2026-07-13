@@ -1,0 +1,14 @@
+---
+description: Append release-note bullets when shipping LimitByCraftingSkillMod changes
+alwaysApply: true
+---
+
+# Release notes (LimitByCraftingSkillMod)
+
+When you complete player-visible or packaging-relevant work (behavior, config, install layout, Harmony runtime requirements):
+
+1. Append a short bullet to [`docs/releases/unreleased.md`](docs/releases/unreleased.md) under the right heading.
+2. Do this in the **same session** as the change.
+3. Prefer player-facing wording over implementation detail.
+
+Before publishing, run `.\tools\release_notes.ps1 preview` then `cut --version X.Y.Z` per [`docs/releases/README.md`](docs/releases/README.md) and [`docs/PUBLISHING.md`](docs/PUBLISHING.md).

@@ -82,6 +82,20 @@ net_xunit_test(
     testlauncher = "@xunit_runner_console//:net",
 )
 
+
+net_xunit_test(
+    name = "restriction_scan_benchmark",
+    size = "small",
+    srcs = [
+        "RestrictionScanBenchmarkTests.cs",
+        "RequiredLevelFromProgressionTests.cs",
+    ],
+    tags = ["manual"],
+    deps = MOD_TEST_DEPS,
+    dotnet_context_data = "@rules_dotnet_framework//:net_context_data_net472",
+    testlauncher = "@xunit_runner_console//:net",
+)
+
 test_suite(
     name = "unit",
     tests = UNIT_TESTS,

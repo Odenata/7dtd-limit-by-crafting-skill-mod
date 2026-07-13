@@ -1,5 +1,7 @@
 # Required-level debugging instrumentation
 
+For grid-scan FPS / `RestrictionScan` Stopwatch benches, see [`PERF_GRID_SCAN.md`](PERF_GRID_SCAN.md).
+
 ## Built-in: game log (`DebugMode`)
 
 When **`Config.xml`** has `<DebugMode>true</DebugMode>`, **`ModApi.DebugLog`** and **`GameReflection`** diagnostics write to the **game output log** (`output_log*.txt`). Examples:

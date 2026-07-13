@@ -6,7 +6,7 @@ Consider this mod if you find vanilla progression to be fast, especially when dr
 
 ## Game version compatibility
 
-Release downloads are named by **mod version**; the same zip may work across multiple game patches. See **[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)** for which **7 Days to Die** versions go with which mod release.
+Release downloads are named by **mod version**; the same zip may work across multiple game patches. See **[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)** for which **7 Days to Die** versions go with which mod release, and **[CHANGELOG.md](CHANGELOG.md)** for release history. Maintainers: [`docs/releases/README.md`](docs/releases/README.md).
 
 ## What It Restricts
 
@@ -87,4 +87,4 @@ Then restart the game.
 
 ## For Developers
 
-Build, test, deployment, map maintenance, and design notes live under `docs/`. Start with `docs/DEVELOPING.md`.
+Build, test, deployment, map maintenance, and design notes live under `docs/`. Start with `docs/DEVELOPING.md`. Release notes: `docs/releases/README.md` and `docs/PUBLISHING.md`.

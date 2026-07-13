@@ -39,7 +39,7 @@ bazel run //tools:prepare_mod
 .\tools\package_release.ps1 -DllPath .\bazel-bin\src\LimitByCraftingSkillMod.dll
 ```
 
-The zip contains one top-level `LimitByCraftingSkillMod\` folder with the deployable mod files. Publishing checklist and CurseForge listing notes: [`PUBLISHING.md`](PUBLISHING.md).
+The zip contains one top-level `LimitByCraftingSkillMod\` folder with the deployable mod files. Publishing checklist and CurseForge listing notes: [`PUBLISHING.md`](PUBLISHING.md). Release notes: [`releases/README.md`](releases/README.md).
 
 ## Deploy to a local game install
 
@@ -106,4 +106,5 @@ To trace why an item resolves to required level `0` or a wrong tier after a game
 - [`CLASS_NAME_MAP_HOWTO.md`](CLASS_NAME_MAP_HOWTO.md): map editing and override semantics.
 - [`GAME_API_NOTES.md`](GAME_API_NOTES.md): game API assumptions and Harmony patch targets.
 - [`PUBLISHING.md`](PUBLISHING.md): CurseForge/GitHub release packaging and upload checklist.
+- [`releases/README.md`](releases/README.md): unreleased draft → CHANGELOG cut.
 - [`COMPATIBILITY.md`](COMPATIBILITY.md): mod version vs supported game versions (update when compatibility changes).

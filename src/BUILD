@@ -36,6 +36,7 @@ net_library(
         "RestrictionFeedback.cs",
         "RestrictionHelper.cs",
         "RestrictionLabelColor.cs",
+        "RestrictionScan.cs",
         "ServerConfigSync.cs",
         "ToolbeltHandleStackSwapPatch.cs",
         "VehicleDriveRestrictionPatch.cs",

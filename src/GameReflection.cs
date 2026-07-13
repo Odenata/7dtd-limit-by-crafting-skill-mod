@@ -201,7 +201,8 @@ namespace LimitByCraftingSkillMod
             }
         }
 
-        private static object GetProgression(EntityAlive entity)
+        /// <summary>Progression instance on the entity (field or property). Used by grid scan to resolve once per apply.</summary>
+        internal static object GetProgression(EntityAlive entity)
         {
             if (entity == null) return null;
             var entityType = entity.GetType();

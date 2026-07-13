@@ -1066,6 +1066,96 @@ namespace LimitByCraftingSkillMod
             }
             catch (Exception ex) { SafeLog($"[LimitByCraftingSkill] EquipmentStackGrid OnOpen patch failed: {ex.Message}"); }
 
+            // Slot changes: vanilla redraws labels and clears our red tint; mark dirty so Update re-applies.
+            try
+            {
+                if (itemStackGridType != null)
+                {
+                    var slotChanged = itemStackGridType.GetMethod("HandleSlotChangedEvent", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (slotChanged != null)
+                    {
+                        var postfix = typeof(ItemStackGridSlotChangedRestrictionColorPatch).GetMethod("Postfix", BindingFlags.Static | BindingFlags.Public);
+                        harmony.Patch(slotChanged, postfix: SoftPatch(postfix));
+                        SafeLog("[LimitByCraftingSkill] ItemStackGrid.HandleSlotChangedEvent (restriction refresh) patch applied.");
+                    }
+                }
+            }
+            catch (Exception ex) { SafeLog($"[LimitByCraftingSkill] ItemStackGrid HandleSlotChangedEvent patch failed: {ex.Message}"); }
+
+            try
+            {
+                if (equipmentStackGridType != null)
+                {
+                    var slotChanged = equipmentStackGridType.GetMethod("HandleSlotChangedEvent", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (slotChanged != null)
+                    {
+                        var postfix = typeof(EquipmentStackGridSlotChangedRestrictionColorPatch).GetMethod("Postfix", BindingFlags.Static | BindingFlags.Public);
+                        harmony.Patch(slotChanged, postfix: SoftPatch(postfix));
+                        SafeLog("[LimitByCraftingSkill] EquipmentStackGrid.HandleSlotChangedEvent (restriction refresh) patch applied.");
+                    }
+                }
+            }
+            catch (Exception ex) { SafeLog($"[LimitByCraftingSkill] EquipmentStackGrid HandleSlotChangedEvent patch failed: {ex.Message}"); }
+
+            // ForceSetItemStack: backpack/loot often sync slots here after a move, redrawing labels after HandleSlotChangedEvent.
+            try
+            {
+                var itemStackType = gameAssembly.GetType("XUiC_ItemStack");
+                if (itemStackType != null)
+                {
+                    var forceSet = itemStackType.GetMethod("ForceSetItemStack", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (forceSet != null)
+                    {
+                        var postfix = typeof(ItemStackForceSetRestrictionColorPatch).GetMethod("Postfix", BindingFlags.Static | BindingFlags.Public);
+                        harmony.Patch(forceSet, postfix: SoftPatch(postfix));
+                        SafeLog("[LimitByCraftingSkill] ItemStack.ForceSetItemStack (restriction refresh) patch applied.");
+                    }
+                }
+            }
+            catch (Exception ex) { SafeLog($"[LimitByCraftingSkill] ItemStack ForceSetItemStack patch failed: {ex.Message}"); }
+
+            // UpdateBackend / SetStacks overrides on common grids (Harmony does not redirect base patches to overrides).
+            var backendPostfix = typeof(ItemStackGridBackendRestrictionColorPatch).GetMethod("Postfix", BindingFlags.Static | BindingFlags.Public);
+            foreach (var typeName in new[]
+            {
+                "XUiC_ItemStackGrid",
+                "XUiC_Backpack",
+                "XUiC_LootContainer",
+                "XUiC_BagContainer",
+                "XUiC_Toolbelt"
+            })
+            {
+                try
+                {
+                    var gridType = gameAssembly.GetType(typeName);
+                    if (gridType == null) continue;
+                    foreach (var methodName in new[] { "UpdateBackend", "SetStacks" })
+                    {
+                        var method = gridType.GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+                        if (method == null) continue;
+                        harmony.Patch(method, postfix: SoftPatch(backendPostfix));
+                        SafeLog($"[LimitByCraftingSkill] {typeName}.{methodName} (restriction refresh) patch applied.");
+                    }
+                }
+                catch (Exception ex) { SafeLog($"[LimitByCraftingSkill] {typeName} backend restriction patch failed: {ex.Message}"); }
+            }
+
+            try
+            {
+                var backpackType = gameAssembly.GetType("XUiC_Backpack");
+                if (backpackType != null)
+                {
+                    foreach (var methodName in new[] { "RefreshBackpackSlots", "PlayerInventory_OnBackpackItemsChanged" })
+                    {
+                        var method = backpackType.GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                        if (method == null) continue;
+                        harmony.Patch(method, postfix: SoftPatch(backendPostfix));
+                        SafeLog($"[LimitByCraftingSkill] XUiC_Backpack.{methodName} (restriction refresh) patch applied.");
+                    }
+                }
+            }
+            catch (Exception ex) { SafeLog($"[LimitByCraftingSkill] Backpack refresh restriction patch failed: {ex.Message}"); }
+
             // Update: declared on XUiController, so patch the base type once; our Postfix filters by instance type
             if (xuiControllerType != null)
             {
