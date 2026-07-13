@@ -10,18 +10,22 @@ Sources live at the repository root (`src/`, `tests/`). Do not commit or edit fi
 
 - **Bazel (hermetic):** `bazel build //src:LimitByCraftingSkillMod` — output DLL under `bazel-bin\src\LimitByCraftingSkillMod.dll`.
 - **Bazel run (non-hermetic, uses host dotnet):** `bazel run //tools:build`.
-- **Local IDE / PowerShell:** `.\tools\build.ps1` — requires `7dtd-mod-dev-tools` as a sibling repo (for example, `repos\7dtd-mod-dev-tools`). MSBuild outputs go to `src\bin\` (gitignored).
+- **Local IDE / PowerShell:** `.\tools\build.ps1` — requires `7dtd-mod-dev-tools` as a sibling repo (for example, `repos\7dtd-mod-dev-tools`). MSBuild outputs go to `src\bin\<Configuration>\net48\` (gitignored). Target framework is `net48` (needed to reference GearsAPI).
 
 ## Prepare mod files
 
 `.\tools\prepare_mod.ps1` fills `prepared_mod_files\` with exactly what belongs in `Mods\LimitByCraftingSkillMod\`:
 
 - `LimitByCraftingSkillMod.dll`
+- `GearsAPI.dll`
 - `ModInfo.xml`
 - `Config.xml`
+- `ModSettings.xml`
 - `ClassNameToCraftingSkillMap.xml`
+- `icon.png`
+- `Config\Localization.csv`
 
-Runtime Harmony comes from the game's `Mods\0_TFP_Harmony` (HarmonyX) — do not ship `0Harmony.dll` with this mod. Compile-time references use HarmonyX from the sibling `7dtd-mod-dev-tools` checkout (or the game DLL when `SevenDtdInstallDir` is set). When `DebugMode` is on (and always for Warn/Error), HarmonyX messages are forwarded to Player.log as `[Harmony] …`.
+Runtime Harmony comes from the game's `Mods\0_TFP_Harmony` (HarmonyX) — do not ship `0Harmony.dll` with this mod. Compile-time references use HarmonyX from the sibling `7dtd-mod-dev-tools` checkout (or the game DLL when `SevenDtdInstallDir` is set). Soft-dep GearsAPI is vendored under `third_party/gearsapi/` (ship `GearsAPI.dll`; do not ship `InControl.dll`). When `DebugMode` is on (and always for Warn/Error), HarmonyX messages are forwarded to Player.log as `[Harmony] …`.
 
 Use `-DllPath` if you built with Bazel, pointing at `bazel-bin\src\LimitByCraftingSkillMod.dll`.
 

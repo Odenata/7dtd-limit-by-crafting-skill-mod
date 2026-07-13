@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Xunit;
 
 namespace LimitByCraftingSkillMod.Tests
@@ -72,6 +73,112 @@ namespace LimitByCraftingSkillMod.Tests
             Assert.Equal(ModConfig.Instance.Hash, ModConfig.LoadLocalSnapshot().Hash);
 
             ModConfig.ClearServerSnapshot();
+        }
+
+        [Theory]
+        [InlineData("true", true)]
+        [InlineData("True", true)]
+        [InlineData("1", true)]
+        [InlineData("enabled", true)]
+        [InlineData("on", true)]
+        [InlineData("false", false)]
+        [InlineData("0", false)]
+        [InlineData("disabled", false)]
+        [InlineData("off", false)]
+        [InlineData("", false)]
+        [InlineData("nope", false)]
+        public void ParseBoolSetting_MapsGearsStyleValues(string value, bool expected)
+        {
+            Assert.Equal(expected, ModConfig.ParseBoolSetting(value, defaultValue: false));
+        }
+
+        [Fact]
+        public void ParseBoolSetting_FallsBackToDefault_WhenUnrecognized()
+        {
+            Assert.True(ModConfig.ParseBoolSetting("maybe", defaultValue: true));
+        }
+
+        [Fact]
+        public void ApplyWorldSettings_UpdatesSkills_LeavesDebugMode()
+        {
+            ModConfig.ClearServerSnapshot();
+            try
+            {
+                var config = ModConfig.Instance;
+                var previousDebug = config.DebugMode;
+                config.ApplyGlobalSettings(!previousDebug);
+
+                config.ApplyWorldSettings(new Dictionary<string, bool>
+                {
+                    ["Vehicles"] = false,
+                    ["Food"] = true,
+                });
+
+                Assert.False(config.IsRestrictionEnabledForSkill("Vehicles"));
+                Assert.True(config.IsRestrictionEnabledForSkill("Food"));
+                Assert.Equal(!previousDebug, config.DebugMode);
+            }
+            finally
+            {
+                ModConfig.ClearServerSnapshot();
+            }
+        }
+
+        [Fact]
+        public void ApplyGlobalSettings_UpdatesDebugMode_LeavesSkills()
+        {
+            ModConfig.ClearServerSnapshot();
+            try
+            {
+                var config = ModConfig.Instance;
+                config.ApplyWorldSettings(new Dictionary<string, bool> { ["Vehicles"] = false });
+                Assert.False(config.IsRestrictionEnabledForSkill("Vehicles"));
+
+                config.ApplyGlobalSettings(true);
+                Assert.True(config.DebugMode);
+                Assert.False(config.IsRestrictionEnabledForSkill("Vehicles"));
+
+                config.ApplyGlobalSettings(false);
+                Assert.False(config.DebugMode);
+                Assert.False(config.IsRestrictionEnabledForSkill("Vehicles"));
+            }
+            finally
+            {
+                ModConfig.ClearServerSnapshot();
+            }
+        }
+
+        [Fact]
+        public void ApplyWorldSettings_AfterServerSnapshot_MutatesLiveToggles()
+        {
+            ModConfig.ClearServerSnapshot();
+            try
+            {
+                var xml =
+                    "<LimitByCraftingSkillModConfig>" +
+                    "<CraftingSkills><Vehicles>true</Vehicles><Food>false</Food></CraftingSkills>" +
+                    "<DebugMode>false</DebugMode>" +
+                    "</LimitByCraftingSkillModConfig>";
+
+                Assert.True(ModConfig.TryApplyServerXml(xml, "test server", out var error), error);
+                Assert.True(ModConfig.Instance.IsServerProvided);
+                Assert.True(ModConfig.Instance.IsRestrictionEnabledForSkill("Vehicles"));
+
+                // Gears World prefer: mutate live instance even after server snapshot.
+                ModConfig.Instance.ApplyWorldSettings(new Dictionary<string, bool>
+                {
+                    ["Vehicles"] = false,
+                    ["Food"] = true,
+                });
+
+                Assert.True(ModConfig.Instance.IsServerProvided);
+                Assert.False(ModConfig.Instance.IsRestrictionEnabledForSkill("Vehicles"));
+                Assert.True(ModConfig.Instance.IsRestrictionEnabledForSkill("Food"));
+            }
+            finally
+            {
+                ModConfig.ClearServerSnapshot();
+            }
         }
     }
 }

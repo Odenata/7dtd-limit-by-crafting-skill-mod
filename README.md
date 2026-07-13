@@ -27,10 +27,20 @@ Install the mod into your 7 Days to Die game folder:
 
 That folder must contain these files:
 
-- `LimitByCraftingSkillMod.dll`
-- `ModInfo.xml`
-- `Config.xml`
-- `ClassNameToCraftingSkillMap.xml`
+```text
+Mods\LimitByCraftingSkillMod\
+  LimitByCraftingSkillMod.dll
+  GearsAPI.dll
+  ModInfo.xml
+  Config.xml
+  ModSettings.xml
+  ClassNameToCraftingSkillMap.xml
+  icon.png
+  Config\
+    Localization.csv
+```
+
+`Config.xml` and `ModSettings.xml` sit next to the DLL. `icon.png` is the Gears/menu mod icon. `Config\Localization.csv` is only for in-game Gears menu labels.
 
 Do **not** add `0Harmony.dll` to this folder. The game already provides Harmony via **`Mods\0_TFP_Harmony`** (shipped with 7 Days to Die). If that folder is missing, verify Steam game files. Delete any leftover `0Harmony.dll` inside `LimitByCraftingSkillMod` from older installs.
 
@@ -40,7 +50,18 @@ Restart 7 Days to Die after installing or replacing mod files.
 
 ## Configuration
 
-Edit `Config.xml` in the installed mod folder, then restart the game.
+### In-game (Gears)
+
+Optional: install [Gears](https://www.nexusmods.com/7daystodie/mods/4017) and [Quartz](https://www.nexusmods.com/7daystodie/mods/2409) (EAC off) for an in-game Mods settings UI.
+
+- **World / Crafting Skills** (synced for the save when Gears is on the server): each crafting-skill restriction toggle. Open via **New Game / Continue → Mods → Mods World Settings** (not under Esc Mods).
+- **Client** (your machine only): Debug mode.
+
+When Gears World settings are loaded they are preferred over the custom Config.xml net sync. Without Gears, multiplayer still uses the existing server `Config.xml` push.
+
+### Config.xml (always available)
+
+Edit `Config.xml` in the installed mod folder (or when not using Gears). Restart the game after hand-editing the file unless you changed settings through Gears (those apply live for hot knobs).
 
 Each entry under `<CraftingSkills>` turns one restriction category on or off:
 
@@ -56,7 +77,9 @@ Set `<DebugMode>true</DebugMode>` only while troubleshooting. It writes extra mo
 
 Install the same mod version on the dedicated server and every client. Because this is a Harmony / DLL mod, EAC must be disabled for the server.
 
-When a client joins a server running this mod, the server sends its `Config.xml` to that client and the client uses those crafting-skill toggles for restriction checks. The local client `Config.xml` still applies in single-player or on servers that do not send this sync package. Keep `ClassNameToCraftingSkillMap.xml` aligned manually across server and clients.
+**Without Gears:** when a client joins a server running this mod, the server sends its `Config.xml` to that client and the client uses those crafting-skill toggles for restriction checks. The local client `Config.xml` still applies in single-player or on servers that do not send this sync package.
+
+**With Gears+Quartz** on server and clients: prefer World settings for synced toggles (see Configuration). Keep `ClassNameToCraftingSkillMap.xml` aligned manually across server and clients either way.
 
 ## Updating
 
@@ -80,9 +103,9 @@ Then restart the game.
 
 ## Troubleshooting
 
-- If a restriction does not appear to apply, confirm the mod folder contains all five required files above.
-- If you changed `Config.xml`, restart the game before testing.
-- If a server is involved, confirm the client log reports that server config sync was applied. Also confirm server and clients have the same mod version and `ClassNameToCraftingSkillMap.xml`.
+- If a restriction does not appear to apply, confirm the mod folder contains the required files listed under Installation.
+- If you changed `Config.xml` by hand, restart the game before testing (Gears menu changes to hot knobs apply without restart).
+- If a server is involved, confirm the client log reports that server config sync was applied (no Gears) or that Gears World settings loaded. Also confirm server and clients have the same mod version and `ClassNameToCraftingSkillMap.xml`.
 - For maintainer-level troubleshooting, see `docs/DEBUG_INSTRUMENTATION.md`.
 
 ## For Developers

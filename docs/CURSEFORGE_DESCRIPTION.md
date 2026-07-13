@@ -13,7 +13,9 @@ Limit by Crafting Skill slows progression in **7 Days to Die** by restricting us
 
 ## Configuration
 
-The mod includes a `Config.xml` file. Each entry under `<CraftingSkills>` turns one restriction category on or off.
+Edit `Config.xml`, or optionally install [Gears](https://www.nexusmods.com/7daystodie/mods/4017) + [Quartz](https://www.nexusmods.com/7daystodie/mods/2409) for an in-game Mods settings menu (World skill toggles + client Debug). Without Gears, `Config.xml` works as before.
+
+Each entry under `<CraftingSkills>` turns one restriction category on or off.
 
 Example:
 
@@ -27,7 +29,7 @@ Users can also edit `ClassNameToCraftingSkillMap.xml` to adjust item-to-skill ma
 
 ## Multiplayer
 
-This mod can be run on servers! The server's config will be used, so individual players do not need to make adjustments.
+This mod can be run on servers! Without Gears, the server's `Config.xml` is pushed to clients. With Gears+Quartz on server and clients, prefer World settings for synced toggles.
 
 Install the same mod version on the dedicated server and every client.
 

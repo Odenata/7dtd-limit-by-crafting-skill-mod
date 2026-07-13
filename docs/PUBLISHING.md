@@ -56,13 +56,18 @@ Release zip names use **mod version only** (for example `dist\LimitByCraftingSki
 
    ```text
    LimitByCraftingSkillMod/
+     LimitByCraftingSkillMod.dll
+     GearsAPI.dll
      ClassNameToCraftingSkillMap.xml
      Config.xml
-     LimitByCraftingSkillMod.dll
+     ModSettings.xml
      ModInfo.xml
+     icon.png
+     Config/
+       Localization.csv
    ```
 
-   Do **not** include `0Harmony.dll`. Players use the game's official `Mods\0_TFP_Harmony`.
+   Do **not** include `0Harmony.dll` or compile-only `InControl.dll`. Players use the game's official `Mods\0_TFP_Harmony`. Optional in-game menu requires Gears + Quartz separately.
 
 10. Upload `dist\LimitByCraftingSkillMod-<version>.zip` to CurseForge (see console output for the exact path).
 11. Choose the appropriate CurseForge release type:

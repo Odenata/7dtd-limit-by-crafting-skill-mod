@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net472</TargetFramework>
+    <TargetFramework>net48</TargetFramework>
     <AssemblyName>LimitByCraftingSkillMod</AssemblyName>
     <RootNamespace>LimitByCraftingSkillMod</RootNamespace>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
@@ -25,6 +25,10 @@
       <HintPath>$(SevenDtdInstallDir)\Mods\0_TFP_Harmony\0Harmony.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="InControl">
+      <HintPath>$(SevenDtdInstallDir)\7DaysToDie_Data\Managed\InControl.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup Condition="'$(SevenDtdInstallDir)' == ''">
@@ -32,6 +36,10 @@
     <ProjectReference Include="$(SevenDtdDevToolsDir)\mocks\Assembly-CSharp-Mock.csproj" />
     <Reference Include="0Harmony">
       <HintPath>$(SevenDtdDevToolsDir)\third_party\harmony\lib\net472\0Harmony.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="InControl">
+      <HintPath>..\third_party\gearsapi\lib\net472\InControl.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
@@ -50,6 +58,7 @@
     <Compile Include="ItemActionEntryEquipPatch.cs" />
     <Compile Include="LimitByCraftingSkillLogic.cs" />
     <Compile Include="ModApi.cs" />
+    <Compile Include="GearsModApi.cs" />
     <Compile Include="ModContentRoot.cs" />
     <Compile Include="ModConfig.cs" />
     <Compile Include="ModConfigSnapshot.cs" />
@@ -72,9 +81,18 @@
     <Compile Include="GameManagerShowTooltipTintPatch.cs" />
     <Compile Include="PopupToolTipUpdateTintPatch.cs" />
     <None Include="ModInfo.xml" />
+    <None Include="ModSettings.xml" />
     <None Include="Config.xml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Config\Localization.csv" />
     <None Include="ClassNameToCraftingSkillMap.xml" CopyToOutputDirectory="PreserveNewest" />
     <EmbeddedResource Include="ClassNameToCraftingSkillMap.xml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="GearsAPI">
+      <HintPath>..\third_party\gearsapi\lib\net472\GearsAPI.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
   </ItemGroup>
 
 </Project>

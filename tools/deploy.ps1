@@ -16,7 +16,7 @@ if ([string]::IsNullOrWhiteSpace($GameInstallDir)) {
 }
 
 $GameInstallDir = $GameInstallDir.TrimEnd('\', '/')
-$modRepoRoot = Join-Path $PSScriptRoot ".."
+$modRepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $prepareScript = Join-Path $PSScriptRoot "prepare_mod.ps1"
 
 if (-not $SkipBuild) {
@@ -64,9 +64,40 @@ if (-not (Test-Path $modPath)) {
 
 $copied = $false
 Get-ChildItem -Path $preparedDir -File | Where-Object { $_.Name -ne "README.md" } | ForEach-Object {
+  # Preserve existing Config.xml / ModSettings.xml unless missing (user settings).
+  if ($_.Name -eq "Config.xml" -or $_.Name -eq "ModSettings.xml") {
+    $dst = Join-Path $modPath $_.Name
+    if (Test-Path $dst) {
+      Write-Host "Kept existing $($_.Name)" -ForegroundColor Cyan
+      $copied = $true
+      return
+    }
+  }
   Copy-Item -Path $_.FullName -Destination (Join-Path $modPath $_.Name) -Force -ErrorAction Stop
   Write-Host "Copied $($_.Name) -> $modPath" -ForegroundColor Green
   $copied = $true
+}
+
+# Copy Config\Localization.csv (and any other prepared subdirs except README).
+Get-ChildItem -Path $preparedDir -Directory | ForEach-Object {
+  Get-ChildItem -Path $_.FullName -File -Recurse | ForEach-Object {
+    $rel = $_.FullName.Substring($preparedDir.Length).TrimStart('\', '/')
+    $destFile = Join-Path $modPath $rel
+    $destDir = Split-Path $destFile -Parent
+    if (-not (Test-Path $destDir)) {
+      New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+    }
+    Copy-Item -Path $_.FullName -Destination $destFile -Force -ErrorAction Stop
+    Write-Host "Copied $rel -> $modPath" -ForegroundColor Green
+    $copied = $true
+  }
+}
+
+# Remove mistaken root-level Localization copies from older deploy path bugs.
+$staleLoc = Join-Path $modPath "ocalization.csv"
+if (Test-Path $staleLoc) {
+  Remove-Item -LiteralPath $staleLoc -Force
+  Write-Host "Removed leftover ocalization.csv" -ForegroundColor Yellow
 }
 
 if (-not $copied) {

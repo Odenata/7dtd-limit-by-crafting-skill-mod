@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModSettings>
+  <!-- World: synced server ↔ clients when Gears is installed. Crafting-skill restriction toggles. -->
+  <World>
+    <Category name="CraftingSkills" displayKey="lbcsWorldCraftingSkills" tooltipKey="lbcsWorldCraftingSkillsTip">
+      <Switch name="Armor" displayKey="lbcsArmor" tooltipKey="lbcsArmorTip" defaultValue="true" leftValue="false" rightValue="true" />
+      <Switch name="Bows" displayKey="lbcsBows" tooltipKey="lbcsBowsTip" defaultValue="true" leftValue="false" rightValue="true" />
+      <Switch name="Handguns" displayKey="lbcsHandguns" tooltipKey="lbcsHandgunsTip" defaultValue="true" leftValue="false" rightValue="true" />
+      <Switch name="Shotguns" displayKey="lbcsShotguns" tooltipKey="lbcsShotgunsTip" defaultValue="true" leftValue="false" rightValue="true" />
+      <Switch name="Rifles" displayKey="lbcsRifles" tooltipKey="lbcsRiflesTip" defaultValue="true" leftValue="false" rightValue="true" />
+      <Switch name="MachineGuns" displayKey="lbcsMachineGuns" tooltipKey="lbcsMachineGunsTip" defaultValue="true" leftValue="false" rightValue="true" />
+      <Switch name="Explosives" displayKey="lbcsExplosives" tooltipKey="lbcsExplosivesTip" defaultValue="true" leftValue="false" rightValue="true" />
+      <Switch name="Blades" displayKey="lbcsBlades" tooltipKey="lbcsBladesTip" defaultValue="true" leftValue="false" rightValue="true" />
+      <Switch name="Clubs" displayKey="lbcsClubs" tooltipKey="lbcsClubsTip" defaultValue="true" leftValue="false" rightValue="true" />
+      <Switch name="Spears" displayKey="lbcsSpears" tooltipKey="lbcsSpearsTip" defaultValue="true" leftValue="false" rightValue="true" />
+      <Switch name="Sledgehammers" displayKey="lbcsSledgehammers" tooltipKey="lbcsSledgehammersTip" defaultValue="true" leftValue="false" rightValue="true" />
+      <Switch name="Knuckles" displayKey="lbcsKnuckles" tooltipKey="lbcsKnucklesTip" defaultValue="true" leftValue="false" rightValue="true" />
+      <Switch name="HarvestingTools" displayKey="lbcsHarvestingTools" tooltipKey="lbcsHarvestingToolsTip" defaultValue="true" leftValue="false" rightValue="true" />
+      <Switch name="RepairTools" displayKey="lbcsRepairTools" tooltipKey="lbcsRepairToolsTip" defaultValue="true" leftValue="false" rightValue="true" />
+      <Switch name="SalvageTools" displayKey="lbcsSalvageTools" tooltipKey="lbcsSalvageToolsTip" defaultValue="true" leftValue="false" rightValue="true" />
+      <Switch name="Seeds" displayKey="lbcsSeeds" tooltipKey="lbcsSeedsTip" defaultValue="true" leftValue="false" rightValue="true" />
+      <Switch name="Traps" displayKey="lbcsTraps" tooltipKey="lbcsTrapsTip" defaultValue="true" leftValue="false" rightValue="true" />
+      <Switch name="Robotics" displayKey="lbcsRobotics" tooltipKey="lbcsRoboticsTip" defaultValue="true" leftValue="false" rightValue="true" />
+      <Switch name="Workstations" displayKey="lbcsWorkstations" tooltipKey="lbcsWorkstationsTip" defaultValue="true" leftValue="false" rightValue="true" />
+      <Switch name="Vehicles" displayKey="lbcsVehicles" tooltipKey="lbcsVehiclesTip" defaultValue="true" leftValue="false" rightValue="true" />
+      <Switch name="Electrician" displayKey="lbcsElectrician" tooltipKey="lbcsElectricianTip" defaultValue="true" leftValue="false" rightValue="true" />
+      <Switch name="Medical" displayKey="lbcsMedical" tooltipKey="lbcsMedicalTip" defaultValue="false" leftValue="false" rightValue="true" />
+      <Switch name="Food" displayKey="lbcsFood" tooltipKey="lbcsFoodTip" defaultValue="false" leftValue="false" rightValue="true" />
+    </Category>
+  </World>
+
+  <!-- Global: this client only (Esc / main menu Mods settings). -->
+  <Global>
+    <Tab name="Client" displayKey="lbcsTabClient" tooltipKey="lbcsTabClientTip">
+      <Category name="Debug" displayKey="lbcsCategoryDebug" tooltipKey="lbcsCategoryDebugTip">
+        <Switch name="DebugMode" displayKey="lbcsDebugMode" tooltipKey="lbcsDebugModeTip" defaultValue="false" leftValue="false" rightValue="true" />
+      </Category>
+    </Tab>
+  </Global>
+</ModSettings>

@@ -4,6 +4,20 @@ All notable **LimitByCraftingSkillMod** releases. Draft notes live in [`docs/rel
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.0] - 2026-07-13
+
+### Added
+
+- Optional Gears in-game settings (World-synced crafting-skill toggles; client DebugMode). Ships `GearsAPI.dll` + `ModSettings.xml` + `Config/Localization.csv` + `icon.png`; Config.xml and ServerConfigSync remain the no-Gears fallback.
+
+### Changed
+
+- ModInfo author shown as Odenata; mod icon wired for the Gears Mods list.
+
+### Notes
+
+- Compile target is `net48` so MSBuild can reference GearsAPI (built against .NET Framework 4.8).
+
 ## [1.1.1] - 2026-07-13
 
 ### Changed

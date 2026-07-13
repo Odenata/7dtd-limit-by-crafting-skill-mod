@@ -90,9 +90,12 @@ New-Item -ItemType Directory -Path $stageModDir -Force | Out-Null
 
 $requiredFiles = @(
   "LimitByCraftingSkillMod.dll",
+  "GearsAPI.dll",
   "ModInfo.xml",
   "Config.xml",
-  "ClassNameToCraftingSkillMap.xml"
+  "ModSettings.xml",
+  "ClassNameToCraftingSkillMap.xml",
+  "icon.png"
 )
 
 foreach ($file in $requiredFiles) {
@@ -101,7 +104,14 @@ foreach ($file in $requiredFiles) {
     Write-Host "ERROR: Missing prepared file: $src" -ForegroundColor Red
     exit 1
   }
-  Copy-Item -Path $src -Destination (Join-Path $stageModDir $file) -Force
+}
+
+# Ship the full prepared tree (DLL, GearsAPI, settings, map, icon, Config\Localization.csv, …).
+Copy-Item -Path (Join-Path $preparedDir "*") -Destination $stageModDir -Recurse -Force
+# Do not copy staging README into the zip if present.
+$stageReadme = Join-Path $stageModDir "README.md"
+if (Test-Path $stageReadme) {
+  Remove-Item -LiteralPath $stageReadme -Force
 }
 
 $zipPath = Join-Path $OutputDir "LimitByCraftingSkillMod-$modLabel.zip"
