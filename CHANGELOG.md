@@ -10,11 +10,6 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Faster inventory restriction red labels: less work per grid refresh and no continuous open-container rescans (smoother FPS with large loot UIs).
 
-### Fixed
-
-- Red restriction labels no longer disappear after moving items between open inventory/container slots.
-- Red labels re-apply when moving items from a container into the player backpack.
-
 ### Notes
 
 - Target game: 3.0.0 (b259) stable.
