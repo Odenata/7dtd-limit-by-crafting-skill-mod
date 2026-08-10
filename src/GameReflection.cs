@@ -1043,6 +1043,12 @@ namespace LimitByCraftingSkillMod
                 case "toolapiaryextractor":
                 case "toolapiarysmoker":
                     return "cntApiary";
+                case "chickencoop":
+                case "cntchickencoop":
+                case "toolchickencooplamp":
+                case "toolchickencooprun":
+                case "toolchickencoopnestingbox":
+                    return "cntChickenCoop";
                 default:
                     return t;
             }
@@ -1163,6 +1169,13 @@ namespace LimitByCraftingSkillMod
                     Add("toolApiarySmoker");
                     Add("apiary");
                     Add("cntApiary");
+                    break;
+                case "cntchickencoop":
+                    Add("toolChickenCoopLamp");
+                    Add("toolChickenCoopRun");
+                    Add("toolChickenCoopNestingBox");
+                    Add("chickenCoop");
+                    Add("cntChickenCoop");
                     break;
                 case "cntdewcollector":
                     Add("toolDewFilter");

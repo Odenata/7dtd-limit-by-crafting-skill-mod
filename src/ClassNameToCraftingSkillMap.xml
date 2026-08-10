@@ -368,6 +368,7 @@
   <Item className="cementMixer" craftingSkillGroup="Workstations" requiredLevelOverride="34"/>
   <Item className="chemistryStation" craftingSkillGroup="Workstations" requiredLevelOverride="50"/>
   <Item className="cntApiary" craftingSkillGroup="Workstations" requiredLevelOverride="30"/>
+  <Item className="cntChickenCoop" craftingSkillGroup="Workstations" requiredLevelOverride="6"/>
   <Item className="cntDewCollector" craftingSkillGroup="Workstations" requiredLevelOverride="16"/>
   <Item className="forge" craftingSkillGroup="Workstations" requiredLevelOverride="4"/>
   <Item className="resourceLockPick" craftingSkillGroup="Workstations"/>

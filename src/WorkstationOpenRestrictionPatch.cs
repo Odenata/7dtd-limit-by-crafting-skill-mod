@@ -5,7 +5,7 @@ namespace LimitByCraftingSkillMod
     /// <summary>
     /// Blocks opening collector-style workstation UIs when the player's Workstations level is below the block's required level.
     /// Broad BlockWorkstation prefixes are intentionally not registered; this logic is currently used by the narrow
-    /// BlockCollector path (Dew Collector / Apiary), where UI-only hooks can miss the primary activation flow.
+    /// BlockCollector path (Dew Collector / Apiary / Chicken Coop), where UI-only hooks can miss the primary activation flow.
     /// </summary>
     internal static class WorkstationOpenRestrictionPatch
     {

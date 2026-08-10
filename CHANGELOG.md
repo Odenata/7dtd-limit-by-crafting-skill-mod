@@ -4,6 +4,16 @@ All notable **LimitByCraftingSkillMod** releases. Draft notes live in [`docs/rel
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.3.0] - 2026-08-10
+
+### Added
+
+- Chicken Coop workstation gating for 7DTD 3.1 (Henpocalypse): requires Workstations level 6 to open (same collector path as Dew Collector / Apiary).
+
+### Notes
+
+- Target game: 3.1.x. Coop upgrade tools stay unmapped (install-only policy).
+
 ## [1.2.0] - 2026-07-13
 
 ### Added

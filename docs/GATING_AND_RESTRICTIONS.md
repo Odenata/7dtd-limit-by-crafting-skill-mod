@@ -115,16 +115,18 @@ Shift-click flows: vanilla tries **backpack** before **toolbelt**; the mod inten
 | **Chemistry station window by name** | `GUIWindowManager.Open` / `OpenIfNotOpen` postfixes | [`GUIWindowManagerOpenNameLogPatch`](../src/GUIWindowManagerOpenNameLogPatch.cs) (closes + popup if below level). |
 | **Drag tool into workstation tool slot** | `HandleStackSwap` on workstation tool grid | [`WorkstationToolHandleStackSwapPatch`](../src/WorkstationVehicleStackSwapPatches.cs). |
 
-#### 3.4.1 Dew Collector and Apiary (`BlockCollector`, `dewcollector` XUi)
+#### 3.4.1 Dew Collector, Apiary, and Chicken Coop (`BlockCollector`, `dewcollector` XUi)
 
-Vanilla **`cntDewCollector`** and **`cntApiary`** use **`Class=Collector`** and the same XUi **`window_group`** name **`dewcollector`** (`XUiC_DewCollectorWindowGroup`), **not** `WorkstationWindowGroup` / `CraftingWindowGroup`. UI-only hooks can miss the real open path or mis-resolve the block id when the window name is shared.
+Vanilla **`cntDewCollector`**, **`cntApiary`**, and **`cntChickenCoop`** use **`Class=Collector`** and the same XUi **`window_group`** name **`dewcollector`** (`XUiC_DewCollectorWindowGroup`), **not** `WorkstationWindowGroup` / `CraftingWindowGroup`. UI-only hooks can miss the real open path or mis-resolve the block id when the window name is shared.
 
 | Player action | What we hook | Implementation |
 |----------------|--------------|----------------|
-| **Activate / open** (primary gate) | **`BlockCollector.OnBlockActivated`** (instance methods on **`BlockCollector`** only: `WorldBase, …` and `String, WorldBase, …` overloads) | **`ModApi.ApplyCollectorOpenRestrictionPatchFromGameAssembly`** — Harmony **prefix** on the **game** assembly, delegating to [`WorkstationOpenRestrictionPatch.Prefix` / `PrefixWithCommand`](../src/WorkstationOpenRestrictionPatch.cs) so **`GetRequiredLevelForWorkstationBlock`** and **Workstations** config apply **before** the collector UI opens (e.g. Apiary **`requiredLevelOverride`** 30 vs Dew Collector 16). |
+| **Activate / open** (primary gate) | **`BlockCollector.OnBlockActivated`** (instance methods on **`BlockCollector`** only: `WorldBase, …` and `String, WorldBase, …` overloads) | **`ModApi.ApplyCollectorOpenRestrictionPatchFromGameAssembly`** — Harmony **prefix** on the **game** assembly, delegating to [`WorkstationOpenRestrictionPatch.Prefix` / `PrefixWithCommand`](../src/WorkstationOpenRestrictionPatch.cs) so **`GetRequiredLevelForWorkstationBlock`** and **Workstations** config apply **before** the collector UI opens (e.g. Chicken Coop **`requiredLevelOverride`** 6, Dew Collector 16, Apiary 30). |
 | **UI bind / reopen** (supplement) | **`XUiC_DewCollectorWindowGroup.SetTileEntity(TileEntityCollector)`**, **`OnOpen()`** postfixes | Same [`WorkstationRestrictionUi`](../src/WorkstationRestrictionUi.cs) helpers as other workstations—tile entity’s **`blockValue`** drives the correct map key (see [`GameReflection.GetBlockValueFromTileEntity`](../src/GameReflection.cs)). |
 
-**Why not prefix every `BlockWorkstation.OnBlockActivated`?** Broad prefix-on-activate on **all** workstation blocks correlated with **client UI lock** in testing, so those prefixes stay **off**; see [`ApplyWorkstationOpenPatchFromGameAssembly`](../src/ModApi.cs). **`BlockCollector`** is a **narrow** exception: same restriction logic, scoped only to Dew Collector / Apiary activation.
+**Why not prefix every `BlockWorkstation.OnBlockActivated`?** Broad prefix-on-activate on **all** workstation blocks correlated with **client UI lock** in testing, so those prefixes stay **off**; see [`ApplyWorkstationOpenPatchFromGameAssembly`](../src/ModApi.cs). **`BlockCollector`** is a **narrow** exception: same restriction logic, scoped only to Dew Collector / Apiary / Chicken Coop activation.
+
+**3.1 Chicken Coop smoke (manual):** Workstations &lt; 6 → activate `cntChickenCoop` blocked + popup; ≥ 6 → `dewcollector` UI opens; inventory coop item red when under level; coop upgrade tools remain insertable (unmapped).
 
 ### 3.5 Vehicles
 

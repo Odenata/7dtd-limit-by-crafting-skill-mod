@@ -191,7 +191,7 @@ namespace LimitByCraftingSkillMod
                 return !string.IsNullOrWhiteSpace(mapKey);
             }
 
-            // XUi uses the same window_group "dewcollector" for both Dew and Apiary; a bare "dewcollector" match would
+            // XUi uses the same window_group "dewcollector" for Dew / Apiary / Chicken Coop; a bare "dewcollector" match would
             // always map to cntDewCollector. Collector gating uses XUiC_DewCollectorWindowGroup.OnOpen + TileEntityCollector.te.
             var compact = name.Replace("_", "").Replace("-", "").Replace(" ", "").ToLowerInvariant();
             if (compact.Contains("cntdewcollector"))
@@ -204,6 +204,11 @@ namespace LimitByCraftingSkillMod
                 mapKey = "cntApiary";
                 return true;
             }
+            if (compact.Contains("cntchickencoop"))
+            {
+                mapKey = "cntChickenCoop";
+                return true;
+            }
             if (compact.Contains("tooldewfilter"))
             {
                 mapKey = "cntDewCollector";
@@ -212,6 +217,11 @@ namespace LimitByCraftingSkillMod
             if (compact.Contains("toolapiarybroodbox") || compact.Contains("toolapiaryextractor") || compact.Contains("toolapiarysmoker"))
             {
                 mapKey = "cntApiary";
+                return true;
+            }
+            if (compact.Contains("toolchickencooplamp") || compact.Contains("toolchickencooprun") || compact.Contains("toolchickencoopnestingbox"))
+            {
+                mapKey = "cntChickenCoop";
                 return true;
             }
 
@@ -231,6 +241,9 @@ namespace LimitByCraftingSkillMod
             if (string.Equals(mapKey, "apiary", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(mapKey, "cntApiary", StringComparison.OrdinalIgnoreCase))
                 return "Apiary";
+            if (string.Equals(mapKey, "chickenCoop", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(mapKey, "cntChickenCoop", StringComparison.OrdinalIgnoreCase))
+                return "Chicken Coop";
             return char.ToUpperInvariant(mapKey[0]) + (mapKey.Length > 1 ? mapKey.Substring(1) : "");
         }
     }

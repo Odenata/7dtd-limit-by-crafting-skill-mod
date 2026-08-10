@@ -12,7 +12,7 @@ namespace LimitByCraftingSkillMod
         // - Workstations: BlockWorkstation / BlockCollector OnBlockActivated Prefix only (popup, no UI open).
         //   Do NOT register SetTileEntity / OnOpen / GUIWindowManager close postfixes — they race vanilla TE↔UI sync,
         //   corrupt tile entities, and can destroy chunk saves on write (observed: "Wrong chunk header" on load).
-        // - Dew Collector / Apiary are the narrow BlockCollector exception because their shared Collector UI can bypass generic workstation hooks.
+        // - Dew Collector / Apiary / Chicken Coop are the narrow BlockCollector exception because their shared Collector UI can bypass generic workstation hooks.
         // - Reflection patching targets the live game assembly whenever possible so mock-reference types do not hide runtime signature drift.
         public void InitMod(Mod modInstance)
         {
@@ -413,7 +413,7 @@ namespace LimitByCraftingSkillMod
         }
 
         /// <summary>
-        /// Dew Collector and Apiary use <c>BlockCollector</c> and the <c>dewcollector</c> XUi window group, not <c>WorkstationWindowGroup</c>.
+        /// Dew Collector, Apiary, and Chicken Coop use <c>BlockCollector</c> and the <c>dewcollector</c> XUi window group, not <c>WorkstationWindowGroup</c>.
         /// UI-only postfixes can miss some open paths. Prefixing only <c>BlockCollector.OnBlockActivated</c> applies the same Workstations
         /// gate as <see cref="WorkstationOpenRestrictionPatch"/> without re-enabling broad <c>BlockWorkstation</c> prefixes (those correlated with UI lock).
         /// </summary>

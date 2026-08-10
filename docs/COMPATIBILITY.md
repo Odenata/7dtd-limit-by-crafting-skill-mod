@@ -9,5 +9,7 @@ Use this table to see which **7 Days to Die** builds work with which **mod** ver
 | 1.0.1       | 3.0.0 (b259) stable               | Verified against official stable (Steam); rebuild against b259. No bag-specific change. Install requires EAC off. Server and clients need the same mod version. |
 | 1.1.0       | 3.0.0 (b259) stable               | No longer ships `0Harmony.dll`. Requires the game's official `Mods\0_TFP_Harmony`. Install folder is DLL + ModInfo + Config + ClassName map only. |
 | 1.1.1       | 3.0.0 (b259) stable               | Inventory red-label FPS improvements; fixes labels clearing after container ↔ backpack moves. Same Harmony packaging as 1.1.0. |
+| 1.2.0       | 3.0.0 (b259) stable               | Optional Gears settings UI; ships `GearsAPI.dll` + ModSettings + Localization + icon. |
+| 1.3.0       | 3.1.x (Henpocalypse)              | Chicken Coop (`cntChickenCoop`) Workstations gating (level 6). Same collector path as Dew/Apiary. |
 
 When you publish a release, add or adjust a row if the supported game range changed.

@@ -86,6 +86,8 @@ namespace LimitByCraftingSkillMod.Tests
             Assert.Equal("cntDewCollector", GameReflection.TestHooks.CanonicalizeWorkstationClassNameMapKeyForTests("cntDewCollector"));
             Assert.Equal("cntApiary", GameReflection.TestHooks.CanonicalizeWorkstationClassNameMapKeyForTests("apiary"));
             Assert.Equal("cntApiary", GameReflection.TestHooks.CanonicalizeWorkstationClassNameMapKeyForTests("cntApiary"));
+            Assert.Equal("cntChickenCoop", GameReflection.TestHooks.CanonicalizeWorkstationClassNameMapKeyForTests("chickenCoop"));
+            Assert.Equal("cntChickenCoop", GameReflection.TestHooks.CanonicalizeWorkstationClassNameMapKeyForTests("cntChickenCoop"));
         }
 
         private sealed class FakeTileEntityCamelCaseBlockValue
@@ -125,6 +127,9 @@ namespace LimitByCraftingSkillMod.Tests
             Assert.Equal("cntApiary", GameReflection.TestHooks.CanonicalizeWorkstationClassNameMapKeyForTests("toolApiaryBroodBox"));
             Assert.Equal("cntApiary", GameReflection.TestHooks.CanonicalizeWorkstationClassNameMapKeyForTests("toolApiaryExtractor"));
             Assert.Equal("cntApiary", GameReflection.TestHooks.CanonicalizeWorkstationClassNameMapKeyForTests("toolApiarySmoker"));
+            Assert.Equal("cntChickenCoop", GameReflection.TestHooks.CanonicalizeWorkstationClassNameMapKeyForTests("toolChickenCoopLamp"));
+            Assert.Equal("cntChickenCoop", GameReflection.TestHooks.CanonicalizeWorkstationClassNameMapKeyForTests("toolChickenCoopRun"));
+            Assert.Equal("cntChickenCoop", GameReflection.TestHooks.CanonicalizeWorkstationClassNameMapKeyForTests("toolChickenCoopNestingBox"));
         }
 
         [Fact]
@@ -138,10 +143,18 @@ namespace LimitByCraftingSkillMod.Tests
             var apiaryAlias = GameReflection.GetWorkstationsGatedLevelForMapKey("apiary");
             Assert.Equal(apiaryCanonical, apiaryAlias);
 
+            var coopCanonical = GameReflection.GetWorkstationsGatedLevelForMapKey("cntChickenCoop");
+            var coopAlias = GameReflection.GetWorkstationsGatedLevelForMapKey("chickenCoop");
+            Assert.Equal(coopCanonical, coopAlias);
+            Assert.Equal(6, coopCanonical);
+
             Assert.Equal(dewCanonical, GameReflection.GetWorkstationsGatedLevelForMapKey("toolDewFilter"));
             Assert.Equal(apiaryCanonical, GameReflection.GetWorkstationsGatedLevelForMapKey("toolApiaryBroodBox"));
             Assert.Equal(apiaryCanonical, GameReflection.GetWorkstationsGatedLevelForMapKey("toolApiaryExtractor"));
             Assert.Equal(apiaryCanonical, GameReflection.GetWorkstationsGatedLevelForMapKey("toolApiarySmoker"));
+            Assert.Equal(coopCanonical, GameReflection.GetWorkstationsGatedLevelForMapKey("toolChickenCoopLamp"));
+            Assert.Equal(coopCanonical, GameReflection.GetWorkstationsGatedLevelForMapKey("toolChickenCoopRun"));
+            Assert.Equal(coopCanonical, GameReflection.GetWorkstationsGatedLevelForMapKey("toolChickenCoopNestingBox"));
         }
 
         [Fact]

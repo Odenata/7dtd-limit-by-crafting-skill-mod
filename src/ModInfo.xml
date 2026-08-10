@@ -4,7 +4,7 @@
   <DisplayName value="Limit by Crafting Skill Mod" />
   <Description value="Restricts equipping and using items to the player's crafting skill level for that item type." />
   <Author value="Odenata" />
-  <Version value="1.2.0" />
+  <Version value="1.3.0" />
   <Website value="" />
   <Icon value="icon.png" />
 </ModInfo>

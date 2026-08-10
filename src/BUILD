@@ -26,6 +26,7 @@ net_library(
         "ItemActionExecuteRestrictionPatch.cs",
         "ItemActionSpawnVehicleRestrictionPatch.cs",
         "LimitByCraftingSkillLogic.cs",
+        "GearsModApi.cs",
         "ModApi.cs",
         "ModContentRoot.cs",
         "ModConfig.cs",
@@ -55,6 +56,8 @@ net_library(
         "@seven_days_to_die_mod_dev_tools//mocks:Assembly-CSharp.dll",
         "@seven_days_to_die_mod_dev_tools//mocks:UnityEngine.CoreModule.dll",
         "@seven_days_to_die_mod_dev_tools//third_party/harmony:harmony_net472_import",
+        "//third_party/gearsapi:gearsapi_net472_import",
+        "//third_party/gearsapi:incontrol_net472_import",
     ],
     data = [
         "ModInfo.xml",
